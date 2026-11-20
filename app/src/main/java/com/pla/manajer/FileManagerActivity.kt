@@ -71,16 +71,13 @@ class FileManagerActivity : AppCompatActivity() {
         b.recycler.layoutManager = LinearLayoutManager(this)
         b.recycler.adapter = adapter
 
-        // --- TOMBOL DI HEADER ATAS ---
         b.btnTopBack.setOnClickListener { finish() }
         b.btnTopUp.setOnClickListener   { currentDir.parentFile?.let { load(it) } }
         b.btnTopNew.setOnClickListener  { showCreateDialog() }
         b.btnSort.setOnClickListener    { showSortDialog() }
+        b.fabPaste.setOnClickListener   { pasteHere() }
 
-        // Tombol Tempel di bawah (hanya berfungsi jika ada salinan)
-        b.fabPaste.setOnClickListener { pasteHere() }
-
-        // --- SETUP MODE PILIH SEMUA ---
+        // --- SETUP MODE PILIH ---
         b.btnCloseSelection.setOnClickListener { closeSelectionMode() }
         b.btnSelectAll.setOnClickListener { 
             adapter.selectedFiles.clear()
@@ -93,12 +90,43 @@ class FileManagerActivity : AppCompatActivity() {
             if (filesToDelete.isNotEmpty()) {
                 AlertDialog.Builder(this)
                     .setTitle("Hapus ${filesToDelete.size} item?")
-                    .setMessage("Item akan dipindahkan ke Sampah.")
                     .setPositiveButton("Hapus") { _, _ ->
                         deleteMultipleFiles(filesToDelete)
                         closeSelectionMode()
-                    }
-                    .setNegativeButton("Batal", null).show()
+                    }.setNegativeButton("Batal", null).show()
+            }
+        }
+        
+        b.btnCopySelected.setOnClickListener {
+            if (adapter.selectedFiles.size == 1) {
+                clipboard = adapter.selectedFiles.first()
+                isCut = false
+                b.fabPaste.show()
+                toast("Disalin: ${clipboard?.name}")
+                closeSelectionMode()
+            } else {
+                toast("Pilih hanya 1 file untuk menyalin")
+            }
+        }
+
+        b.btnMoveSelected.setOnClickListener {
+            if (adapter.selectedFiles.size == 1) {
+                clipboard = adapter.selectedFiles.first()
+                isCut = true
+                b.fabPaste.show()
+                toast("Siap pindah: ${clipboard?.name}")
+                closeSelectionMode()
+            } else {
+                toast("Pilih hanya 1 file untuk memindah")
+            }
+        }
+
+        b.btnRenameSelected.setOnClickListener {
+            if (adapter.selectedFiles.size == 1) {
+                renameDialog(adapter.selectedFiles.first())
+                closeSelectionMode()
+            } else {
+                toast("Pilih hanya 1 file untuk ganti nama")
             }
         }
 
@@ -107,11 +135,8 @@ class FileManagerActivity : AppCompatActivity() {
     }
 
     fun updateSelectionUi() {
-        if (adapter.selectedFiles.isEmpty()) {
-            closeSelectionMode()
-        } else {
-            b.tvSelectedCount.text = "${adapter.selectedFiles.size} terpilih"
-        }
+        if (adapter.selectedFiles.isEmpty()) closeSelectionMode()
+        else b.tvSelectedCount.text = "${adapter.selectedFiles.size} terpilih"
     }
 
     private fun enableSelectionMode(f: File) {
@@ -152,7 +177,6 @@ class FileManagerActivity : AppCompatActivity() {
         } else {
             val ext = f.extension.lowercase()
             val codeExts = listOf("kt", "java", "py", "js", "html", "css", "json", "md", "xml", "gradle", "kts", "txt", "properties", "yml", "yaml", "cpp", "c", "h")
-            
             if (codeExts.contains(ext)) {
                 startActivity(Intent(this, CodeEditorActivity::class.java).putExtra("path", f.absolutePath))
             } else {
@@ -164,9 +188,8 @@ class FileManagerActivity : AppCompatActivity() {
     private fun openWith(f: File) {
         try {
             val uri = FileProvider.getUriForFile(this, "$packageName.provider", f)
-            val mime = getMimeType(f)
             val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, mime)
+                setDataAndType(uri, getMimeType(f))
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
             startActivity(Intent.createChooser(intent, "Buka dengan"))
@@ -182,25 +205,14 @@ class FileManagerActivity : AppCompatActivity() {
 
     private fun showContextMenu(f: File) {
         val dialogBinding = DialogFileActionBinding.inflate(layoutInflater)
-        val dialog = AlertDialog.Builder(this)
-            .setTitle(f.name)
-            .setView(dialogBinding.root)
-            .setNegativeButton("Tutup", null)
-            .create()
+        val dialog = AlertDialog.Builder(this).setTitle(f.name).setView(dialogBinding.root).setNegativeButton("Tutup", null).create()
 
-        // Jika Salin ditekan, MUNCULKAN tombol Tempel
         dialogBinding.actionCopy.setOnClickListener { 
-            clipboard = f; isCut = false; toast("Disalin: ${f.name}"); 
-            b.fabPaste.show() // <--- MUNCULKAN FAB TEMPEL
-            dialog.dismiss() 
+            clipboard = f; isCut = false; toast("Disalin: ${f.name}"); b.fabPaste.show(); dialog.dismiss() 
         }
-        // Jika Pindah ditekan, MUNCULKAN tombol Tempel
         dialogBinding.actionMove.setOnClickListener { 
-            clipboard = f; isCut = true; toast("Siap pindah: ${f.name}"); 
-            b.fabPaste.show() // <--- MUNCULKAN FAB TEMPEL
-            dialog.dismiss() 
+            clipboard = f; isCut = true; toast("Siap pindah: ${f.name}"); b.fabPaste.show(); dialog.dismiss() 
         }
-        
         dialogBinding.actionRename.setOnClickListener { dialog.dismiss(); renameDialog(f) }
         dialogBinding.actionDelete.setOnClickListener { dialog.dismiss(); deleteMultipleFiles(listOf(f)) }
         dialogBinding.actionMore.setOnClickListener { dialog.dismiss(); showMoreMenu(f) }
@@ -209,11 +221,7 @@ class FileManagerActivity : AppCompatActivity() {
 
     private fun showMoreMenu(f: File) {
         val dialogBinding = DialogFileMoreBinding.inflate(layoutInflater)
-        val dialog = AlertDialog.Builder(this)
-            .setTitle(f.name)
-            .setView(dialogBinding.root)
-            .setNegativeButton("Batal", null)
-            .create()
+        val dialog = AlertDialog.Builder(this).setTitle(f.name).setView(dialogBinding.root).setNegativeButton("Batal", null).create()
 
         dialogBinding.moreShare.setOnClickListener { shareFile(f); dialog.dismiss() }
         dialogBinding.moreShortcut.setOnClickListener { toast("Shortcut dibuat"); dialog.dismiss() }
@@ -237,7 +245,7 @@ class FileManagerActivity : AppCompatActivity() {
     }
 
     private fun showSortDialog() {
-        val options = arrayOf("Tidak disortir", "Nama ▲", "Nama ▼", "Ukuran ▲", "Ukuran ▼", "Tanggal ▲", "Tanggal ▼", "Jenis ▲", "Jenis ▼")
+        val options = arrayOf("Tidak disortir", "Nama ▲", "Nama ▼", "Ukuran ▲", "Ukuran ▼", "Tanggal ▲ (Terlama)", "Tanggal ▼ (Terbaru)", "Jenis ▲", "Jenis ▼")
         AlertDialog.Builder(this)
             .setTitle("Sortir Berdasarkan")
             .setSingleChoiceItems(options, prefs.sortMode) { dialog, which ->
@@ -261,11 +269,13 @@ class FileManagerActivity : AppCompatActivity() {
             1 -> dirs.sortedBy { it.name.lowercase() }; 2 -> dirs.sortedByDescending { it.name.lowercase() }
             3 -> dirs.sortedBy { it.length() }; 4 -> dirs.sortedByDescending { it.length() }
             5 -> dirs.sortedBy { it.lastModified() }; 6 -> dirs.sortedByDescending { it.lastModified() }
+            7 -> dirs.sortedBy { it.extension.lowercase() }; 8 -> dirs.sortedByDescending { it.extension.lowercase() }
             else -> dirs.sortedBy { it.name.lowercase() }
         }
 
         val sortedFiles = when (mode) {
-            0 -> files; 1 -> files.sortedBy { it.name.lowercase() }; 2 -> files.sortedByDescending { it.name.lowercase() }
+            0 -> files
+            1 -> files.sortedBy { it.name.lowercase() }; 2 -> files.sortedByDescending { it.name.lowercase() }
             3 -> files.sortedBy { it.length() }; 4 -> files.sortedByDescending { it.length() }
             5 -> files.sortedBy { it.lastModified() }; 6 -> files.sortedByDescending { it.lastModified() }
             7 -> files.sortedBy { it.extension.lowercase() }; 8 -> files.sortedByDescending { it.extension.lowercase() }
@@ -311,9 +321,7 @@ class FileManagerActivity : AppCompatActivity() {
             val pad = (16 * resources.displayMetrics.density).toInt()
             setPadding(pad, pad, pad, pad)
         }
-        AlertDialog.Builder(this)
-            .setTitle("Buat Jalur / Berkas Baru")
-            .setView(input)
+        AlertDialog.Builder(this).setTitle("Buat Jalur / Berkas Baru").setView(input)
             .setPositiveButton("Buat") { _, _ ->
                 val path = input.text.toString().trim()
                 if (path.isEmpty()) return@setPositiveButton
@@ -322,20 +330,16 @@ class FileManagerActivity : AppCompatActivity() {
                     load(currentDir)
                     toast("Dibuat: $path")
                 }
-            }
-            .setNegativeButton("Batal", null).show()
+            }.setNegativeButton("Batal", null).show()
     }
 
     private fun renameDialog(f: File) {
         val input = EditText(this).apply { setText(f.name) }
-        AlertDialog.Builder(this)
-            .setTitle("Ganti Nama")
-            .setView(input)
+        AlertDialog.Builder(this).setTitle("Ganti Nama").setView(input)
             .setPositiveButton("OK") { _, _ ->
                 val newFile = File(f.parentFile, input.text.toString())
                 if (f.renameTo(newFile)) load(currentDir) else toast("Gagal rename")
-            }
-            .setNegativeButton("Batal", null).show()
+            }.setNegativeButton("Batal", null).show()
     }
 
     private fun zipFile(f: File) {
@@ -355,7 +359,7 @@ class FileManagerActivity : AppCompatActivity() {
                 if (isCut) FileUtils.move(src, dst) else FileUtils.copy(src, dst)
             }
             clipboard = null
-            b.fabPaste.hide() // <--- SEMBUNYIKAN FAB TEMPEL SETELAH SELESAI
+            b.fabPaste.hide() 
             load(currentDir)
             toast("Ditempel")
         }
