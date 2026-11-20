@@ -65,9 +65,9 @@ class FileManagerActivity : AppCompatActivity() {
         currentDir = File(initialPath)
 
         adapter = FileAdapter(
-            onOpen     = { f -> if (!adapter.isSelectionMode) open(f) },
-            onLong     = { f -> enableSelectionMode(f) },
-            onFavorite = { f -> toggleFavorite(f) }
+            onOpen = { f -> if (!adapter.isSelectionMode) open(f) },
+            onLong = { f -> enableSelectionMode(f) },
+            onSelectToggle = { f -> toggleSelection(f) }
         )
         b.recycler.layoutManager = LinearLayoutManager(this)
         b.recycler.adapter = adapter
@@ -85,6 +85,7 @@ class FileManagerActivity : AppCompatActivity() {
             adapter.notifyDataSetChanged()
             updateSelectionUi()
         }
+        
         b.btnDeleteSelected.setOnClickListener {
             val filesToDelete = adapter.selectedFiles.toList()
             if (filesToDelete.isNotEmpty()) {
@@ -134,14 +135,30 @@ class FileManagerActivity : AppCompatActivity() {
         ensurePermission()
     }
 
+    // Fungsi untuk Tandai / Batal Tandai
+    private fun toggleSelection(f: File) {
+        if (adapter.selectedFiles.contains(f)) {
+            adapter.selectedFiles.remove(f)
+        } else {
+            adapter.selectedFiles.add(f)
+        }
+
+        if (adapter.selectedFiles.isEmpty()) {
+            closeSelectionMode()
+        } else {
+            enableSelectionMode(null)
+        }
+        adapter.notifyDataSetChanged()
+    }
+
     fun updateSelectionUi() {
         if (adapter.selectedFiles.isEmpty()) closeSelectionMode()
         else b.tvSelectedCount.text = "${adapter.selectedFiles.size} terpilih"
     }
 
-    private fun enableSelectionMode(f: File) {
+    private fun enableSelectionMode(f: File?) {
         adapter.isSelectionMode = true
-        adapter.selectedFiles.add(f)
+        if (f != null) adapter.selectedFiles.add(f)
         adapter.notifyDataSetChanged()
         b.selectionToolbar.visibility = View.VISIBLE
         updateSelectionUi()
@@ -185,11 +202,9 @@ class FileManagerActivity : AppCompatActivity() {
         }
     }
 
-    // --- FUNGSI INI YANG MEMBUAT SEMUA APLIKASI PEMUTAR MUNCUL ---
     private fun openWith(f: File) {
         try {
             val uri = FileProvider.getUriForFile(this, "$packageName.provider", f)
-            
             var mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(f.extension.lowercase())
             if (mime == null) {
                 mime = when (f.extension.lowercase()) {
@@ -200,12 +215,11 @@ class FileManagerActivity : AppCompatActivity() {
                     else -> "*/*"
                 }
             }
-
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, mime)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                clipData = ClipData.newRawUri("", uri) // KUNCI AGAR APLIKASI LAIN MUNCUL
+                clipData = ClipData.newRawUri("", uri)
             }
             startActivity(Intent.createChooser(intent, "Buka dengan"))
         } catch (e: Exception) {
@@ -374,14 +388,6 @@ class FileManagerActivity : AppCompatActivity() {
             b.fabPaste.hide() 
             load(currentDir)
             toast("Ditempel")
-        }
-    }
-
-    private fun toggleFavorite(f: File) {
-        lifecycleScope.launch {
-            val dao = (application as PlaApp).database.favoriteDao()
-            if (dao.exists(f.absolutePath)) { dao.remove(f.absolutePath); toast("Dihapus dari favorit") }
-            else { dao.add(Favorite(f.absolutePath, f.name, f.isDirectory)); toast("Ditambahkan ke favorit") }
         }
     }
 
