@@ -31,6 +31,8 @@ class MediaManagerActivity : AppCompatActivity() {
     private lateinit var fileAdapter: MediaAdapter
     
     private var currentFolderId: String? = null
+    private var currentFiles: List<MediaItem> = emptyList()
+    private var sortMode: Int = 0 // 0: Nama, 1: Tanggal, 2: Ukuran
 
     override fun onCreate(s: Bundle?) {
         super.onCreate(s)
@@ -49,8 +51,13 @@ class MediaManagerActivity : AppCompatActivity() {
             }
         }
 
+        // FUNGSI TOMBOL SORTIR
         b.btnSort.setOnClickListener {
-            Toast.makeText(this, "Sortir Media aktif", Toast.LENGTH_SHORT).show()
+            if (currentFolderId != null) {
+                showSortDialog()
+            } else {
+                Toast.makeText(this, "Masuk ke folder untuk menyortir", Toast.LENGTH_SHORT).show()
+            }
         }
 
         folderAdapter = MediaFolderAdapter { folder ->
@@ -142,7 +149,7 @@ class MediaManagerActivity : AppCompatActivity() {
         b.tvTitle.text = "Memuat file..."
 
         lifecycleScope.launch {
-            val list = withContext(Dispatchers.IO) {
+            currentFiles = withContext(Dispatchers.IO) {
                 val result = mutableListOf<MediaItem>()
                 val contentUri = getContentUri()
                 val selection = "${MediaStore.MediaColumns.BUCKET_ID} = ?"
@@ -180,11 +187,39 @@ class MediaManagerActivity : AppCompatActivity() {
                 }
                 result
             }
-            if (list.isNotEmpty()) b.tvTitle.text = File(list[0].path).parentFile?.name ?: "File"
-            fileAdapter.submit(list)
+            if (currentFiles.isNotEmpty()) b.tvTitle.text = File(currentFiles[0].path).parentFile?.name ?: "File"
+            applySort()
         }
     }
 
+    // --- FUNGSI SORTIR YANG SUDAH DIPERBAIKI ---
+    private fun showSortDialog() {
+        val options = arrayOf("Nama (A-Z)", "Nama (Z-A)", "Tanggal (Terbaru)", "Tanggal (Terlama)", "Ukuran (Terbesar)", "Ukuran (Terkecil)")
+        AlertDialog.Builder(this)
+            .setTitle("Sortir Berdasarkan")
+            .setSingleChoiceItems(options, sortMode) { dialog, which ->
+                sortMode = which
+                applySort()
+                dialog.dismiss()
+            }
+            .setNegativeButton("Batal", null)
+            .show()
+    }
+
+    private fun applySort() {
+        val sorted = when (sortMode) {
+            0 -> currentFiles.sortedBy { it.name.lowercase() }
+            1 -> currentFiles.sortedByDescending { it.name.lowercase() }
+            2 -> currentFiles.sortedByDescending { it.dateModified }
+            3 -> currentFiles.sortedBy { it.dateModified }
+            4 -> currentFiles.sortedByDescending { it.size }
+            5 -> currentFiles.sortedBy { it.size }
+            else -> currentFiles
+        }
+        fileAdapter.submit(sorted)
+    }
+
+    // --- FUNGSI CHECKBOX (LANGSUNG MERESPON) ---
     private fun enableSelectionMode(item: MediaItem) {
         fileAdapter.isSelectionMode = true
         fileAdapter.selectedFiles.add(item)
@@ -198,7 +233,14 @@ class MediaManagerActivity : AppCompatActivity() {
         } else {
             fileAdapter.selectedFiles.add(item)
         }
-        if (fileAdapter.selectedFiles.isEmpty()) closeSelectionMode() else fileAdapter.notifyDataSetChanged()
+        
+        fileAdapter.isSelectionMode = fileAdapter.selectedFiles.isNotEmpty()
+        
+        if (fileAdapter.selectedFiles.isEmpty()) {
+            closeSelectionMode()
+        } else {
+            fileAdapter.notifyDataSetChanged()
+        }
     }
 
     private fun closeSelectionMode() {
@@ -247,12 +289,9 @@ class MediaManagerActivity : AppCompatActivity() {
             }.setNegativeButton("Batal", null).show()
     }
 
-    // --- KUNCI PERBAIKAN: MENGGUNAKAN URI ASLI MEDIASTORE ---
     private fun openMediaFile(mediaItem: MediaItem) {
         try {
-            val uri = Uri.parse(mediaItem.uriString) // Pakai URI dari database Android
-            
-            // Cari MIME tipe yang tepat
+            val uri = Uri.parse(mediaItem.uriString) 
             var mime = mediaItem.mimeType
             if (mime == "*/*" || mime.isEmpty()) {
                 mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(File(mediaItem.path).extension.lowercase()) ?: "*/*"
@@ -264,8 +303,6 @@ class MediaManagerActivity : AppCompatActivity() {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 clipData = ClipData.newRawUri("", uri)
             }
-            
-            // Ini akan memunculkan pilihan aplikasi (Spotify, MX Player, Galeri, dll)
             startActivity(Intent.createChooser(intent, "Buka dengan"))
         } catch (e: Exception) {
             Toast.makeText(this, "Gagal membuka file: ${e.message}", Toast.LENGTH_SHORT).show()
