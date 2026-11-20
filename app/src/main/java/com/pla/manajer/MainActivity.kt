@@ -29,10 +29,12 @@ class MainActivity : AppCompatActivity() {
         b.cardDocuments.setOnClickListener { openCategory(Environment.DIRECTORY_DOCUMENTS) }
         b.cardDownloads.setOnClickListener { openCategory(Environment.DIRECTORY_DOWNLOADS) }
         
-        // Aplikasi: membuka folder data aplikasi
-        b.cardApps.setOnClickListener { openCategory("Android/data") }
+        // Aplikasi: Membuka AppManagerActivity (Fitur Tab Semua & Diunduh)
+        b.cardApps.setOnClickListener { 
+            startActivity(Intent(this, AppManagerActivity::class.java)) 
+        }
         
-        // Cloud (Placeholder - karena butuh API Google Drive/Dropbox)
+        // Cloud
         b.cardCloud.setOnClickListener { 
             Toast.makeText(this, "Integrasi Cloud (Google Drive/Dropbox) segera hadir!", Toast.LENGTH_LONG).show() 
         }
@@ -52,7 +54,6 @@ class MainActivity : AppCompatActivity() {
     private fun openSdCard() {
         val dirs = getExternalFilesDirs(null)
         if (dirs.size > 1 && dirs[1] != null) {
-            // Mengambil path root dari SD Card (menghapus bagian /Android/data/...)
             var sdPath = dirs[1]!!.absolutePath
             val idx = sdPath.indexOf("/Android")
             if (idx != -1) sdPath = sdPath.substring(0, idx)
