@@ -11,7 +11,6 @@ import android.webkit.MimeTypeMap
 import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.pla.manajer.adapter.MediaAdapter
@@ -51,7 +50,7 @@ class MediaManagerActivity : AppCompatActivity() {
         }
 
         b.btnSort.setOnClickListener {
-            Toast.makeText(this, "Fitur Sortir Media", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Sortir Media aktif", Toast.LENGTH_SHORT).show()
         }
 
         folderAdapter = MediaFolderAdapter { folder ->
@@ -65,10 +64,16 @@ class MediaManagerActivity : AppCompatActivity() {
             onSelectToggle = { item -> toggleSelection(item) }
         )
 
-        // Setup Tombol Menu Bawah
+        // Setup Menu Bawah
         b.btnDeleteSelected.setOnClickListener { deleteSelectedFiles() }
-        b.btnCopySelected.setOnClickListener { Toast.makeText(this, "Disalin", Toast.LENGTH_SHORT).show(); closeSelectionMode() }
-        b.btnMoveSelected.setOnClickListener { Toast.makeText(this, "Dipindah", Toast.LENGTH_SHORT).show(); closeSelectionMode() }
+        b.btnCopySelected.setOnClickListener { 
+            Toast.makeText(this, "Fitur Salin Media", Toast.LENGTH_SHORT).show()
+            closeSelectionMode() 
+        }
+        b.btnMoveSelected.setOnClickListener { 
+            Toast.makeText(this, "Fitur Pindah Media", Toast.LENGTH_SHORT).show()
+            closeSelectionMode() 
+        }
         b.btnRenameSelected.setOnClickListener { 
             val item = fileAdapter.selectedFiles.firstOrNull()
             if (item != null) renameMediaFile(item)
@@ -88,7 +93,6 @@ class MediaManagerActivity : AppCompatActivity() {
         }
     }
 
-    // --- 1. MEMINDAI SELURUH MEMORI UNTUK MENDAPATKAN FOLDER ---
     private fun loadFolders() {
         b.recyclerMedia.adapter = folderAdapter
         b.selectionToolbar.visibility = View.GONE
@@ -101,13 +105,10 @@ class MediaManagerActivity : AppCompatActivity() {
                 val result = mutableMapOf<String, MediaFolder>()
                 val contentUri = getContentUri()
                 
-                // Query mencari semua file media di seluruh HP & SD Card
                 val projection = arrayOf(
                     MediaStore.MediaColumns.BUCKET_ID,
                     MediaStore.MediaColumns.BUCKET_DISPLAY_NAME,
-                    MediaStore.MediaColumns._ID,
-                    MediaStore.MediaColumns.DATA,
-                    MediaStore.MediaColumns.DATE_MODIFIED
+                    MediaStore.MediaColumns._ID
                 )
 
                 val cursor = contentResolver.query(contentUri, projection, null, null, null)
@@ -136,7 +137,6 @@ class MediaManagerActivity : AppCompatActivity() {
         }
     }
 
-    // --- 2. MEMUAT FILE DARI FOLDER YANG DIPILIH ---
     private fun loadFiles(bucketId: String) {
         b.recyclerMedia.adapter = fileAdapter
         b.tvTitle.text = "Memuat file..."
@@ -185,7 +185,6 @@ class MediaManagerActivity : AppCompatActivity() {
         }
     }
 
-    // --- 3. MENU AKSI (SALIN, PINDAH, RENAME, HAPUS) ---
     private fun enableSelectionMode(item: MediaItem) {
         fileAdapter.isSelectionMode = true
         fileAdapter.selectedFiles.add(item)
@@ -248,11 +247,16 @@ class MediaManagerActivity : AppCompatActivity() {
             }.setNegativeButton("Batal", null).show()
     }
 
+    // --- KUNCI PERBAIKAN: MENGGUNAKAN URI ASLI MEDIASTORE ---
     private fun openMediaFile(mediaItem: MediaItem) {
         try {
-            val file = File(mediaItem.path)
-            val uri = FileProvider.getUriForFile(this, "$packageName.provider", file)
-            var mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(file.extension.lowercase()) ?: mediaItem.mimeType
+            val uri = Uri.parse(mediaItem.uriString) // Pakai URI dari database Android
+            
+            // Cari MIME tipe yang tepat
+            var mime = mediaItem.mimeType
+            if (mime == "*/*" || mime.isEmpty()) {
+                mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(File(mediaItem.path).extension.lowercase()) ?: "*/*"
+            }
             
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, mime)
@@ -260,9 +264,11 @@ class MediaManagerActivity : AppCompatActivity() {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 clipData = ClipData.newRawUri("", uri)
             }
+            
+            // Ini akan memunculkan pilihan aplikasi (Spotify, MX Player, Galeri, dll)
             startActivity(Intent.createChooser(intent, "Buka dengan"))
         } catch (e: Exception) {
-            Toast.makeText(this, "Gagal membuka file", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Gagal membuka file: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
