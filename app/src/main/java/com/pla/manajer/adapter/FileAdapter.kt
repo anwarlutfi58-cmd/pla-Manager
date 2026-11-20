@@ -11,7 +11,7 @@ import java.io.File
 class FileAdapter(
     private val onOpen: (File) -> Unit,
     private val onLong: (File) -> Unit,
-    private val onFavorite: (File) -> Unit
+    private val onSelectToggle: (File) -> Unit
 ) : RecyclerView.Adapter<FileAdapter.VH>() {
     private var items: List<File> = emptyList()
     
@@ -34,46 +34,28 @@ class FileAdapter(
         h.b.tvMeta.text = if (f.isDirectory) "Folder" else FileUtils.humanSize(f.length())
         h.b.ivIcon.setImageResource(if (f.isDirectory) R.drawable.ic_folder else R.drawable.ic_file)
         
-        // Logika Tampilan Mode Pilih
-        h.b.cbSelect.visibility = if (isSelectionMode) android.view.View.VISIBLE else android.view.View.GONE
+        // Atur status Checkbox
         h.b.cbSelect.isChecked = selectedFiles.contains(f)
-        h.b.btnFav.visibility = if (isSelectionMode) android.view.View.GONE else android.view.View.VISIBLE
 
+        // Klik Checkbox = Tandai / Batal Tandai
+        h.b.cbSelect.setOnClickListener {
+            onSelectToggle(f)
+        }
+
+        // Klik List (Baris) = Buka file ATAU Tandai (jika sedang mode pilih)
         h.b.root.setOnClickListener { 
             if (isSelectionMode) {
-                toggleSelection(f, h)
+                onSelectToggle(f)
             } else {
                 onOpen(f) 
             }
         }
         
+        // Tahan Lama = Masuk ke mode pilih
         h.b.root.setOnLongClickListener { 
-            if (!isSelectionMode) {
-                onLong(f)
-            } else {
-                toggleSelection(f, h)
-            }
+            onLong(f)
             true 
         }
-        
-        h.b.btnFav.setOnClickListener { onFavorite(f) }
-    }
-
-    private fun toggleSelection(f: File, h: VH) {
-        if (selectedFiles.contains(f)) {
-            selectedFiles.remove(f)
-            h.b.cbSelect.isChecked = false
-        } else {
-            selectedFiles.add(f)
-            h.b.cbSelect.isChecked = true
-        }
-        
-        if (selectedFiles.isEmpty()) {
-            isSelectionMode = false
-        }
-        
-        notifyDataSetChanged()
-        (h.b.root.context as? com.pla.manajer.FileManagerActivity)?.updateSelectionUi()
     }
 
     override fun getItemCount() = items.size
