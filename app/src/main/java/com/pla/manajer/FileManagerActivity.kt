@@ -197,12 +197,10 @@ class FileManagerActivity : AppCompatActivity() {
         }
     }
 
-    // --- FUNGSI BUKA DENGAN (DIPERBAIKI TOTAL) ---
     private fun openWith(f: File) {
         try {
             val uri = FileProvider.getUriForFile(this, "$packageName.provider", f)
             
-            // Deteksi tipe file secara pintar
             var mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(f.extension.lowercase())
             if (mime == null || mime == "*/*") {
                 mime = when (f.extension.lowercase()) {
@@ -220,10 +218,8 @@ class FileManagerActivity : AppCompatActivity() {
                 clipData = ClipData.newRawUri("", uri)
             }
             
-            // Memaksa munculkan pilihan aplikasi
             startActivity(Intent.createChooser(intent, "Buka dengan"))
         } catch (e: Exception) {
-            // Jika FileProvider gagal (biasanya karena izin), fallback ke path langsung
             try {
                 val intent = Intent(Intent.ACTION_VIEW).apply {
                     setDataAndType(Uri.fromFile(f), "*/*")
@@ -248,20 +244,21 @@ class FileManagerActivity : AppCompatActivity() {
             .show()
     }
 
+    // --- FUNGSI INI SUDAH DIPERBAIKI DARI ERROR INFERENSI TIPE ---
     private fun refreshList() {
         val query = b.etSearch.text?.toString()?.lowercase() ?: ""
-        var filtered = if (query.isEmpty()) allFiles else allFiles.filter { it.name.lowercase().contains(query) }
+        val filtered: List<File> = if (query.isEmpty()) allFiles else allFiles.filter { it.name.lowercase().contains(query) }
 
         val mode = prefs.sortMode
         
-        val sortedList = when (mode) {
-            0 -> filtered.sortedWith(compareBy({ !it.isDirectory }, { it.name.lowercase() }))
-            1 -> filtered.sortedWith(compareBy({ !it.isDirectory }, { it.name.lowercase() }).reversed())
+        val sortedList: List<File> = when (mode) {
+            0 -> filtered.sortedWith(compareBy<File>({ !it.isDirectory }, { it.name.lowercase() }))
+            1 -> filtered.sortedWith(compareBy<File>({ !it.isDirectory }, { it.name.lowercase() }).reversed())
             2 -> filtered.sortedBy { it.lastModified() }
             3 -> filtered.sortedByDescending { it.lastModified() }
             4 -> filtered.sortedBy { it.length() }
             5 -> filtered.sortedByDescending { it.length() }
-            else -> filtered.sortedWith(compareBy({ !it.isDirectory }, { it.name.lowercase() }))
+            else -> filtered.sortedWith(compareBy<File>({ !it.isDirectory }, { it.name.lowercase() }))
         }
         
         adapter.submit(sortedList)
