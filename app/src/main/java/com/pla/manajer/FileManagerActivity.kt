@@ -71,11 +71,14 @@ class FileManagerActivity : AppCompatActivity() {
         b.recycler.layoutManager = LinearLayoutManager(this)
         b.recycler.adapter = adapter
 
-        b.fabBack.setOnClickListener  { finish() }
-        b.fabUp.setOnClickListener    { currentDir.parentFile?.let { load(it) } }
-        b.fabNew.setOnClickListener   { showCreateDialog() }
+        // --- TOMBOL DI HEADER ATAS ---
+        b.btnTopBack.setOnClickListener { finish() }
+        b.btnTopUp.setOnClickListener   { currentDir.parentFile?.let { load(it) } }
+        b.btnTopNew.setOnClickListener  { showCreateDialog() }
+        b.btnSort.setOnClickListener    { showSortDialog() }
+
+        // Tombol Tempel di bawah (hanya berfungsi jika ada salinan)
         b.fabPaste.setOnClickListener { pasteHere() }
-        b.btnSort.setOnClickListener  { showSortDialog() }
 
         // --- SETUP MODE PILIH SEMUA ---
         b.btnCloseSelection.setOnClickListener { closeSelectionMode() }
@@ -142,20 +145,17 @@ class FileManagerActivity : AppCompatActivity() {
         }
     }
 
-    // --- LOGIKA MEMBUKA FILE (FIX GAMBAR/VIDEO/AUDIO) ---
     private fun open(f: File) {
         if (f.isDirectory) {
             closeSelectionMode()
             load(f)
         } else {
             val ext = f.extension.lowercase()
-            // Daftar ekstensi yang dibuka di Code Editor
             val codeExts = listOf("kt", "java", "py", "js", "html", "css", "json", "md", "xml", "gradle", "kts", "txt", "properties", "yml", "yaml", "cpp", "c", "h")
             
             if (codeExts.contains(ext)) {
                 startActivity(Intent(this, CodeEditorActivity::class.java).putExtra("path", f.absolutePath))
             } else {
-                // Buka pakai aplikasi bawaan HP (Galeri, MX Player, Musixmatch, dll)
                 openWith(f)
             }
         }
@@ -180,7 +180,6 @@ class FileManagerActivity : AppCompatActivity() {
         return MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension) ?: "*/*"
     }
 
-    // --- MENU TAHAN LAMA (SATU FILE) ---
     private fun showContextMenu(f: File) {
         val dialogBinding = DialogFileActionBinding.inflate(layoutInflater)
         val dialog = AlertDialog.Builder(this)
@@ -189,8 +188,19 @@ class FileManagerActivity : AppCompatActivity() {
             .setNegativeButton("Tutup", null)
             .create()
 
-        dialogBinding.actionCopy.setOnClickListener { clipboard = f; isCut = false; toast("Disalin"); dialog.dismiss() }
-        dialogBinding.actionMove.setOnClickListener { clipboard = f; isCut = true; toast("Siap pindah"); dialog.dismiss() }
+        // Jika Salin ditekan, MUNCULKAN tombol Tempel
+        dialogBinding.actionCopy.setOnClickListener { 
+            clipboard = f; isCut = false; toast("Disalin: ${f.name}"); 
+            b.fabPaste.show() // <--- MUNCULKAN FAB TEMPEL
+            dialog.dismiss() 
+        }
+        // Jika Pindah ditekan, MUNCULKAN tombol Tempel
+        dialogBinding.actionMove.setOnClickListener { 
+            clipboard = f; isCut = true; toast("Siap pindah: ${f.name}"); 
+            b.fabPaste.show() // <--- MUNCULKAN FAB TEMPEL
+            dialog.dismiss() 
+        }
+        
         dialogBinding.actionRename.setOnClickListener { dialog.dismiss(); renameDialog(f) }
         dialogBinding.actionDelete.setOnClickListener { dialog.dismiss(); deleteMultipleFiles(listOf(f)) }
         dialogBinding.actionMore.setOnClickListener { dialog.dismiss(); showMoreMenu(f) }
@@ -226,7 +236,6 @@ class FileManagerActivity : AppCompatActivity() {
         }
     }
 
-    // --- FUNGSI SORTIR ---
     private fun showSortDialog() {
         val options = arrayOf("Tidak disortir", "Nama ▲", "Nama ▼", "Ukuran ▲", "Ukuran ▼", "Tanggal ▲", "Tanggal ▼", "Jenis ▲", "Jenis ▼")
         AlertDialog.Builder(this)
@@ -346,6 +355,7 @@ class FileManagerActivity : AppCompatActivity() {
                 if (isCut) FileUtils.move(src, dst) else FileUtils.copy(src, dst)
             }
             clipboard = null
+            b.fabPaste.hide() // <--- SEMBUNYIKAN FAB TEMPEL SETELAH SELESAI
             load(currentDir)
             toast("Ditempel")
         }
