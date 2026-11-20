@@ -11,82 +11,7 @@
         android:layout_height="match_parent"
         android:orientation="vertical">
 
-        <!-- MENU PILIH (MULTI-SELECT) -->
-        <LinearLayout
-            android:id="@+id/selectionToolbar"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="#2196F3"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:padding="4dp"
-            android:visibility="gone">
-            
-            <ImageButton
-                android:id="@+id/btnCloseSelection"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:src="@drawable/ic_back"
-                app:tint="#FFFFFF" />
-                
-            <TextView
-                android:id="@+id/tvSelectedCount"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:layout_weight="1"
-                android:text="0 terpilih"
-                android:textColor="#FFFFFF"
-                android:textSize="16sp" />
-
-            <!-- TOMBOL SALIN -->
-            <ImageButton
-                android:id="@+id/btnCopySelected"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:src="@drawable/ic_copy"
-                app:tint="#FFFFFF" />
-
-            <!-- TOMBOL PINDAH -->
-            <ImageButton
-                android:id="@+id/btnMoveSelected"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:src="@drawable/ic_move"
-                app:tint="#FFFFFF" />
-                
-            <!-- TOMBOL GANTI NAMA -->
-            <ImageButton
-                android:id="@+id/btnRenameSelected"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:src="@drawable/ic_rename"
-                app:tint="#FFFFFF" />
-                
-            <!-- TOMBOL PILIH SEMUA -->
-            <ImageButton
-                android:id="@+id/btnSelectAll"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:src="@drawable/ic_save"
-                app:tint="#FFFFFF" />
-
-            <!-- TOMBOL HAPUS -->
-            <ImageButton
-                android:id="@+id/btnDeleteSelected"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:src="@drawable/ic_delete"
-                app:tint="#FFFFFF" />
-        </LinearLayout>
-
-        <!-- HEADER PATH (TOMBOL ATAS) -->
+        <!-- HEADER PATH -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -148,11 +73,46 @@
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:clipToPadding="false"
-            android:paddingBottom="100dp" />
+            android:clipToPadding="false" />
+
+        <!-- MENU AKSI BAWAH (MUNCUL SAAT DICENTANG) -->
+        <LinearLayout
+            android:id="@+id/selectionToolbar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#1E2A38"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:padding="8dp"
+            android:visibility="gone">
+            
+            <LinearLayout android:id="@+id/btnCopySelected" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:orientation="vertical">
+                <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_copy" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Salin" android:textColor="#FFFFFF" android:textSize="11sp" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/btnMoveSelected" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:orientation="vertical">
+                <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_move" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Pindahkan" android:textColor="#FFFFFF" android:textSize="11sp" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/btnRenameSelected" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:orientation="vertical">
+                <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_rename" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Ganti Nama" android:textColor="#FFFFFF" android:textSize="11sp" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/btnDeleteSelected" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:orientation="vertical">
+                <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_delete" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Hapus" android:textColor="#FFFFFF" android:textSize="11sp" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/btnSelectAll" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:orientation="vertical">
+                <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_more" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Semua" android:textColor="#FFFFFF" android:textSize="11sp" />
+            </LinearLayout>
+        </LinearLayout>
     </LinearLayout>
 
-    <!-- FAB TEMPEL (MUNCUL SAAT SALIN/PINDAH) -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fabPaste"
         android:layout_width="wrap_content"
