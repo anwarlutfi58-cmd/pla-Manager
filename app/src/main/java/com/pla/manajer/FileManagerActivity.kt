@@ -54,7 +54,12 @@ class FileManagerActivity : AppCompatActivity() {
         b = ActivityFileManagerBinding.inflate(layoutInflater)
         setContentView(b.root)
         prefs = Prefs(this)
-        currentDir = File(prefs.lastPath)
+        
+        // --- INI BAGIAN YANG DITAMBAHKAN ---
+        // Menerima alamat folder dari MainActivity (Gambar, Video, dll)
+        val initialPath = intent.getStringExtra("initial_path") ?: prefs.lastPath
+        currentDir = File(initialPath)
+        // -----------------------------------
 
         adapter = FileAdapter(
             onOpen     = { f -> open(f) },
