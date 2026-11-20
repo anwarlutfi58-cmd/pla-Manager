@@ -2,7 +2,6 @@ package com.pla.manajer
 
 import android.Manifest
 import android.app.AlertDialog
-import android.content.ClipData
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -138,7 +137,6 @@ class FileManagerActivity : AppCompatActivity() {
         } else {
             adapter.selectedFiles.add(f)
         }
-
         adapter.isSelectionMode = adapter.selectedFiles.isNotEmpty()
         adapter.notifyDataSetChanged()
         updateSelectionUi()
@@ -197,16 +195,21 @@ class FileManagerActivity : AppCompatActivity() {
         }
     }
 
+    // --- KUNCI PERBAIKAN: MEMBERI IZIN KE SEMUA APLIKASI ---
     private fun openWith(f: File) {
         try {
             val uri = FileProvider.getUriForFile(this, "$packageName.provider", f)
-            
             var mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(f.extension.lowercase())
             if (mime == null || mime == "*/*") {
                 mime = when (f.extension.lowercase()) {
-                    "mp3", "wav" -> "audio/*"
-                    "mp4", "mkv", "avi" -> "video/*"
-                    "jpg", "jpeg", "png" -> "image/*"
+                    "mp3" -> "audio/mpeg"
+                    "wav" -> "audio/x-wav"
+                    "ogg" -> "audio/ogg"
+                    "m4a" -> "audio/mp4"
+                    "mp4" -> "video/mp4"
+                    "mkv" -> "video/x-matroska"
+                    "jpg", "jpeg" -> "image/jpeg"
+                    "png" -> "image/png"
                     else -> "*/*"
                 }
             }
@@ -214,20 +217,19 @@ class FileManagerActivity : AppCompatActivity() {
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, mime)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                clipData = ClipData.newRawUri("", uri)
+                addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+            }
+
+            // Memaksa sistem memberikan izin baca ke SEMUA aplikasi yang terinstal
+            val resInfoList = packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
+            for (resolveInfo in resInfoList) {
+                val packageName = resolveInfo.activityInfo.packageName
+                grantUriPermission(packageName, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
             
             startActivity(Intent.createChooser(intent, "Buka dengan"))
         } catch (e: Exception) {
-            try {
-                val intent = Intent(Intent.ACTION_VIEW).apply {
-                    setDataAndType(Uri.fromFile(f), "*/*")
-                }
-                startActivity(Intent.createChooser(intent, "Buka dengan"))
-            } catch (ex: Exception) {
-                toast("Tidak ada aplikasi untuk membuka file ini")
-            }
+            toast("Tidak ada aplikasi untuk membuka file ini")
         }
     }
 
@@ -244,13 +246,11 @@ class FileManagerActivity : AppCompatActivity() {
             .show()
     }
 
-    // --- FUNGSI INI SUDAH DIPERBAIKI DARI ERROR INFERENSI TIPE ---
     private fun refreshList() {
         val query = b.etSearch.text?.toString()?.lowercase() ?: ""
         val filtered: List<File> = if (query.isEmpty()) allFiles else allFiles.filter { it.name.lowercase().contains(query) }
 
         val mode = prefs.sortMode
-        
         val sortedList: List<File> = when (mode) {
             0 -> filtered.sortedWith(compareBy<File>({ !it.isDirectory }, { it.name.lowercase() }))
             1 -> filtered.sortedWith(compareBy<File>({ !it.isDirectory }, { it.name.lowercase() }).reversed())
@@ -260,7 +260,6 @@ class FileManagerActivity : AppCompatActivity() {
             5 -> filtered.sortedByDescending { it.length() }
             else -> filtered.sortedWith(compareBy<File>({ !it.isDirectory }, { it.name.lowercase() }))
         }
-        
         adapter.submit(sortedList)
     }
 
