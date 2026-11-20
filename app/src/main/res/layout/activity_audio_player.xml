@@ -6,7 +6,7 @@
     android:background="#121212"
     android:orientation="vertical">
 
-    <!-- HEADER -->
+    <!-- HEADER (Tombol Share & Equalizer) -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -28,12 +28,23 @@
             android:text="1 dari 1"
             android:textColor="#FFFFFF"
             android:textSize="16sp" />
+            
+        <!-- TOMBOL BAGIKAN -->
         <ImageButton
+            android:id="@+id/btnShare"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginEnd="8dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_share" />
+            
+        <!-- TOMBOL EQUALIZER -->
+        <ImageButton
+            android:id="@+id/btnEqualizer"
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_sort" 
-            app:tint="#FFFFFF"/> <!-- Dummy icon equalizer -->
+            android:src="@drawable/ic_equalizer" />
     </LinearLayout>
 
     <!-- COVER ART -->
@@ -87,21 +98,32 @@
             android:textColor="#FFFFFF" />
     </LinearLayout>
 
-    <!-- KONTROL MUSIK -->
+    <!-- KONTROL MUSIK UTAMA -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center"
         android:orientation="horizontal"
-        android:padding="24dp">
+        android:paddingTop="24dp"
+        android:paddingBottom="8dp">
         
+        <!-- TOMBOL ACAK -->
+        <ImageButton
+            android:id="@+id/btnShuffle"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginEnd="16dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_shuffle"
+            app:tint="#555555" />
+
         <ImageButton
             android:id="@+id/btnPrev"
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_back"
-            app:tint="#555555" />
+            app:tint="#FFFFFF" />
 
         <ImageButton
             android:id="@+id/btnPlayPause"
@@ -118,6 +140,16 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_back"
             android:scaleX="-1"
+            app:tint="#FFFFFF" />
+            
+        <!-- TOMBOL ULANGI -->
+        <ImageButton
+            android:id="@+id/btnRepeat"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="16dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_repeat"
             app:tint="#555555" />
     </LinearLayout>
 </LinearLayout>
