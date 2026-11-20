@@ -7,7 +7,9 @@ import androidx.recyclerview.widget.RecyclerView
 import com.pla.manajer.R
 import com.pla.manajer.databinding.ItemFileBinding
 import com.pla.manajer.util.FileUtils
-import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 data class MediaItem(
     val id: Long,
@@ -42,7 +44,11 @@ class MediaAdapter(
     override fun onBindViewHolder(h: VH, position: Int) {
         val item = items[position]
         h.b.tvName.text = item.name
-        h.b.tvMeta.text = FileUtils.humanSize(item.size)
+        
+        // --- MENAMPILKAN UKURAN & TANGGAL JAM ---
+        val sdf = SimpleDateFormat("dd MMM yyyy HH.mm", Locale.getDefault())
+        val dateString = sdf.format(Date(item.dateModified))
+        h.b.tvMeta.text = "${FileUtils.humanSize(item.size)} • $dateString"
         
         val iconRes = when {
             item.mimeType.startsWith("audio") -> R.drawable.ic_music_note
@@ -53,13 +59,25 @@ class MediaAdapter(
         h.b.ivIcon.setImageResource(iconRes)
         
         h.b.cbSelect.isChecked = selectedFiles.contains(item)
-        h.b.cbSelect.setOnClickListener { onSelectToggle(item) }
 
-        h.b.root.setOnClickListener { 
-            if (isSelectionMode) onSelectToggle(item) else onOpen(item) 
+        // --- PERBAIKAN KLIK CHECKBOX & LIST ---
+        // Jika yang diklik adalah kotak centang secara langsung
+        h.b.cbSelect.setOnClickListener {
+            onSelectToggle(item)
         }
+
+        // Jika yang diklik adalah area baris (teks/ikon)
+        h.b.root.setOnClickListener { 
+            if (isSelectionMode) {
+                onSelectToggle(item) 
+            } else {
+                onOpen(item) 
+            }
+        }
+        
+        // Tekan lama untuk masuk mode pilih
         h.b.root.setOnLongClickListener {
-            onLong(item)
+            if (!isSelectionMode) onLong(item)
             true
         }
     }
