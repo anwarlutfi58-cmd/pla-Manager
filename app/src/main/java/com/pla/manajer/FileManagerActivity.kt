@@ -55,11 +55,8 @@ class FileManagerActivity : AppCompatActivity() {
         setContentView(b.root)
         prefs = Prefs(this)
         
-        // --- INI BAGIAN YANG DITAMBAHKAN ---
-        // Menerima alamat folder dari MainActivity (Gambar, Video, dll)
         val initialPath = intent.getStringExtra("initial_path") ?: prefs.lastPath
         currentDir = File(initialPath)
-        // -----------------------------------
 
         adapter = FileAdapter(
             onOpen     = { f -> open(f) },
@@ -74,9 +71,11 @@ class FileManagerActivity : AppCompatActivity() {
         b.fabNew.setOnClickListener   { showCreateDialog() }
         b.fabPaste.setOnClickListener { pasteHere() }
 
-        b.etSearch.doAfterTextChanged { text ->
-            val q = text?.toString()?.lowercase() ?: ""
-            adapter.submit(if (q.isEmpty()) allFiles else allFiles.filter { it.name.lowercase().contains(q) })
+        // TOMBOL SORTIR DIKLIK
+        b.btnSort.setOnClickListener { showSortDialog() }
+
+        b.etSearch.doAfterTextChanged { 
+            refreshList()
         }
         ensurePermission()
     }
@@ -84,6 +83,67 @@ class FileManagerActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         if (::currentDir.isInitialized) load(currentDir)
+    }
+
+    // --- LOGIKA DIALOG SORTIR ---
+    private fun showSortDialog() {
+        val options = arrayOf(
+            "Tidak disortir",
+            "Nama ▲ (A-Z)",
+            "Nama ▼ (Z-A)",
+            "Ukuran ▲ (Kecil-Besar)",
+            "Ukuran ▼ (Besar-Kecil)",
+            "Tanggal ▲ (Lama-Baru)",
+            "Tanggal ▼ (Baru-Lama)",
+            "Jenis ▲ (A-Z)",
+            "Jenis ▼ (Z-A)"
+        )
+        
+        AlertDialog.Builder(this)
+            .setTitle("Sortir Berdasarkan")
+            .setSingleChoiceItems(options, prefs.sortMode) { dialog, which ->
+                prefs.sortMode = which
+                refreshList()
+                dialog.dismiss()
+            }
+            .setNegativeButton("Batal", null)
+            .show()
+    }
+
+    // --- FUNGSI MENYARING & MENGURUTKAN ---
+    private fun refreshList() {
+        val query = b.etSearch.text?.toString()?.lowercase() ?: ""
+        var filtered = if (query.isEmpty()) allFiles else allFiles.filter { it.name.lowercase().contains(query) }
+
+        val mode = prefs.sortMode
+        val dirs = filtered.filter { it.isDirectory }
+        val files = filtered.filter { !it.isDirectory }
+
+        // Folder selalu di atas, lalu disortir sesuai pilihan
+        val sortedDirs = when (mode) {
+            1 -> dirs.sortedBy { it.name.lowercase() }
+            2 -> dirs.sortedByDescending { it.name.lowercase() }
+            3 -> dirs.sortedBy { it.length() }
+            4 -> dirs.sortedByDescending { it.length() }
+            5 -> dirs.sortedBy { it.lastModified() }
+            6 -> dirs.sortedByDescending { it.lastModified() }
+            else -> dirs.sortedBy { it.name.lowercase() }
+        }
+
+        val sortedFiles = when (mode) {
+            0 -> files // Tidak disortir
+            1 -> files.sortedBy { it.name.lowercase() }
+            2 -> files.sortedByDescending { it.name.lowercase() }
+            3 -> files.sortedBy { it.length() }
+            4 -> files.sortedByDescending { it.length() }
+            5 -> files.sortedBy { it.lastModified() }
+            6 -> files.sortedByDescending { it.lastModified() }
+            7 -> files.sortedBy { it.extension.lowercase() }
+            8 -> files.sortedByDescending { it.extension.lowercase() }
+            else -> files.sortedBy { it.name.lowercase() }
+        }
+
+        adapter.submit(sortedDirs + sortedFiles)
     }
 
     private fun ensurePermission() {
@@ -115,7 +175,7 @@ class FileManagerActivity : AppCompatActivity() {
         b.tvPath.text = dir.absolutePath
         lifecycleScope.launch {
             allFiles = withContext(Dispatchers.IO) { FileUtils.listFiles(dir) }
-            adapter.submit(allFiles)
+            refreshList() // Panggil fungsi sortir setiap kali folder dibuka
         }
     }
 
