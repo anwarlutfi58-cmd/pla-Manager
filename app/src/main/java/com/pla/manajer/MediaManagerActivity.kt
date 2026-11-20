@@ -32,8 +32,11 @@ class MediaManagerActivity : AppCompatActivity() {
     private lateinit var fileAdapter: MediaAdapter
     
     private var currentFolderId: String? = null
+    private var currentFolders: List<MediaFolder> = emptyList()
     private var currentFiles: List<MediaItem> = emptyList()
-    private var sortMode: Int = 0
+    
+    // Mode Sortir: 0=Nama A-Z, 1=Nama Z-A, 2=Tanggal Terbaru, 3=Tanggal Terlama, 4=Ukuran Terbesar, 5=Ukuran Terkecil
+    private var sortMode: Int = 2 
 
     override fun onCreate(s: Bundle?) {
         super.onCreate(s)
@@ -52,10 +55,8 @@ class MediaManagerActivity : AppCompatActivity() {
             }
         }
 
-        b.btnSort.setOnClickListener {
-            if (currentFolderId != null) showSortDialog()
-            else Toast.makeText(this, "Masuk ke folder untuk menyortir", Toast.LENGTH_SHORT).show()
-        }
+        // TOMBOL SORTIR SEKARANG BISA DIGUNAKAN DI LUAR FOLDER
+        b.btnSort.setOnClickListener { showSortDialog() }
 
         folderAdapter = MediaFolderAdapter { folder ->
             currentFolderId = folder.id
@@ -104,14 +105,17 @@ class MediaManagerActivity : AppCompatActivity() {
         }
 
         lifecycleScope.launch {
-            val folders = withContext(Dispatchers.IO) {
+            currentFolders = withContext(Dispatchers.IO) {
                 val result = mutableMapOf<String, MediaFolder>()
                 val contentUri = getContentUri()
                 
+                // Tambahan: Mengambil tanggal dan ukuran file untuk sortir folder
                 val projection = arrayOf(
                     MediaStore.MediaColumns.BUCKET_ID,
                     MediaStore.MediaColumns.BUCKET_DISPLAY_NAME,
-                    MediaStore.MediaColumns._ID
+                    MediaStore.MediaColumns._ID,
+                    MediaStore.MediaColumns.DATE_MODIFIED,
+                    MediaStore.MediaColumns.SIZE
                 )
 
                 val cursor = contentResolver.query(contentUri, projection, null, null, null)
@@ -119,24 +123,32 @@ class MediaManagerActivity : AppCompatActivity() {
                     val bucketIdCol = it.getColumnIndexOrThrow(MediaStore.MediaColumns.BUCKET_ID)
                     val bucketNameCol = it.getColumnIndexOrThrow(MediaStore.MediaColumns.BUCKET_DISPLAY_NAME)
                     val idCol = it.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
+                    val dateCol = it.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_MODIFIED)
+                    val sizeCol = it.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)
 
                     while (it.moveToNext()) {
                         val bucketId = it.getString(bucketIdCol) ?: "unknown"
                         val bucketName = it.getString(bucketNameCol) ?: "Lainnya"
                         val id = it.getLong(idCol)
+                        val date = it.getLong(dateCol) * 1000
+                        val size = it.getLong(sizeCol)
                         val uriString = Uri.withAppendedPath(contentUri, id.toString()).toString()
 
                         if (result.containsKey(bucketId)) {
                             val existing = result[bucketId]!!
-                            result[bucketId] = existing.copy(count = existing.count + 1)
+                            result[bucketId] = existing.copy(
+                                count = existing.count + 1,
+                                latestDate = maxOf(existing.latestDate, date),
+                                totalSize = existing.totalSize + size
+                            )
                         } else {
-                            result[bucketId] = MediaFolder(bucketId, bucketName, uriString, 1)
+                            result[bucketId] = MediaFolder(bucketId, bucketName, uriString, 1, date, size)
                         }
                     }
                 }
-                result.values.sortedBy { it.name.lowercase() }
+                result.values.toList()
             }
-            folderAdapter.submit(folders)
+            applySort()
         }
     }
 
@@ -201,17 +213,33 @@ class MediaManagerActivity : AppCompatActivity() {
             .show()
     }
 
+    // --- FUNGSI SORTIR UNTUK FOLDER MAUPUN FILE ---
     private fun applySort() {
-        val sorted = when (sortMode) {
-            0 -> currentFiles.sortedBy { it.name.lowercase() }
-            1 -> currentFiles.sortedByDescending { it.name.lowercase() }
-            2 -> currentFiles.sortedByDescending { it.dateModified }
-            3 -> currentFiles.sortedBy { it.dateModified }
-            4 -> currentFiles.sortedByDescending { it.size }
-            5 -> currentFiles.sortedBy { it.size }
-            else -> currentFiles
+        if (currentFolderId == null) {
+            // Sortir Daftar Folder
+            val sortedFolders = when (sortMode) {
+                0 -> currentFolders.sortedBy { it.name.lowercase() }
+                1 -> currentFolders.sortedByDescending { it.name.lowercase() }
+                2 -> currentFolders.sortedByDescending { it.latestDate }
+                3 -> currentFolders.sortedBy { it.latestDate }
+                4 -> currentFolders.sortedByDescending { it.totalSize }
+                5 -> currentFolders.sortedBy { it.totalSize }
+                else -> currentFolders
+            }
+            folderAdapter.submit(sortedFolders)
+        } else {
+            // Sortir Daftar File di dalam Folder
+            val sortedFiles = when (sortMode) {
+                0 -> currentFiles.sortedBy { it.name.lowercase() }
+                1 -> currentFiles.sortedByDescending { it.name.lowercase() }
+                2 -> currentFiles.sortedByDescending { it.dateModified }
+                3 -> currentFiles.sortedBy { it.dateModified }
+                4 -> currentFiles.sortedByDescending { it.size }
+                5 -> currentFiles.sortedBy { it.size }
+                else -> currentFiles
+            }
+            fileAdapter.submit(sortedFiles)
         }
-        fileAdapter.submit(sorted)
     }
 
     private fun enableSelectionMode(item: MediaItem) {
@@ -277,7 +305,6 @@ class MediaManagerActivity : AppCompatActivity() {
             }.setNegativeButton("Batal", null).show()
     }
 
-    // --- KUNCI PERBAIKAN: MEMBERI IZIN KE SEMUA APLIKASI ---
     private fun openMediaFile(mediaItem: MediaItem) {
         try {
             val uri = Uri.parse(mediaItem.uriString)
@@ -301,7 +328,6 @@ class MediaManagerActivity : AppCompatActivity() {
             
             startActivity(Intent.createChooser(intent, "Buka dengan"))
         } catch (e: Exception) {
-            // Jika gagal, coba menggunakan FileProvider
             try {
                 val file = File(mediaItem.path)
                 val uri = FileProvider.getUriForFile(this, "$packageName.provider", file)
