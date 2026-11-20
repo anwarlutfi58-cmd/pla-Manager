@@ -10,7 +10,9 @@ data class MediaFolder(
     val id: String,
     val name: String,
     val coverUri: String,
-    val count: Int
+    val count: Int,
+    val latestDate: Long,
+    val totalSize: Long
 )
 
 class MediaFolderAdapter(
