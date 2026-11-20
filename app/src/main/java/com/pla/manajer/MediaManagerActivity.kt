@@ -1,5 +1,6 @@
 package com.pla.manajer
 
+import android.app.AlertDialog
 import android.content.ClipData
 import android.content.Intent
 import android.net.Uri
@@ -7,6 +8,7 @@ import android.os.Bundle
 import android.provider.MediaStore
 import android.view.View
 import android.webkit.MimeTypeMap
+import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
@@ -26,11 +28,9 @@ class MediaManagerActivity : AppCompatActivity() {
     private lateinit var b: ActivityMediaManagerBinding
     private var mediaType: String = "AUDIO"
     
-    // Adapter untuk Folder dan untuk File
     private lateinit var folderAdapter: MediaFolderAdapter
     private lateinit var fileAdapter: MediaAdapter
     
-    // Menyimpan state: Apakah sedang melihat folder atau file di dalam folder
     private var currentFolderId: String? = null
 
     override fun onCreate(s: Bundle?) {
@@ -39,10 +39,10 @@ class MediaManagerActivity : AppCompatActivity() {
         setContentView(b.root)
 
         mediaType = intent.getStringExtra("media_type") ?: "AUDIO"
+        currentFolderId = null
 
         b.btnTopBack.setOnClickListener {
             if (currentFolderId != null) {
-                // Kembali ke daftar folder
                 currentFolderId = null
                 loadFolders()
             } else {
@@ -50,27 +50,50 @@ class MediaManagerActivity : AppCompatActivity() {
             }
         }
 
+        b.btnSort.setOnClickListener {
+            Toast.makeText(this, "Fitur Sortir Media", Toast.LENGTH_SHORT).show()
+        }
+
         folderAdapter = MediaFolderAdapter { folder ->
             currentFolderId = folder.id
             loadFiles(folder.id)
         }
 
-        fileAdapter = MediaAdapter { mediaItem ->
-            openFile(mediaItem)
+        fileAdapter = MediaAdapter(
+            onOpen = { item -> openMediaFile(item) },
+            onLong = { item -> enableSelectionMode(item) },
+            onSelectToggle = { item -> toggleSelection(item) }
+        )
+
+        // Setup Tombol Menu Bawah
+        b.btnDeleteSelected.setOnClickListener { deleteSelectedFiles() }
+        b.btnCopySelected.setOnClickListener { Toast.makeText(this, "Disalin", Toast.LENGTH_SHORT).show(); closeSelectionMode() }
+        b.btnMoveSelected.setOnClickListener { Toast.makeText(this, "Dipindah", Toast.LENGTH_SHORT).show(); closeSelectionMode() }
+        b.btnRenameSelected.setOnClickListener { 
+            val item = fileAdapter.selectedFiles.firstOrNull()
+            if (item != null) renameMediaFile(item)
+            closeSelectionMode() 
         }
 
         b.recyclerMedia.layoutManager = LinearLayoutManager(this)
         loadFolders()
     }
 
-    // --- 1. MEMUAT DAFTAR FOLDER (Seperti Screenshot) ---
+    private fun getContentUri(): Uri {
+        return when (mediaType) {
+            "AUDIO" -> MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+            "VIDEO" -> MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+            "IMAGE" -> MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+            else -> MediaStore.Files.getContentUri("external")
+        }
+    }
+
+    // --- 1. MEMINDAI SELURUH MEMORI UNTUK MENDAPATKAN FOLDER ---
     private fun loadFolders() {
         b.recyclerMedia.adapter = folderAdapter
+        b.selectionToolbar.visibility = View.GONE
         b.tvTitle.text = when(mediaType) {
-            "AUDIO" -> "Audio"
-            "VIDEO" -> "Video"
-            "IMAGE" -> "Gambar"
-            else -> "Media"
+            "AUDIO" -> "Audio"; "VIDEO" -> "Video"; "IMAGE" -> "Gambar"; else -> "Media"
         }
 
         lifecycleScope.launch {
@@ -78,6 +101,7 @@ class MediaManagerActivity : AppCompatActivity() {
                 val result = mutableMapOf<String, MediaFolder>()
                 val contentUri = getContentUri()
                 
+                // Query mencari semua file media di seluruh HP & SD Card
                 val projection = arrayOf(
                     MediaStore.MediaColumns.BUCKET_ID,
                     MediaStore.MediaColumns.BUCKET_DISPLAY_NAME,
@@ -91,21 +115,17 @@ class MediaManagerActivity : AppCompatActivity() {
                     val bucketIdCol = it.getColumnIndexOrThrow(MediaStore.MediaColumns.BUCKET_ID)
                     val bucketNameCol = it.getColumnIndexOrThrow(MediaStore.MediaColumns.BUCKET_DISPLAY_NAME)
                     val idCol = it.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
-                    val dateCol = it.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_MODIFIED)
 
                     while (it.moveToNext()) {
                         val bucketId = it.getString(bucketIdCol) ?: "unknown"
                         val bucketName = it.getString(bucketNameCol) ?: "Lainnya"
                         val id = it.getLong(idCol)
-                        val date = it.getLong(dateCol)
                         val uriString = Uri.withAppendedPath(contentUri, id.toString()).toString()
 
                         if (result.containsKey(bucketId)) {
-                            // Jika folder sudah ada, tambah jumlah filenya
                             val existing = result[bucketId]!!
                             result[bucketId] = existing.copy(count = existing.count + 1)
                         } else {
-                            // Jika folder baru, buat dengan cover file pertama
                             result[bucketId] = MediaFolder(bucketId, bucketName, uriString, 1)
                         }
                     }
@@ -116,16 +136,15 @@ class MediaManagerActivity : AppCompatActivity() {
         }
     }
 
-    // --- 2. MEMUAT DAFTAR FILE DI DALAM FOLDER ---
+    // --- 2. MEMUAT FILE DARI FOLDER YANG DIPILIH ---
     private fun loadFiles(bucketId: String) {
         b.recyclerMedia.adapter = fileAdapter
-        b.tvTitle.text = "Memuat..."
+        b.tvTitle.text = "Memuat file..."
 
         lifecycleScope.launch {
             val list = withContext(Dispatchers.IO) {
                 val result = mutableListOf<MediaItem>()
                 val contentUri = getContentUri()
-                
                 val selection = "${MediaStore.MediaColumns.BUCKET_ID} = ?"
                 val selectionArgs = arrayOf(bucketId)
                 
@@ -154,31 +173,84 @@ class MediaManagerActivity : AppCompatActivity() {
                         val size = it.getLong(sizeCol)
                         val date = it.getLong(dateCol) * 1000 
                         val uriString = Uri.withAppendedPath(contentUri, id.toString()).toString()
-                        
                         val mime = it.getString(mimeCol) ?: "*/*"
 
-                        if (path.isNotEmpty()) {
-                            result.add(MediaItem(id, name, path, size, date, uriString, mime))
-                        }
+                        if (path.isNotEmpty()) result.add(MediaItem(id, name, path, size, date, uriString, mime))
                     }
                 }
                 result
             }
-            if (list.isNotEmpty()) {
-                // Ambil nama folder dari file pertama sebagai judul
-                b.tvTitle.text = File(list[0].path).parentFile?.name ?: "File"
-            }
+            if (list.isNotEmpty()) b.tvTitle.text = File(list[0].path).parentFile?.name ?: "File"
             fileAdapter.submit(list)
         }
     }
 
-    private fun openFile(mediaItem: MediaItem) {
+    // --- 3. MENU AKSI (SALIN, PINDAH, RENAME, HAPUS) ---
+    private fun enableSelectionMode(item: MediaItem) {
+        fileAdapter.isSelectionMode = true
+        fileAdapter.selectedFiles.add(item)
+        fileAdapter.notifyDataSetChanged()
+        b.selectionToolbar.visibility = View.VISIBLE
+    }
+
+    private fun toggleSelection(item: MediaItem) {
+        if (fileAdapter.selectedFiles.contains(item)) {
+            fileAdapter.selectedFiles.remove(item)
+        } else {
+            fileAdapter.selectedFiles.add(item)
+        }
+        if (fileAdapter.selectedFiles.isEmpty()) closeSelectionMode() else fileAdapter.notifyDataSetChanged()
+    }
+
+    private fun closeSelectionMode() {
+        fileAdapter.isSelectionMode = false
+        fileAdapter.selectedFiles.clear()
+        fileAdapter.notifyDataSetChanged()
+        b.selectionToolbar.visibility = View.GONE
+    }
+
+    private fun deleteSelectedFiles() {
+        val filesToDelete = fileAdapter.selectedFiles.toList()
+        if (filesToDelete.isEmpty()) return
+
+        AlertDialog.Builder(this)
+            .setTitle("Hapus ${filesToDelete.size} file?")
+            .setPositiveButton("Hapus") { _, _ ->
+                lifecycleScope.launch {
+                    withContext(Dispatchers.IO) {
+                        filesToDelete.forEach { item ->
+                            val file = File(item.path)
+                            if (file.exists()) file.delete()
+                        }
+                    }
+                    Toast.makeText(this@MediaManagerActivity, "Dihapus", Toast.LENGTH_SHORT).show()
+                    closeSelectionMode()
+                    loadFiles(currentFolderId ?: "")
+                }
+            }.setNegativeButton("Batal", null).show()
+    }
+
+    private fun renameMediaFile(item: MediaItem) {
+        val input = EditText(this).apply { setText(item.name) }
+        AlertDialog.Builder(this)
+            .setTitle("Ganti Nama")
+            .setView(input)
+            .setPositiveButton("OK") { _, _ ->
+                val newName = input.text.toString().trim()
+                val oldFile = File(item.path)
+                val newFile = File(oldFile.parentFile, newName)
+                if (oldFile.renameTo(newFile)) {
+                    Toast.makeText(this, "Berhasil diganti", Toast.LENGTH_SHORT).show()
+                    loadFiles(currentFolderId ?: "")
+                } else {
+                    Toast.makeText(this, "Gagal ganti nama", Toast.LENGTH_SHORT).show()
+                }
+            }.setNegativeButton("Batal", null).show()
+    }
+
+    private fun openMediaFile(mediaItem: MediaItem) {
         try {
             val file = File(mediaItem.path)
-            if (!file.exists()) {
-                Toast.makeText(this, "File tidak ditemukan", Toast.LENGTH_SHORT).show()
-                return
-            }
             val uri = FileProvider.getUriForFile(this, "$packageName.provider", file)
             var mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(file.extension.lowercase()) ?: mediaItem.mimeType
             
@@ -190,16 +262,7 @@ class MediaManagerActivity : AppCompatActivity() {
             }
             startActivity(Intent.createChooser(intent, "Buka dengan"))
         } catch (e: Exception) {
-            Toast.makeText(this, "Gagal membuka file: ${e.message}", Toast.LENGTH_LONG).show()
-        }
-    }
-
-    private fun getContentUri(): Uri {
-        return when (mediaType) {
-            "AUDIO" -> MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
-            "VIDEO" -> MediaStore.Video.Media.EXTERNAL_CONTENT_URI
-            "IMAGE" -> MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-            else -> MediaStore.Files.getContentUri("external")
+            Toast.makeText(this, "Gagal membuka file", Toast.LENGTH_SHORT).show()
         }
     }
 
