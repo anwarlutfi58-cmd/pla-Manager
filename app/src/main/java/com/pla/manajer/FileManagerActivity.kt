@@ -14,6 +14,7 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.widget.doAfterTextChanged
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.pla.manajer.adapter.FileAdapter
@@ -68,7 +69,7 @@ class FileManagerActivity : AppCompatActivity() {
         b.fabNew.setOnClickListener   { showCreateDialog() }
         b.fabPaste.setOnClickListener { pasteHere() }
 
-        b.etSearch.addTextChangedListener { text ->
+        b.etSearch.doAfterTextChanged { text ->
             val q = text?.toString()?.lowercase() ?: ""
             adapter.submit(if (q.isEmpty()) allFiles else allFiles.filter { it.name.lowercase().contains(q) })
         }
@@ -92,7 +93,7 @@ class FileManagerActivity : AppCompatActivity() {
                 }
             } else load(currentDir)
         } else {
-            val okRead = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
+            val okRead  = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)  == PackageManager.PERMISSION_GRANTED
             val okWrite = ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
             if (okRead && okWrite) load(currentDir)
             else legacyPerm.launch(arrayOf(
