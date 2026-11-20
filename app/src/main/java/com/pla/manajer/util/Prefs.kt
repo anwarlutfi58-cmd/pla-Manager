@@ -22,4 +22,9 @@ class Prefs(ctx: Context) {
     var screenReaderHints: Boolean
         get() = sp.getBoolean("srHints", true)
         set(v) = sp.edit().putBoolean("srHints", v).apply()
+
+    // TAMBAHAN BARU UNTUK SORTIR (Default: 1 = Nama A-Z)
+    var sortMode: Int
+        get() = sp.getInt("sortMode", 1)
+        set(v) = sp.edit().putInt("sortMode", v).apply()
 }
