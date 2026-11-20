@@ -39,5 +39,6 @@
         android:layout_height="40dp"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:padding="8dp"
+        android:contentDescription="Favorit"
         android:src="@drawable/ic_star" />
 </LinearLayout>
