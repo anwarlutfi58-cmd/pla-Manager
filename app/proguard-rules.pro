@@ -1,0 +1,2 @@
+-keep class com.pla.manajer.** { *; }
+-keep class com.pla.agent.** { *; }
