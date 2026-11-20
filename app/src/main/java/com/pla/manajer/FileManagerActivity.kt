@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings
+import android.view.View
 import android.webkit.MimeTypeMap
 import android.widget.EditText
 import android.widget.Toast
@@ -63,8 +64,8 @@ class FileManagerActivity : AppCompatActivity() {
         currentDir = File(initialPath)
 
         adapter = FileAdapter(
-            onOpen     = { f -> open(f) },
-            onLong     = { f -> showContextMenu(f) },
+            onOpen     = { f -> if (!adapter.isSelectionMode) open(f) },
+            onLong     = { f -> enableSelectionMode(f) },
             onFavorite = { f -> toggleFavorite(f) }
         )
         b.recycler.layoutManager = LinearLayoutManager(this)
@@ -76,16 +77,110 @@ class FileManagerActivity : AppCompatActivity() {
         b.fabPaste.setOnClickListener { pasteHere() }
         b.btnSort.setOnClickListener  { showSortDialog() }
 
+        // --- SETUP MODE PILIH SEMUA ---
+        b.btnCloseSelection.setOnClickListener { closeSelectionMode() }
+        b.btnSelectAll.setOnClickListener { 
+            adapter.selectedFiles.clear()
+            adapter.selectedFiles.addAll(allFiles)
+            adapter.notifyDataSetChanged()
+            updateSelectionUi()
+        }
+        b.btnDeleteSelected.setOnClickListener {
+            val filesToDelete = adapter.selectedFiles.toList()
+            if (filesToDelete.isNotEmpty()) {
+                AlertDialog.Builder(this)
+                    .setTitle("Hapus ${filesToDelete.size} item?")
+                    .setMessage("Item akan dipindahkan ke Sampah.")
+                    .setPositiveButton("Hapus") { _, _ ->
+                        deleteMultipleFiles(filesToDelete)
+                        closeSelectionMode()
+                    }
+                    .setNegativeButton("Batal", null).show()
+            }
+        }
+
         b.etSearch.doAfterTextChanged { refreshList() }
         ensurePermission()
     }
 
-    override fun onResume() {
-        super.onResume()
-        if (::currentDir.isInitialized) load(currentDir)
+    fun updateSelectionUi() {
+        if (adapter.selectedFiles.isEmpty()) {
+            closeSelectionMode()
+        } else {
+            b.tvSelectedCount.text = "${adapter.selectedFiles.size} terpilih"
+        }
     }
 
-    // --- MENU AKSI VISUAL (SESUAI GAMBAR) ---
+    private fun enableSelectionMode(f: File) {
+        adapter.isSelectionMode = true
+        adapter.selectedFiles.add(f)
+        adapter.notifyDataSetChanged()
+        b.selectionToolbar.visibility = View.VISIBLE
+        updateSelectionUi()
+    }
+
+    private fun closeSelectionMode() {
+        adapter.isSelectionMode = false
+        adapter.selectedFiles.clear()
+        adapter.notifyDataSetChanged()
+        b.selectionToolbar.visibility = View.GONE
+    }
+
+    private fun deleteMultipleFiles(files: List<File>) {
+        lifecycleScope.launch {
+            val dao = (application as PlaApp).database.trashDao()
+            withContext(Dispatchers.IO) {
+                val trashDir = File(prefs.trashFolder).apply { mkdirs() }
+                files.forEach { f ->
+                    val target = File(trashDir, "${System.currentTimeMillis()}_${f.name}")
+                    FileUtils.move(f, target)
+                    dao.add(TrashItem(originalPath = f.absolutePath, trashPath = target.absolutePath, name = f.name, isDir = f.isDirectory))
+                }
+            }
+            load(currentDir)
+            toast("${files.size} item dipindah ke Sampah")
+        }
+    }
+
+    // --- LOGIKA MEMBUKA FILE (FIX GAMBAR/VIDEO/AUDIO) ---
+    private fun open(f: File) {
+        if (f.isDirectory) {
+            closeSelectionMode()
+            load(f)
+        } else {
+            val ext = f.extension.lowercase()
+            // Daftar ekstensi yang dibuka di Code Editor
+            val codeExts = listOf("kt", "java", "py", "js", "html", "css", "json", "md", "xml", "gradle", "kts", "txt", "properties", "yml", "yaml", "cpp", "c", "h")
+            
+            if (codeExts.contains(ext)) {
+                startActivity(Intent(this, CodeEditorActivity::class.java).putExtra("path", f.absolutePath))
+            } else {
+                // Buka pakai aplikasi bawaan HP (Galeri, MX Player, Musixmatch, dll)
+                openWith(f)
+            }
+        }
+    }
+
+    private fun openWith(f: File) {
+        try {
+            val uri = FileProvider.getUriForFile(this, "$packageName.provider", f)
+            val mime = getMimeType(f)
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, mime)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(Intent.createChooser(intent, "Buka dengan"))
+        } catch (e: Exception) {
+            toast("Tidak ada aplikasi untuk membuka file ini")
+        }
+    }
+
+    private fun getMimeType(file: File): String {
+        val extension = file.extension.lowercase()
+        return MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension) ?: "*/*"
+    }
+
+    // --- MENU TAHAN LAMA (SATU FILE) ---
     private fun showContextMenu(f: File) {
         val dialogBinding = DialogFileActionBinding.inflate(layoutInflater)
         val dialog = AlertDialog.Builder(this)
@@ -94,26 +189,14 @@ class FileManagerActivity : AppCompatActivity() {
             .setNegativeButton("Tutup", null)
             .create()
 
-        dialogBinding.actionCopy.setOnClickListener { 
-            clipboard = f; isCut = false; toast("Disalin: ${f.name}"); dialog.dismiss() 
-        }
-        dialogBinding.actionMove.setOnClickListener { 
-            clipboard = f; isCut = true; toast("Siap pindah: ${f.name}"); dialog.dismiss() 
-        }
-        dialogBinding.actionRename.setOnClickListener { 
-            dialog.dismiss(); renameDialog(f) 
-        }
-        dialogBinding.actionDelete.setOnClickListener { 
-            dialog.dismiss(); deleteFile(f) 
-        }
-        dialogBinding.actionMore.setOnClickListener { 
-            dialog.dismiss(); showMoreMenu(f) 
-        }
-
+        dialogBinding.actionCopy.setOnClickListener { clipboard = f; isCut = false; toast("Disalin"); dialog.dismiss() }
+        dialogBinding.actionMove.setOnClickListener { clipboard = f; isCut = true; toast("Siap pindah"); dialog.dismiss() }
+        dialogBinding.actionRename.setOnClickListener { dialog.dismiss(); renameDialog(f) }
+        dialogBinding.actionDelete.setOnClickListener { dialog.dismiss(); deleteMultipleFiles(listOf(f)) }
+        dialogBinding.actionMore.setOnClickListener { dialog.dismiss(); showMoreMenu(f) }
         dialog.show()
     }
 
-    // --- MENU LAINNYA (SESUAI GAMBAR) ---
     private fun showMoreMenu(f: File) {
         val dialogBinding = DialogFileMoreBinding.inflate(layoutInflater)
         val dialog = AlertDialog.Builder(this)
@@ -122,25 +205,13 @@ class FileManagerActivity : AppCompatActivity() {
             .setNegativeButton("Batal", null)
             .create()
 
-        dialogBinding.moreShare.setOnClickListener {
-            shareFile(f); dialog.dismiss()
-        }
-        dialogBinding.moreShortcut.setOnClickListener {
-            Toast.makeText(this, "Shortcut dibuat di layar beranda", Toast.LENGTH_SHORT).show()
-            // (Fitur Shortcut lengkap butuh ShortcutManager, ini simulasi teks)
-            dialog.dismiss()
-        }
-        dialogBinding.moreCompress.setOnClickListener {
-            zipFile(f); dialog.dismiss()
-        }
-        dialogBinding.moreOpenWith.setOnClickListener {
-            openWith(f); dialog.dismiss()
-        }
-
+        dialogBinding.moreShare.setOnClickListener { shareFile(f); dialog.dismiss() }
+        dialogBinding.moreShortcut.setOnClickListener { toast("Shortcut dibuat"); dialog.dismiss() }
+        dialogBinding.moreCompress.setOnClickListener { zipFile(f); dialog.dismiss() }
+        dialogBinding.moreOpenWith.setOnClickListener { openWith(f); dialog.dismiss() }
         dialog.show()
     }
 
-    // --- LOGIKA FITUR BAGIKAN FILE ---
     private fun shareFile(f: File) {
         try {
             val uri = FileProvider.getUriForFile(this, "$packageName.provider", f)
@@ -149,29 +220,10 @@ class FileManagerActivity : AppCompatActivity() {
                 putExtra(Intent.EXTRA_STREAM, uri)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-            startActivity(Intent.createChooser(intent, "Bagikan file via"))
+            startActivity(Intent.createChooser(intent, "Bagikan via"))
         } catch (e: Exception) {
             toast("Gagal membagikan: ${e.message}")
         }
-    }
-
-    // --- LOGIKA FITUR BUKA DENGAN ---
-    private fun openWith(f: File) {
-        try {
-            val uri = FileProvider.getUriForFile(this, "$packageName.provider", f)
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, getMimeType(f))
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            startActivity(Intent.createChooser(intent, "Buka dengan"))
-        } catch (e: Exception) {
-            toast("Tidak ada aplikasi yang bisa membuka file ini")
-        }
-    }
-
-    private fun getMimeType(file: File): String {
-        val extension = file.extension.lowercase()
-        return MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension) ?: "*/*"
     }
 
     // --- FUNGSI SORTIR ---
@@ -213,7 +265,6 @@ class FileManagerActivity : AppCompatActivity() {
         adapter.submit(sortedDirs + sortedFiles)
     }
 
-    // --- FUNGSI PENDUKUNG LAINNYA ---
     private fun ensurePermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             if (!Environment.isExternalStorageManager()) {
@@ -244,11 +295,6 @@ class FileManagerActivity : AppCompatActivity() {
         }
     }
 
-    private fun open(f: File) {
-        if (f.isDirectory) load(f)
-        else startActivity(Intent(this, CodeEditorActivity::class.java).putExtra("path", f.absolutePath))
-    }
-
     private fun showCreateDialog() {
         val input = EditText(this).apply {
             hint = "app/src/main/java/com/pla/agent/PlAiEngine.kt"
@@ -258,7 +304,6 @@ class FileManagerActivity : AppCompatActivity() {
         }
         AlertDialog.Builder(this)
             .setTitle("Buat Jalur / Berkas Baru")
-            .setMessage("Ketik struktur (contoh: app/build.gradle)")
             .setView(input)
             .setPositiveButton("Buat") { _, _ ->
                 val path = input.text.toString().trim()
@@ -282,20 +327,6 @@ class FileManagerActivity : AppCompatActivity() {
                 if (f.renameTo(newFile)) load(currentDir) else toast("Gagal rename")
             }
             .setNegativeButton("Batal", null).show()
-    }
-
-    private fun deleteFile(f: File) {
-        lifecycleScope.launch {
-            val dao = (application as PlaApp).database.trashDao()
-            withContext(Dispatchers.IO) {
-                val trashDir = File(prefs.trashFolder).apply { mkdirs() }
-                val target = File(trashDir, "${System.currentTimeMillis()}_${f.name}")
-                FileUtils.move(f, target)
-                dao.add(TrashItem(originalPath = f.absolutePath, trashPath = target.absolutePath, name = f.name, isDir = f.isDirectory))
-            }
-            load(currentDir)
-            toast("Dipindah ke Sampah")
-        }
     }
 
     private fun zipFile(f: File) {
