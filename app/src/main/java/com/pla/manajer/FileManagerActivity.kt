@@ -22,7 +22,6 @@ import androidx.core.widget.doAfterTextChanged
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.pla.manajer.adapter.FileAdapter
-import com.pla.manajer.data.Favorite
 import com.pla.manajer.data.TrashItem
 import com.pla.manajer.databinding.ActivityFileManagerBinding
 import com.pla.manajer.databinding.DialogFileActionBinding
@@ -78,7 +77,6 @@ class FileManagerActivity : AppCompatActivity() {
         b.btnSort.setOnClickListener    { showSortDialog() }
         b.fabPaste.setOnClickListener   { pasteHere() }
 
-        b.btnCloseSelection.setOnClickListener { closeSelectionMode() }
         b.btnSelectAll.setOnClickListener { 
             adapter.selectedFiles.clear()
             adapter.selectedFiles.addAll(allFiles)
@@ -135,7 +133,6 @@ class FileManagerActivity : AppCompatActivity() {
         ensurePermission()
     }
 
-    // Fungsi untuk Tandai / Batal Tandai
     private fun toggleSelection(f: File) {
         if (adapter.selectedFiles.contains(f)) {
             adapter.selectedFiles.remove(f)
@@ -151,9 +148,8 @@ class FileManagerActivity : AppCompatActivity() {
         adapter.notifyDataSetChanged()
     }
 
-    fun updateSelectionUi() {
+    private fun updateSelectionUi() {
         if (adapter.selectedFiles.isEmpty()) closeSelectionMode()
-        else b.tvSelectedCount.text = "${adapter.selectedFiles.size} terpilih"
     }
 
     private fun enableSelectionMode(f: File?) {
@@ -224,49 +220,6 @@ class FileManagerActivity : AppCompatActivity() {
             startActivity(Intent.createChooser(intent, "Buka dengan"))
         } catch (e: Exception) {
             toast("Tidak ada aplikasi untuk membuka file ini")
-        }
-    }
-
-    private fun showContextMenu(f: File) {
-        val dialogBinding = DialogFileActionBinding.inflate(layoutInflater)
-        val dialog = AlertDialog.Builder(this).setTitle(f.name).setView(dialogBinding.root).setNegativeButton("Tutup", null).create()
-
-        dialogBinding.actionCopy.setOnClickListener { 
-            clipboard = f; isCut = false; toast("Disalin: ${f.name}"); b.fabPaste.show(); dialog.dismiss() 
-        }
-        dialogBinding.actionMove.setOnClickListener { 
-            clipboard = f; isCut = true; toast("Siap pindah: ${f.name}"); b.fabPaste.show(); dialog.dismiss() 
-        }
-        dialogBinding.actionRename.setOnClickListener { dialog.dismiss(); renameDialog(f) }
-        dialogBinding.actionDelete.setOnClickListener { dialog.dismiss(); deleteMultipleFiles(listOf(f)) }
-        dialogBinding.actionMore.setOnClickListener { dialog.dismiss(); showMoreMenu(f) }
-        dialog.show()
-    }
-
-    private fun showMoreMenu(f: File) {
-        val dialogBinding = DialogFileMoreBinding.inflate(layoutInflater)
-        val dialog = AlertDialog.Builder(this).setTitle(f.name).setView(dialogBinding.root).setNegativeButton("Batal", null).create()
-
-        dialogBinding.moreShare.setOnClickListener { shareFile(f); dialog.dismiss() }
-        dialogBinding.moreShortcut.setOnClickListener { toast("Shortcut dibuat"); dialog.dismiss() }
-        dialogBinding.moreCompress.setOnClickListener { zipFile(f); dialog.dismiss() }
-        dialogBinding.moreOpenWith.setOnClickListener { openWith(f); dialog.dismiss() }
-        dialog.show()
-    }
-
-    private fun shareFile(f: File) {
-        try {
-            val uri = FileProvider.getUriForFile(this, "$packageName.provider", f)
-            val mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(f.extension.lowercase()) ?: "*/*"
-            val intent = Intent(Intent.ACTION_SEND).apply {
-                type = mime
-                putExtra(Intent.EXTRA_STREAM, uri)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                clipData = ClipData.newRawUri("", uri)
-            }
-            startActivity(Intent.createChooser(intent, "Bagikan via"))
-        } catch (e: Exception) {
-            toast("Gagal membagikan: ${e.message}")
         }
     }
 
@@ -366,15 +319,6 @@ class FileManagerActivity : AppCompatActivity() {
                 val newFile = File(f.parentFile, input.text.toString())
                 if (f.renameTo(newFile)) load(currentDir) else toast("Gagal rename")
             }.setNegativeButton("Batal", null).show()
-    }
-
-    private fun zipFile(f: File) {
-        lifecycleScope.launch {
-            val out = File(f.parentFile, f.name + ".zip")
-            withContext(Dispatchers.IO) { FileUtils.zip(f, out) }
-            load(currentDir)
-            toast("Diarsipkan: ${out.name}")
-        }
     }
 
     private fun pasteHere() {
