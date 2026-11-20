@@ -1,5 +1,6 @@
 package com.pla.manajer
 
+import android.content.ClipData
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -43,14 +44,21 @@ class MediaManagerActivity : AppCompatActivity() {
         }
 
         adapter = MediaAdapter { mediaItem ->
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(Uri.parse(mediaItem.uriString), getMimeType(mediaType))
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
+            // --- PERBAIKAN INTENT AGAR BISA DIBUKA APLIKASI LAIN ---
             try {
+                val uri = Uri.parse(mediaItem.uriString)
+                
+                // Gunakan MIME type spesifik (contoh: audio/mpeg) bukan audio/*
+                val intent = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(uri, mediaItem.mimeType)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    // Ini kunci utamanya: Berikan izin baca ke aplikasi lain lewat ClipData
+                    clipData = ClipData.newRawUri("", uri)
+                }
+                
                 startActivity(Intent.createChooser(intent, "Buka dengan"))
             } catch (e: Exception) {
-                Toast.makeText(this, "Tidak ada aplikasi untuk membuka file ini", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Tidak ada aplikasi pemutar untuk file ini", Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -58,15 +66,6 @@ class MediaManagerActivity : AppCompatActivity() {
         b.recyclerMedia.adapter = adapter
 
         loadMediaData()
-    }
-
-    private fun getMimeType(type: String): String {
-        return when(type) {
-            "AUDIO" -> "audio/*"
-            "VIDEO" -> "video/*"
-            "IMAGE" -> "image/*"
-            else -> "*/*"
-        }
     }
 
     private fun loadMediaData() {
@@ -80,12 +79,14 @@ class MediaManagerActivity : AppCompatActivity() {
                     else -> return@withContext emptyList<MediaItem>()
                 }
 
+                // TAMBAHAN: Mengambil MediaStore.MediaColumns.MIME_TYPE
                 val projection = arrayOf(
                     MediaStore.MediaColumns._ID,
                     MediaStore.MediaColumns.DISPLAY_NAME,
                     MediaStore.MediaColumns.DATA,
                     MediaStore.MediaColumns.SIZE,
-                    MediaStore.MediaColumns.DATE_MODIFIED
+                    MediaStore.MediaColumns.DATE_MODIFIED,
+                    MediaStore.MediaColumns.MIME_TYPE 
                 )
 
                 val cursor = contentResolver.query(contentUri, projection, null, null, null)
@@ -95,6 +96,7 @@ class MediaManagerActivity : AppCompatActivity() {
                     val pathCol = it.getColumnIndexOrThrow(MediaStore.MediaColumns.DATA)
                     val sizeCol = it.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)
                     val dateCol = it.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_MODIFIED)
+                    val mimeCol = it.getColumnIndexOrThrow(MediaStore.MediaColumns.MIME_TYPE)
 
                     while (it.moveToNext()) {
                         val id = it.getLong(idCol)
@@ -103,8 +105,16 @@ class MediaManagerActivity : AppCompatActivity() {
                         val size = it.getLong(sizeCol)
                         val date = it.getLong(dateCol) * 1000 
                         val uriString = Uri.withAppendedPath(contentUri, id.toString()).toString()
+                        
+                        // Ambil tipe file yang sebenarnya
+                        val mime = it.getString(mimeCol) ?: when(mediaType) {
+                            "AUDIO" -> "audio/mpeg"
+                            "VIDEO" -> "video/mp4"
+                            "IMAGE" -> "image/jpeg"
+                            else -> "*/*"
+                        }
 
-                        result.add(MediaItem(id, name, path, size, date, uriString))
+                        result.add(MediaItem(id, name, path, size, date, uriString, mime))
                     }
                 }
                 result
