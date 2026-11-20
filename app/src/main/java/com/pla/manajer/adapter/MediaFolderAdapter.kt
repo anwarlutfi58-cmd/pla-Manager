@@ -33,7 +33,6 @@ class MediaFolderAdapter(
         h.b.tvFolderName.text = folder.name
         h.b.tvCount.text = "(${folder.count})"
         
-        // Memuat gambar sampul menggunakan Android bawaan (tanpa library tambahan)
         try {
             val inputStream = h.itemView.context.contentResolver.openInputStream(Uri.parse(folder.coverUri))
             val bitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
