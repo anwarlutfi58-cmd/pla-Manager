@@ -5,47 +5,48 @@ import java.io.File
 
 object PlaMediaPlayer {
     private var mediaPlayer: MediaPlayer? = null
-    var currentFile: File? = null
-        private set
-    var isPlaying: Boolean = false
-        private set
+    
+    private var _currentFile: File? = null
+    val currentFile: File? get() = _currentFile
+    
+    private var _isPlaying: Boolean = false
+    val isPlaying: Boolean get() = _isPlaying
 
     fun play(file: File, onCompletion: () -> Unit = {}) {
         stop()
-        currentFile = file
+        _currentFile = file
         mediaPlayer = MediaPlayer().apply {
             setDataSource(file.absolutePath)
             prepare()
             start()
             setOnCompletionListener {
-                isPlaying = false
+                _isPlaying = false
                 onCompletion()
             }
         }
-        isPlaying = true
+        _isPlaying = true
     }
 
     fun pause() {
-        if (isPlaying) {
+        if (_isPlaying) {
             mediaPlayer?.pause()
-            isPlaying = false
+            _isPlaying = false
         }
     }
 
     fun resume() {
-        if (!isPlaying && mediaPlayer != null) {
+        if (!_isPlaying && mediaPlayer != null) {
             mediaPlayer?.start()
-            isPlaying = true
-        } else if (mediaPlayer == null && currentFile != null) {
-            play(currentFile!!)
+            _isPlaying = true
+        } else if (mediaPlayer == null && _currentFile != null) {
+            play(_currentFile!!)
         }
     }
 
     fun stop() {
         mediaPlayer?.release()
         mediaPlayer = null
-        isPlaying = false
-        // currentFile sengaja tidak dihapus agar mini player tetap tahu file terakhir
+        _isPlaying = false
     }
 
     fun getDuration(): Int = mediaPlayer?.duration ?: 0
