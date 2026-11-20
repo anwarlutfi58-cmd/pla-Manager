@@ -1,11 +1,13 @@
 package com.pla.manajer.adapter
 
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.pla.manajer.R
 import com.pla.manajer.databinding.ItemFileBinding
 import com.pla.manajer.util.FileUtils
+import java.io.File
 
 data class MediaItem(
     val id: Long,
@@ -18,9 +20,14 @@ data class MediaItem(
 )
 
 class MediaAdapter(
-    private val onOpen: (MediaItem) -> Unit
+    private val onOpen: (MediaItem) -> Unit,
+    private val onLong: (MediaItem) -> Unit,
+    private val onSelectToggle: (MediaItem) -> Unit
 ) : RecyclerView.Adapter<MediaAdapter.VH>() {
     private var items: List<MediaItem> = emptyList()
+    
+    var isSelectionMode = false
+    val selectedFiles = mutableSetOf<MediaItem>()
 
     fun submit(list: List<MediaItem>) {
         items = list
@@ -45,10 +52,16 @@ class MediaAdapter(
         }
         h.b.ivIcon.setImageResource(iconRes)
         
-        // Sembunyikan checkbox karena di halaman ini hanya untuk memutar
-        h.b.cbSelect.visibility = android.view.View.GONE
-        
-        h.b.root.setOnClickListener { onOpen(item) }
+        h.b.cbSelect.isChecked = selectedFiles.contains(item)
+        h.b.cbSelect.setOnClickListener { onSelectToggle(item) }
+
+        h.b.root.setOnClickListener { 
+            if (isSelectionMode) onSelectToggle(item) else onOpen(item) 
+        }
+        h.b.root.setOnLongClickListener {
+            onLong(item)
+            true
+        }
     }
 
     override fun getItemCount() = items.size
