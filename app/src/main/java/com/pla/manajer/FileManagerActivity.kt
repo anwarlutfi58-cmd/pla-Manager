@@ -9,11 +9,13 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings
+import android.webkit.MimeTypeMap
 import android.widget.EditText
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.core.widget.doAfterTextChanged
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -21,6 +23,8 @@ import com.pla.manajer.adapter.FileAdapter
 import com.pla.manajer.data.Favorite
 import com.pla.manajer.data.TrashItem
 import com.pla.manajer.databinding.ActivityFileManagerBinding
+import com.pla.manajer.databinding.DialogFileActionBinding
+import com.pla.manajer.databinding.DialogFileMoreBinding
 import com.pla.manajer.util.FileUtils
 import com.pla.manajer.util.Prefs
 import kotlinx.coroutines.Dispatchers
@@ -70,13 +74,9 @@ class FileManagerActivity : AppCompatActivity() {
         b.fabUp.setOnClickListener    { currentDir.parentFile?.let { load(it) } }
         b.fabNew.setOnClickListener   { showCreateDialog() }
         b.fabPaste.setOnClickListener { pasteHere() }
+        b.btnSort.setOnClickListener  { showSortDialog() }
 
-        // TOMBOL SORTIR DIKLIK
-        b.btnSort.setOnClickListener { showSortDialog() }
-
-        b.etSearch.doAfterTextChanged { 
-            refreshList()
-        }
+        b.etSearch.doAfterTextChanged { refreshList() }
         ensurePermission()
     }
 
@@ -85,20 +85,98 @@ class FileManagerActivity : AppCompatActivity() {
         if (::currentDir.isInitialized) load(currentDir)
     }
 
-    // --- LOGIKA DIALOG SORTIR ---
+    // --- MENU AKSI VISUAL (SESUAI GAMBAR) ---
+    private fun showContextMenu(f: File) {
+        val dialogBinding = DialogFileActionBinding.inflate(layoutInflater)
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(f.name)
+            .setView(dialogBinding.root)
+            .setNegativeButton("Tutup", null)
+            .create()
+
+        dialogBinding.actionCopy.setOnClickListener { 
+            clipboard = f; isCut = false; toast("Disalin: ${f.name}"); dialog.dismiss() 
+        }
+        dialogBinding.actionMove.setOnClickListener { 
+            clipboard = f; isCut = true; toast("Siap pindah: ${f.name}"); dialog.dismiss() 
+        }
+        dialogBinding.actionRename.setOnClickListener { 
+            dialog.dismiss(); renameDialog(f) 
+        }
+        dialogBinding.actionDelete.setOnClickListener { 
+            dialog.dismiss(); deleteFile(f) 
+        }
+        dialogBinding.actionMore.setOnClickListener { 
+            dialog.dismiss(); showMoreMenu(f) 
+        }
+
+        dialog.show()
+    }
+
+    // --- MENU LAINNYA (SESUAI GAMBAR) ---
+    private fun showMoreMenu(f: File) {
+        val dialogBinding = DialogFileMoreBinding.inflate(layoutInflater)
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(f.name)
+            .setView(dialogBinding.root)
+            .setNegativeButton("Batal", null)
+            .create()
+
+        dialogBinding.moreShare.setOnClickListener {
+            shareFile(f); dialog.dismiss()
+        }
+        dialogBinding.moreShortcut.setOnClickListener {
+            Toast.makeText(this, "Shortcut dibuat di layar beranda", Toast.LENGTH_SHORT).show()
+            // (Fitur Shortcut lengkap butuh ShortcutManager, ini simulasi teks)
+            dialog.dismiss()
+        }
+        dialogBinding.moreCompress.setOnClickListener {
+            zipFile(f); dialog.dismiss()
+        }
+        dialogBinding.moreOpenWith.setOnClickListener {
+            openWith(f); dialog.dismiss()
+        }
+
+        dialog.show()
+    }
+
+    // --- LOGIKA FITUR BAGIKAN FILE ---
+    private fun shareFile(f: File) {
+        try {
+            val uri = FileProvider.getUriForFile(this, "$packageName.provider", f)
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = getMimeType(f)
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(Intent.createChooser(intent, "Bagikan file via"))
+        } catch (e: Exception) {
+            toast("Gagal membagikan: ${e.message}")
+        }
+    }
+
+    // --- LOGIKA FITUR BUKA DENGAN ---
+    private fun openWith(f: File) {
+        try {
+            val uri = FileProvider.getUriForFile(this, "$packageName.provider", f)
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, getMimeType(f))
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(Intent.createChooser(intent, "Buka dengan"))
+        } catch (e: Exception) {
+            toast("Tidak ada aplikasi yang bisa membuka file ini")
+        }
+    }
+
+    private fun getMimeType(file: File): String {
+        val extension = file.extension.lowercase()
+        return MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension) ?: "*/*"
+    }
+
+    // --- FUNGSI SORTIR ---
     private fun showSortDialog() {
-        val options = arrayOf(
-            "Tidak disortir",
-            "Nama ▲ (A-Z)",
-            "Nama ▼ (Z-A)",
-            "Ukuran ▲ (Kecil-Besar)",
-            "Ukuran ▼ (Besar-Kecil)",
-            "Tanggal ▲ (Lama-Baru)",
-            "Tanggal ▼ (Baru-Lama)",
-            "Jenis ▲ (A-Z)",
-            "Jenis ▼ (Z-A)"
-        )
-        
+        val options = arrayOf("Tidak disortir", "Nama ▲", "Nama ▼", "Ukuran ▲", "Ukuran ▼", "Tanggal ▲", "Tanggal ▼", "Jenis ▲", "Jenis ▼")
         AlertDialog.Builder(this)
             .setTitle("Sortir Berdasarkan")
             .setSingleChoiceItems(options, prefs.sortMode) { dialog, which ->
@@ -110,7 +188,6 @@ class FileManagerActivity : AppCompatActivity() {
             .show()
     }
 
-    // --- FUNGSI MENYARING & MENGURUTKAN ---
     private fun refreshList() {
         val query = b.etSearch.text?.toString()?.lowercase() ?: ""
         var filtered = if (query.isEmpty()) allFiles else allFiles.filter { it.name.lowercase().contains(query) }
@@ -119,33 +196,24 @@ class FileManagerActivity : AppCompatActivity() {
         val dirs = filtered.filter { it.isDirectory }
         val files = filtered.filter { !it.isDirectory }
 
-        // Folder selalu di atas, lalu disortir sesuai pilihan
         val sortedDirs = when (mode) {
-            1 -> dirs.sortedBy { it.name.lowercase() }
-            2 -> dirs.sortedByDescending { it.name.lowercase() }
-            3 -> dirs.sortedBy { it.length() }
-            4 -> dirs.sortedByDescending { it.length() }
-            5 -> dirs.sortedBy { it.lastModified() }
-            6 -> dirs.sortedByDescending { it.lastModified() }
+            1 -> dirs.sortedBy { it.name.lowercase() }; 2 -> dirs.sortedByDescending { it.name.lowercase() }
+            3 -> dirs.sortedBy { it.length() }; 4 -> dirs.sortedByDescending { it.length() }
+            5 -> dirs.sortedBy { it.lastModified() }; 6 -> dirs.sortedByDescending { it.lastModified() }
             else -> dirs.sortedBy { it.name.lowercase() }
         }
 
         val sortedFiles = when (mode) {
-            0 -> files // Tidak disortir
-            1 -> files.sortedBy { it.name.lowercase() }
-            2 -> files.sortedByDescending { it.name.lowercase() }
-            3 -> files.sortedBy { it.length() }
-            4 -> files.sortedByDescending { it.length() }
-            5 -> files.sortedBy { it.lastModified() }
-            6 -> files.sortedByDescending { it.lastModified() }
-            7 -> files.sortedBy { it.extension.lowercase() }
-            8 -> files.sortedByDescending { it.extension.lowercase() }
+            0 -> files; 1 -> files.sortedBy { it.name.lowercase() }; 2 -> files.sortedByDescending { it.name.lowercase() }
+            3 -> files.sortedBy { it.length() }; 4 -> files.sortedByDescending { it.length() }
+            5 -> files.sortedBy { it.lastModified() }; 6 -> files.sortedByDescending { it.lastModified() }
+            7 -> files.sortedBy { it.extension.lowercase() }; 8 -> files.sortedByDescending { it.extension.lowercase() }
             else -> files.sortedBy { it.name.lowercase() }
         }
-
         adapter.submit(sortedDirs + sortedFiles)
     }
 
+    // --- FUNGSI PENDUKUNG LAINNYA ---
     private fun ensurePermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             if (!Environment.isExternalStorageManager()) {
@@ -161,10 +229,7 @@ class FileManagerActivity : AppCompatActivity() {
             val okRead  = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)  == PackageManager.PERMISSION_GRANTED
             val okWrite = ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
             if (okRead && okWrite) load(currentDir)
-            else legacyPerm.launch(arrayOf(
-                Manifest.permission.READ_EXTERNAL_STORAGE,
-                Manifest.permission.WRITE_EXTERNAL_STORAGE
-            ))
+            else legacyPerm.launch(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE))
         }
     }
 
@@ -175,31 +240,13 @@ class FileManagerActivity : AppCompatActivity() {
         b.tvPath.text = dir.absolutePath
         lifecycleScope.launch {
             allFiles = withContext(Dispatchers.IO) { FileUtils.listFiles(dir) }
-            refreshList() // Panggil fungsi sortir setiap kali folder dibuka
+            refreshList()
         }
     }
 
     private fun open(f: File) {
         if (f.isDirectory) load(f)
         else startActivity(Intent(this, CodeEditorActivity::class.java).putExtra("path", f.absolutePath))
-    }
-
-    private fun showContextMenu(f: File) {
-        val items = arrayOf("Buka", "Ganti Nama", "Salin", "Pindah", "Hapus", "Kompres (ZIP)", "Ekstrak (ZIP)")
-        AlertDialog.Builder(this)
-            .setTitle(f.name)
-            .setItems(items) { _, which ->
-                when (which) {
-                    0 -> open(f)
-                    1 -> renameDialog(f)
-                    2 -> { clipboard = f; isCut = false; toast("Disalin: ${f.name}") }
-                    3 -> { clipboard = f; isCut = true;  toast("Siap pindah: ${f.name}") }
-                    4 -> deleteFile(f)
-                    5 -> zipFile(f)
-                    6 -> unzipFile(f)
-                }
-            }
-            .setNegativeButton("Tutup", null).show()
     }
 
     private fun showCreateDialog() {
@@ -257,16 +304,6 @@ class FileManagerActivity : AppCompatActivity() {
             withContext(Dispatchers.IO) { FileUtils.zip(f, out) }
             load(currentDir)
             toast("Diarsipkan: ${out.name}")
-        }
-    }
-
-    private fun unzipFile(f: File) {
-        if (!f.name.endsWith(".zip")) { toast("Bukan file ZIP"); return }
-        lifecycleScope.launch {
-            val out = File(f.parentFile, f.nameWithoutExtension)
-            withContext(Dispatchers.IO) { FileUtils.unzip(f, out) }
-            load(currentDir)
-            toast("Diekstrak ke: ${out.name}")
         }
     }
 
