@@ -1,8 +1,8 @@
 package com.pla.manajer
 
 import android.app.AlertDialog
-import android.content.ClipData
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
@@ -11,6 +11,7 @@ import android.webkit.MimeTypeMap
 import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.pla.manajer.adapter.MediaAdapter
@@ -32,7 +33,7 @@ class MediaManagerActivity : AppCompatActivity() {
     
     private var currentFolderId: String? = null
     private var currentFiles: List<MediaItem> = emptyList()
-    private var sortMode: Int = 0 // 0: Nama, 1: Tanggal, 2: Ukuran
+    private var sortMode: Int = 0
 
     override fun onCreate(s: Bundle?) {
         super.onCreate(s)
@@ -51,13 +52,9 @@ class MediaManagerActivity : AppCompatActivity() {
             }
         }
 
-        // FUNGSI TOMBOL SORTIR
         b.btnSort.setOnClickListener {
-            if (currentFolderId != null) {
-                showSortDialog()
-            } else {
-                Toast.makeText(this, "Masuk ke folder untuk menyortir", Toast.LENGTH_SHORT).show()
-            }
+            if (currentFolderId != null) showSortDialog()
+            else Toast.makeText(this, "Masuk ke folder untuk menyortir", Toast.LENGTH_SHORT).show()
         }
 
         folderAdapter = MediaFolderAdapter { folder ->
@@ -71,7 +68,6 @@ class MediaManagerActivity : AppCompatActivity() {
             onSelectToggle = { item -> toggleSelection(item) }
         )
 
-        // Setup Menu Bawah
         b.btnDeleteSelected.setOnClickListener { deleteSelectedFiles() }
         b.btnCopySelected.setOnClickListener { 
             Toast.makeText(this, "Fitur Salin Media", Toast.LENGTH_SHORT).show()
@@ -192,7 +188,6 @@ class MediaManagerActivity : AppCompatActivity() {
         }
     }
 
-    // --- FUNGSI SORTIR YANG SUDAH DIPERBAIKI ---
     private fun showSortDialog() {
         val options = arrayOf("Nama (A-Z)", "Nama (Z-A)", "Tanggal (Terbaru)", "Tanggal (Terlama)", "Ukuran (Terbesar)", "Ukuran (Terkecil)")
         AlertDialog.Builder(this)
@@ -219,7 +214,6 @@ class MediaManagerActivity : AppCompatActivity() {
         fileAdapter.submit(sorted)
     }
 
-    // --- FUNGSI CHECKBOX (LANGSUNG MERESPON) ---
     private fun enableSelectionMode(item: MediaItem) {
         fileAdapter.isSelectionMode = true
         fileAdapter.selectedFiles.add(item)
@@ -233,14 +227,8 @@ class MediaManagerActivity : AppCompatActivity() {
         } else {
             fileAdapter.selectedFiles.add(item)
         }
-        
         fileAdapter.isSelectionMode = fileAdapter.selectedFiles.isNotEmpty()
-        
-        if (fileAdapter.selectedFiles.isEmpty()) {
-            closeSelectionMode()
-        } else {
-            fileAdapter.notifyDataSetChanged()
-        }
+        if (fileAdapter.selectedFiles.isEmpty()) closeSelectionMode() else fileAdapter.notifyDataSetChanged()
     }
 
     private fun closeSelectionMode() {
@@ -289,9 +277,10 @@ class MediaManagerActivity : AppCompatActivity() {
             }.setNegativeButton("Batal", null).show()
     }
 
+    // --- KUNCI PERBAIKAN: MEMBERI IZIN KE SEMUA APLIKASI ---
     private fun openMediaFile(mediaItem: MediaItem) {
         try {
-            val uri = Uri.parse(mediaItem.uriString) 
+            val uri = Uri.parse(mediaItem.uriString)
             var mime = mediaItem.mimeType
             if (mime == "*/*" || mime.isEmpty()) {
                 mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(File(mediaItem.path).extension.lowercase()) ?: "*/*"
@@ -300,12 +289,38 @@ class MediaManagerActivity : AppCompatActivity() {
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, mime)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                clipData = ClipData.newRawUri("", uri)
+                addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
             }
+
+            // Memberikan izin ke SEMUA aplikasi yang terinstal di HP
+            val resInfoList = packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
+            for (resolveInfo in resInfoList) {
+                val packageName = resolveInfo.activityInfo.packageName
+                grantUriPermission(packageName, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            
             startActivity(Intent.createChooser(intent, "Buka dengan"))
         } catch (e: Exception) {
-            Toast.makeText(this, "Gagal membuka file: ${e.message}", Toast.LENGTH_SHORT).show()
+            // Jika gagal, coba menggunakan FileProvider
+            try {
+                val file = File(mediaItem.path)
+                val uri = FileProvider.getUriForFile(this, "$packageName.provider", file)
+                var mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(file.extension.lowercase()) ?: "*/*"
+                
+                val intent = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(uri, mime)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                
+                val resInfoList = packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
+                for (resolveInfo in resInfoList) {
+                    val packageName = resolveInfo.activityInfo.packageName
+                    grantUriPermission(packageName, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                startActivity(Intent.createChooser(intent, "Buka dengan"))
+            } catch (ex: Exception) {
+                Toast.makeText(this, "Gagal membuka file: ${ex.message}", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
