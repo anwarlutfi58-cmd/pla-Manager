@@ -12,6 +12,8 @@ object PlaMediaPlayer {
     private var _isPlaying: Boolean = false
     val isPlaying: Boolean get() = _isPlaying
 
+    val audioSessionId: Int get() = mediaPlayer?.audioSessionId ?: 0
+
     fun play(file: File, onCompletion: () -> Unit = {}) {
         stop()
         _currentFile = file
