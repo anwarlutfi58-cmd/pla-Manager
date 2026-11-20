@@ -11,7 +11,6 @@
         android:layout_height="match_parent"
         android:orientation="vertical">
 
-        <!-- HEADER PATH -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -51,7 +50,7 @@
             android:layout_weight="1"
             android:clipToPadding="false" />
 
-        <!-- MENU AKSI BAWAH (SAMA SEPERTI FILE MANAGER) -->
+        <!-- MENU AKSI BAWAH (Salin, Pindah, Ganti Nama, Hapus) -->
         <LinearLayout
             android:id="@+id/selectionToolbar"
             android:layout_width="match_parent"
@@ -67,14 +66,19 @@
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Salin" android:textColor="#FFFFFF" android:textSize="11sp" />
             </LinearLayout>
 
+            <LinearLayout android:id="@+id/btnMoveSelected" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:orientation="vertical">
+                <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_move" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Pindahkan" android:textColor="#FFFFFF" android:textSize="11sp" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/btnRenameSelected" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:orientation="vertical">
+                <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_rename" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Ganti Nama" android:textColor="#FFFFFF" android:textSize="11sp" />
+            </LinearLayout>
+
             <LinearLayout android:id="@+id/btnDeleteSelected" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:orientation="vertical">
                 <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_delete" />
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Hapus" android:textColor="#FFFFFF" android:textSize="11sp" />
-            </LinearLayout>
-            
-            <LinearLayout android:id="@+id/btnCloseSelection" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:orientation="vertical">
-                <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_back" />
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Batal" android:textColor="#FFFFFF" android:textSize="11sp" />
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>
