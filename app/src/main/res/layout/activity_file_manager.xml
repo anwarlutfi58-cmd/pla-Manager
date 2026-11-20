@@ -11,15 +11,17 @@
         android:layout_height="match_parent"
         android:orientation="vertical">
 
-        <!-- MODE PILIH SEMUA -->
+        <!-- MENU PILIH (MULTI-SELECT) -->
         <LinearLayout
             android:id="@+id/selectionToolbar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="#2196F3"
             android:gravity="center_vertical"
-            android:padding="8dp"
+            android:orientation="horizontal"
+            android:padding="4dp"
             android:visibility="gone">
+            
             <ImageButton
                 android:id="@+id/btnCloseSelection"
                 android:layout_width="40dp"
@@ -27,6 +29,7 @@
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:src="@drawable/ic_back"
                 app:tint="#FFFFFF" />
+                
             <TextView
                 android:id="@+id/tvSelectedCount"
                 android:layout_width="0dp"
@@ -36,13 +39,44 @@
                 android:text="0 terpilih"
                 android:textColor="#FFFFFF"
                 android:textSize="16sp" />
-            <com.google.android.material.button.MaterialButton
+
+            <!-- TOMBOL SALIN -->
+            <ImageButton
+                android:id="@+id/btnCopySelected"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_copy"
+                app:tint="#FFFFFF" />
+
+            <!-- TOMBOL PINDAH -->
+            <ImageButton
+                android:id="@+id/btnMoveSelected"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_move"
+                app:tint="#FFFFFF" />
+                
+            <!-- TOMBOL GANTI NAMA -->
+            <ImageButton
+                android:id="@+id/btnRenameSelected"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_rename"
+                app:tint="#FFFFFF" />
+                
+            <!-- TOMBOL PILIH SEMUA -->
+            <ImageButton
                 android:id="@+id/btnSelectAll"
-                style="@style/Widget.Material3.Button.TextButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Pilih Semua"
-                android:textColor="#FFFFFF" />
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_save"
+                app:tint="#FFFFFF" />
+
+            <!-- TOMBOL HAPUS -->
             <ImageButton
                 android:id="@+id/btnDeleteSelected"
                 android:layout_width="40dp"
@@ -52,7 +86,7 @@
                 app:tint="#FFFFFF" />
         </LinearLayout>
 
-        <!-- HEADER BARU: ALAMAT FOLDER & MENU ATAS -->
+        <!-- HEADER PATH (TOMBOL ATAS) -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -60,8 +94,6 @@
             android:gravity="center_vertical"
             android:orientation="horizontal"
             android:padding="4dp">
-            
-            <!-- Tombol Kembali (Kiri Atas) -->
             <ImageButton
                 android:id="@+id/btnTopBack"
                 android:layout_width="40dp"
@@ -69,7 +101,6 @@
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:src="@drawable/ic_back"
                 app:tint="?attr/colorOnPrimaryContainer" />
-
             <TextView
                 android:id="@+id/tvPath"
                 android:layout_width="0dp"
@@ -79,8 +110,6 @@
                 android:maxLines="1"
                 android:text="/storage/emulated/0"
                 android:textSize="13sp" />
-
-            <!-- Tombol Naik Folder (Up) -->
             <ImageButton
                 android:id="@+id/btnTopUp"
                 android:layout_width="40dp"
@@ -88,8 +117,6 @@
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:src="@drawable/ic_up"
                 app:tint="?attr/colorOnPrimaryContainer" />
-
-            <!-- Tombol Buat Baru (Plus) -->
             <ImageButton
                 android:id="@+id/btnTopNew"
                 android:layout_width="40dp"
@@ -97,8 +124,6 @@
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:src="@drawable/ic_add"
                 app:tint="?attr/colorOnPrimaryContainer" />
-
-            <!-- Tombol Sortir -->
             <ImageButton
                 android:id="@+id/btnSort"
                 android:layout_width="40dp"
@@ -127,7 +152,7 @@
             android:paddingBottom="100dp" />
     </LinearLayout>
 
-    <!-- FAB TEMPEL (Tersembunyi secara default) -->
+    <!-- FAB TEMPEL (MUNCUL SAAT SALIN/PINDAH) -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fabPaste"
         android:layout_width="wrap_content"
