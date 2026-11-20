@@ -26,16 +26,16 @@
         android:orientation="horizontal">
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnRestore"
+            style="@style/Widget.Material3.Button.TonalButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginEnd="8dp"
-            android:text="Pulihkan"
-            style="@style/Widget.Material3.Button.TonalButton" />
+            android:text="Pulihkan" />
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnDelete"
+            style="@style/Widget.Material3.Button.TextButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Hapus"
-            style="@style/Widget.Material3.Button.TextButton" />
+            android:text="Hapus" />
     </LinearLayout>
 </LinearLayout>
