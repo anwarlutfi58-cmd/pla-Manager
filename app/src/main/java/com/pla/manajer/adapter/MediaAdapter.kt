@@ -12,7 +12,8 @@ data class MediaItem(
     val path: String,
     val size: Long,
     val dateModified: Long,
-    val uriString: String
+    val uriString: String,
+    val mimeType: String
 )
 
 class MediaAdapter(
@@ -35,7 +36,6 @@ class MediaAdapter(
         h.b.tvName.text = item.name
         h.b.tvMeta.text = FileUtils.humanSize(item.size)
         
-        // Sembunyikan ikon favorit & checkbox karena ini halaman media
         h.b.btnFav.visibility = android.view.View.GONE
         h.b.cbSelect.visibility = android.view.View.GONE
         
