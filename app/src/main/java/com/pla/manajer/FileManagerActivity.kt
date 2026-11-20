@@ -2,6 +2,7 @@ package com.pla.manajer
 
 import android.Manifest
 import android.app.AlertDialog
+import android.content.ClipData
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -77,7 +78,6 @@ class FileManagerActivity : AppCompatActivity() {
         b.btnSort.setOnClickListener    { showSortDialog() }
         b.fabPaste.setOnClickListener   { pasteHere() }
 
-        // --- SETUP MODE PILIH ---
         b.btnCloseSelection.setOnClickListener { closeSelectionMode() }
         b.btnSelectAll.setOnClickListener { 
             adapter.selectedFiles.clear()
@@ -185,22 +185,32 @@ class FileManagerActivity : AppCompatActivity() {
         }
     }
 
+    // --- FUNGSI INI YANG MEMBUAT SEMUA APLIKASI PEMUTAR MUNCUL ---
     private fun openWith(f: File) {
         try {
             val uri = FileProvider.getUriForFile(this, "$packageName.provider", f)
+            
+            var mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(f.extension.lowercase())
+            if (mime == null) {
+                mime = when (f.extension.lowercase()) {
+                    "mp3" -> "audio/mpeg"
+                    "mp4" -> "video/mp4"
+                    "jpg", "jpeg" -> "image/jpeg"
+                    "png" -> "image/png"
+                    else -> "*/*"
+                }
+            }
+
             val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, getMimeType(f))
+                setDataAndType(uri, mime)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                clipData = ClipData.newRawUri("", uri) // KUNCI AGAR APLIKASI LAIN MUNCUL
             }
             startActivity(Intent.createChooser(intent, "Buka dengan"))
         } catch (e: Exception) {
             toast("Tidak ada aplikasi untuk membuka file ini")
         }
-    }
-
-    private fun getMimeType(file: File): String {
-        val extension = file.extension.lowercase()
-        return MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension) ?: "*/*"
     }
 
     private fun showContextMenu(f: File) {
@@ -233,10 +243,12 @@ class FileManagerActivity : AppCompatActivity() {
     private fun shareFile(f: File) {
         try {
             val uri = FileProvider.getUriForFile(this, "$packageName.provider", f)
+            val mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(f.extension.lowercase()) ?: "*/*"
             val intent = Intent(Intent.ACTION_SEND).apply {
-                type = getMimeType(f)
+                type = mime
                 putExtra(Intent.EXTRA_STREAM, uri)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                clipData = ClipData.newRawUri("", uri)
             }
             startActivity(Intent.createChooser(intent, "Bagikan via"))
         } catch (e: Exception) {
