@@ -3,6 +3,7 @@ package com.pla.manajer.adapter
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
+import com.pla.manajer.R
 import com.pla.manajer.databinding.ItemFileBinding
 import com.pla.manajer.util.FileUtils
 
@@ -36,7 +37,15 @@ class MediaAdapter(
         h.b.tvName.text = item.name
         h.b.tvMeta.text = FileUtils.humanSize(item.size)
         
-        h.b.btnFav.visibility = android.view.View.GONE
+        val iconRes = when {
+            item.mimeType.startsWith("audio") -> R.drawable.ic_music_note
+            item.mimeType.startsWith("video") -> R.drawable.ic_video
+            item.mimeType.startsWith("image") -> R.drawable.ic_image
+            else -> R.drawable.ic_file
+        }
+        h.b.ivIcon.setImageResource(iconRes)
+        
+        // Sembunyikan checkbox karena di halaman ini hanya untuk memutar
         h.b.cbSelect.visibility = android.view.View.GONE
         
         h.b.root.setOnClickListener { onOpen(item) }
