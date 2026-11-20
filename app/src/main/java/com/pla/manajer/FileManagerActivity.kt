@@ -24,8 +24,6 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.pla.manajer.adapter.FileAdapter
 import com.pla.manajer.data.TrashItem
 import com.pla.manajer.databinding.ActivityFileManagerBinding
-import com.pla.manajer.databinding.DialogFileActionBinding
-import com.pla.manajer.databinding.DialogFileMoreBinding
 import com.pla.manajer.util.FileUtils
 import com.pla.manajer.util.Prefs
 import kotlinx.coroutines.Dispatchers
@@ -80,6 +78,7 @@ class FileManagerActivity : AppCompatActivity() {
         b.btnSelectAll.setOnClickListener { 
             adapter.selectedFiles.clear()
             adapter.selectedFiles.addAll(allFiles)
+            adapter.isSelectionMode = true
             adapter.notifyDataSetChanged()
             updateSelectionUi()
         }
@@ -140,23 +139,15 @@ class FileManagerActivity : AppCompatActivity() {
             adapter.selectedFiles.add(f)
         }
 
-        if (adapter.selectedFiles.isEmpty()) {
-            closeSelectionMode()
-        } else {
-            enableSelectionMode(null)
-        }
+        adapter.isSelectionMode = adapter.selectedFiles.isNotEmpty()
         adapter.notifyDataSetChanged()
+        updateSelectionUi()
     }
 
-    private fun updateSelectionUi() {
-        if (adapter.selectedFiles.isEmpty()) closeSelectionMode()
-    }
-
-    private fun enableSelectionMode(f: File?) {
+    private fun enableSelectionMode(f: File) {
         adapter.isSelectionMode = true
-        if (f != null) adapter.selectedFiles.add(f)
+        adapter.selectedFiles.add(f)
         adapter.notifyDataSetChanged()
-        b.selectionToolbar.visibility = View.VISIBLE
         updateSelectionUi()
     }
 
@@ -165,6 +156,14 @@ class FileManagerActivity : AppCompatActivity() {
         adapter.selectedFiles.clear()
         adapter.notifyDataSetChanged()
         b.selectionToolbar.visibility = View.GONE
+    }
+
+    private fun updateSelectionUi() {
+        if (adapter.selectedFiles.isEmpty()) {
+            b.selectionToolbar.visibility = View.GONE
+        } else {
+            b.selectionToolbar.visibility = View.VISIBLE
+        }
     }
 
     private fun deleteMultipleFiles(files: List<File>) {
@@ -198,33 +197,46 @@ class FileManagerActivity : AppCompatActivity() {
         }
     }
 
+    // --- FUNGSI BUKA DENGAN (DIPERBAIKI TOTAL) ---
     private fun openWith(f: File) {
         try {
             val uri = FileProvider.getUriForFile(this, "$packageName.provider", f)
+            
+            // Deteksi tipe file secara pintar
             var mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(f.extension.lowercase())
-            if (mime == null) {
+            if (mime == null || mime == "*/*") {
                 mime = when (f.extension.lowercase()) {
-                    "mp3" -> "audio/mpeg"
-                    "mp4" -> "video/mp4"
-                    "jpg", "jpeg" -> "image/jpeg"
-                    "png" -> "image/png"
+                    "mp3", "wav" -> "audio/*"
+                    "mp4", "mkv", "avi" -> "video/*"
+                    "jpg", "jpeg", "png" -> "image/*"
                     else -> "*/*"
                 }
             }
+
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, mime)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 clipData = ClipData.newRawUri("", uri)
             }
+            
+            // Memaksa munculkan pilihan aplikasi
             startActivity(Intent.createChooser(intent, "Buka dengan"))
         } catch (e: Exception) {
-            toast("Tidak ada aplikasi untuk membuka file ini")
+            // Jika FileProvider gagal (biasanya karena izin), fallback ke path langsung
+            try {
+                val intent = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(Uri.fromFile(f), "*/*")
+                }
+                startActivity(Intent.createChooser(intent, "Buka dengan"))
+            } catch (ex: Exception) {
+                toast("Tidak ada aplikasi untuk membuka file ini")
+            }
         }
     }
 
     private fun showSortDialog() {
-        val options = arrayOf("Tidak disortir", "Nama ▲", "Nama ▼", "Ukuran ▲", "Ukuran ▼", "Tanggal ▲ (Terlama)", "Tanggal ▼ (Terbaru)", "Jenis ▲", "Jenis ▼")
+        val options = arrayOf("Nama (A-Z)", "Nama (Z-A)", "Tanggal (Terlama)", "Tanggal (Terbaru)", "Ukuran (Terkecil)", "Ukuran (Terbesar)")
         AlertDialog.Builder(this)
             .setTitle("Sortir Berdasarkan")
             .setSingleChoiceItems(options, prefs.sortMode) { dialog, which ->
@@ -241,26 +253,18 @@ class FileManagerActivity : AppCompatActivity() {
         var filtered = if (query.isEmpty()) allFiles else allFiles.filter { it.name.lowercase().contains(query) }
 
         val mode = prefs.sortMode
-        val dirs = filtered.filter { it.isDirectory }
-        val files = filtered.filter { !it.isDirectory }
-
-        val sortedDirs = when (mode) {
-            1 -> dirs.sortedBy { it.name.lowercase() }; 2 -> dirs.sortedByDescending { it.name.lowercase() }
-            3 -> dirs.sortedBy { it.length() }; 4 -> dirs.sortedByDescending { it.length() }
-            5 -> dirs.sortedBy { it.lastModified() }; 6 -> dirs.sortedByDescending { it.lastModified() }
-            7 -> dirs.sortedBy { it.extension.lowercase() }; 8 -> dirs.sortedByDescending { it.extension.lowercase() }
-            else -> dirs.sortedBy { it.name.lowercase() }
+        
+        val sortedList = when (mode) {
+            0 -> filtered.sortedWith(compareBy({ !it.isDirectory }, { it.name.lowercase() }))
+            1 -> filtered.sortedWith(compareBy({ !it.isDirectory }, { it.name.lowercase() }).reversed())
+            2 -> filtered.sortedBy { it.lastModified() }
+            3 -> filtered.sortedByDescending { it.lastModified() }
+            4 -> filtered.sortedBy { it.length() }
+            5 -> filtered.sortedByDescending { it.length() }
+            else -> filtered.sortedWith(compareBy({ !it.isDirectory }, { it.name.lowercase() }))
         }
-
-        val sortedFiles = when (mode) {
-            0 -> files
-            1 -> files.sortedBy { it.name.lowercase() }; 2 -> files.sortedByDescending { it.name.lowercase() }
-            3 -> files.sortedBy { it.length() }; 4 -> files.sortedByDescending { it.length() }
-            5 -> files.sortedBy { it.lastModified() }; 6 -> files.sortedByDescending { it.lastModified() }
-            7 -> files.sortedBy { it.extension.lowercase() }; 8 -> files.sortedByDescending { it.extension.lowercase() }
-            else -> files.sortedBy { it.name.lowercase() }
-        }
-        adapter.submit(sortedDirs + sortedFiles)
+        
+        adapter.submit(sortedList)
     }
 
     private fun ensurePermission() {
