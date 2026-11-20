@@ -5,11 +5,13 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" tools:ignore="ScopedStorage" />
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" tools:ignore="ScopedStorage" />
-    
-    <!-- TAMBAHAN IZIN APLIKASI -->
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="QueryAllPackagesPermission" />
+    
+    <!-- IZIN MEDIA UNTUK ANDROID 13+ -->
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
 
-    <!-- TAMBAHAN QUERIES (Wajib Android 11+) -->
     <queries>
         <intent>
             <action android:name="android.intent.action.MAIN" />
@@ -41,8 +43,19 @@
         <activity android:name=".FavoritesActivity" />
         <activity android:name=".TrashActivity" />
         <activity android:name=".SettingsActivity" />
-        
-        <!-- TAMBAHAN ACTIVITY BARU -->
         <activity android:name=".AppManagerActivity" />
+        
+        <!-- ACTIVITY BARU UNTUK MEDIA -->
+        <activity android:name=".MediaManagerActivity" />
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.provider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 </manifest>
