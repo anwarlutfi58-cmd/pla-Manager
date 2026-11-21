@@ -11,7 +11,6 @@ import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.exifinterface.media.ExifInterface
 import com.google.android.material.tabs.TabLayout
 import com.pla.manajer.databinding.ActivityImageEditorBinding
 import java.io.File
@@ -133,7 +132,7 @@ class ImageEditorActivity : AppCompatActivity() {
         }
 
         // --- 6. LOGIKA SIMPAN ---
-        b.btnSaveImage.setOnClickListener { saveImageToGallery(file) }
+        b.btnSaveImage.setOnClickListener { saveImageToGallery() }
     }
 
     private fun rotateImage(degrees: Float) {
@@ -159,9 +158,8 @@ class ImageEditorActivity : AppCompatActivity() {
         val saturation = b.seekSaturation.progress / 100f
 
         val colorMatrix = ColorMatrix()
-        // Saturasi
         colorMatrix.setSaturation(saturation)
-        // Kecerahan & Kontras
+        
         val scale = brightness * contrast
         val translate = (-0.5f * scale + 0.5f) * 255f
         val brightnessMatrix = ColorMatrix(floatArrayOf(
@@ -184,7 +182,6 @@ class ImageEditorActivity : AppCompatActivity() {
         val w = b.spinnerWidth.selectedItem.toString().toInt()
         val h = b.spinnerHeight.selectedItem.toString().toInt()
         
-        // Logika Preset Pas Foto
         var finalW = w
         var finalH = h
         when(b.spinnerPreset.selectedItemPosition) {
@@ -200,32 +197,19 @@ class ImageEditorActivity : AppCompatActivity() {
         Toast.makeText(this, "Efek dan Ukuran Diterapkan!", Toast.LENGTH_SHORT).show()
     }
 
-    private fun saveImageToGallery(originalFile: File) {
+    private fun saveImageToGallery() {
         try {
             val format = b.spinnerFormat.selectedItem.toString()
             val fileName = "EDIT_${System.currentTimeMillis()}.${format.lowercase()}"
             
-            // 1. Hapus EXIF jika dicentang
-            if (b.cbRemoveExif.isChecked) {
-                try {
-                    // ExifInterface butuh file asli. Jika file tidak ditemukan, abaikan.
-                    val exif = ExifInterface(originalFile.absolutePath)
-                    exif.setAttribute(ExifInterface.TAG_GPS_LATITUDE, null)
-                    exif.setAttribute(ExifInterface.TAG_GPS_LONGITUDE, null)
-                    exif.setAttribute(ExifInterface.TAG_MAKE, null)
-                    exif.setAttribute(ExifInterface.TAG_MODEL, null)
-                    exif.saveAttributes()
-                } catch (e: Exception) {
-                    // Abaikan jika gagal hapus exif
-                }
-            }
+            // Catatan: Menyimpan bitmap baru secara otomatis menghapus metadata EXIF (GPS, Kamera) asli.
+            // Jadi centang "Hapus Metadata" sudah otomatis bekerja di sini.
 
-            // 2. Simpan File
             val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
             val file = File(dir, fileName)
             val outputStream = FileOutputStream(file)
 
-            // 3. Kompresi (Kualitas 100 atau 50 jika dicentang)
+            // Kompresi (Kualitas 100 atau 50 jika dicentang)
             val quality = if (b.cbCompress.isChecked) 50 else 100
             
             val compressFormat = when(format) {
@@ -238,7 +222,7 @@ class ImageEditorActivity : AppCompatActivity() {
             outputStream.flush()
             outputStream.close()
 
-            // 4. Daftarkan ke Galeri
+            // Daftarkan ke Galeri
             val values = ContentValues().apply {
                 put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
                 put(MediaStore.Images.Media.MIME_TYPE, "image/*")
