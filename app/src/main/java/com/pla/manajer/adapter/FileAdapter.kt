@@ -11,8 +11,7 @@ import java.io.File
 class FileAdapter(
     private val onOpen: (File) -> Unit,
     private val onLong: (File) -> Unit,
-    private val onSelectToggle: (File) -> Unit,
-    private val onMoreOptions: (File) -> Unit // Tambahan untuk titik 3
+    private val onSelectToggle: (File) -> Unit
 ) : RecyclerView.Adapter<FileAdapter.VH>() {
     private var items: List<File> = emptyList()
     
@@ -41,7 +40,6 @@ class FileAdapter(
         
         // Sambungkan kembali listener CheckBox
         h.b.cbSelect.setOnCheckedChangeListener { _, isChecked ->
-            // Hanya panggil toggle jika statusnya berbeda dengan memori adapter
             if (isChecked != selectedFiles.contains(f)) {
                 onSelectToggle(f)
             }
@@ -60,11 +58,6 @@ class FileAdapter(
         h.b.root.setOnLongClickListener { 
             onLong(f)
             true 
-        }
-
-        // Klik Tombol Titik 3 = Buka Menu Aksi (Bagikan, Hapus, dll)
-        h.b.btnMore.setOnClickListener {
-            onMoreOptions(f)
         }
     }
 
