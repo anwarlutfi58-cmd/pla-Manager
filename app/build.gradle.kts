@@ -49,4 +49,10 @@ dependencies {
     
     // MESIN FFMPEG (MENGGUNAKAN FORK KOMUNITAS YANG MASIH AKTIF)
     implementation("dev.ffmpegkit-maintained:ffmpeg-kit-audio:8.1.9")
+    
+    // =========================================================
+    // TAMBAHAN UNTUK FITUR GITHUB (KONEKSI INTERNET & DATA)
+    // =========================================================
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.google.code.gson:gson:2.10.1")
 }
