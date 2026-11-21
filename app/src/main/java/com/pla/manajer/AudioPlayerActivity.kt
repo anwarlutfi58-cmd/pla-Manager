@@ -35,18 +35,18 @@ class AudioPlayerActivity : AppCompatActivity() {
 
         b.btnBack.setOnClickListener { finish() }
         
-        // LOGIKA TOMBOL PLAY/PAUSE (DIPERBARUI UNTUK TALKBACK)
+        // LOGIKA TOMBOL PLAY/PAUSE
         b.btnPlayPause.setOnClickListener {
             if (PlaMediaPlayer.isPlaying) {
                 PlaMediaPlayer.pause()
-                updateTombolPutar(false) // Set ke Ikon Putar
+                updateTombolPutar(false) 
             } else {
                 PlaMediaPlayer.resume()
-                updateTombolPutar(true) // Set ke Ikon Jeda
+                updateTombolPutar(true) 
             }
         }
 
-        b.btnNext.setOnClickListener { playNextSong(manualClick = true) }
+        b.btnNext.setOnClickListener { playNextSong() }
         
         b.btnPrev.setOnClickListener {
             if (isShuffle) {
@@ -88,15 +88,12 @@ class AudioPlayerActivity : AppCompatActivity() {
         })
     }
 
-    // FUNGSI BARU: Mengatur Ikon dan Suara TalkBack
     private fun updateTombolPutar(isPlaying: Boolean) {
         if (isPlaying) {
             b.btnPlayPause.setImageResource(R.drawable.ic_pause)
-            // TalkBack akan membacakan "Jeda" dalam bahasa Indonesia
             b.btnPlayPause.contentDescription = "Jeda" 
         } else {
             b.btnPlayPause.setImageResource(R.drawable.ic_play)
-            // TalkBack akan membacakan "Putar" dalam bahasa Indonesia
             b.btnPlayPause.contentDescription = "Putar" 
         }
     }
@@ -129,12 +126,11 @@ class AudioPlayerActivity : AppCompatActivity() {
         b.tvCounter.text = "${index + 1} dari ${filePaths.size}"
         
         PlaMediaPlayer.play(file) {
-            // Saat lagu habis otomatis, kembalikan tombol ke Putar
             updateTombolPutar(false)
             
             when (repeatMode) {
                 2 -> playSong(currentIndex) 
-                1 -> playNextSong(manualClick = false) 
+                1 -> playNextSong() 
                 0 -> {
                     if (currentIndex < filePaths.size - 1) {
                         currentIndex++
@@ -144,7 +140,7 @@ class AudioPlayerActivity : AppCompatActivity() {
             }
         }
         
-        updateTombolPutar(true) // Set ke Ikon Jeda saat lagu mulai
+        updateTombolPutar(true) 
         updateSeekBar()
         
         val sessionId = PlaMediaPlayer.audioSessionId
@@ -157,7 +153,7 @@ class AudioPlayerActivity : AppCompatActivity() {
         }
     }
 
-    private fun playNextSong(manualClick: Boolean) {
+    private fun playNextSong() {
         if (isShuffle) {
             currentIndex = filePaths.indices.random()
         } else {
@@ -194,20 +190,26 @@ class AudioPlayerActivity : AppCompatActivity() {
         val builder = AlertDialog.Builder(this)
         builder.setTitle("Efek Suara (Equalizer)")
 
+        val scrollView = android.widget.ScrollView(this)
         val layout = android.widget.LinearLayout(this).apply {
             orientation = android.widget.LinearLayout.VERTICAL
             setPadding(50, 20, 50, 20)
         }
+        scrollView.addView(layout)
 
         val numBands = equalizer!!.numberOfBands
         val range = equalizer!!.bandLevelRange
 
-        for (i in 0 until minOf(3, numBands)) {
+        for (i in 0 until numBands) {
             val bandIndex = i.toShort()
-            val freq = equalizer!!.getCenterFreq(bandIndex) / 1000
+            val freq = equalizer!!.getCenterFreq(bandIndex) / 1000 
+            
+            val freqText = if (freq >= 1000) "${freq / 1000} kHz" else "$freq Hz"
+
             val label = android.widget.TextView(this).apply {
-                text = "${freq} Hz"
+                text = freqText
                 setTextColor(android.graphics.Color.WHITE)
+                setPadding(0, 20, 0, 0) 
             }
             
             val seekBar = SeekBar(this).apply {
@@ -231,7 +233,7 @@ class AudioPlayerActivity : AppCompatActivity() {
             layout.addView(seekBar)
         }
 
-        builder.setView(layout)
+        builder.setView(scrollView)
         builder.setPositiveButton("Tutup", null)
         builder.show()
     }
