@@ -1,17 +1,18 @@
 package com.pla.manajer
 
-import android.app.AlertDialog
 import android.content.ContentValues
 import android.graphics.*
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
 import android.view.MotionEvent
+import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.exifinterface.media.ExifInterface
+import com.google.android.material.tabs.TabLayout
 import com.pla.manajer.databinding.ActivityImageEditorBinding
 import java.io.File
 import java.io.FileOutputStream
@@ -21,7 +22,7 @@ class ImageEditorActivity : AppCompatActivity() {
     private lateinit var originalBitmap: Bitmap
     private lateinit var mutableBitmap: Bitmap
     private lateinit var canvas: Canvas
-    private lateinit var paint: Paint
+    
     private var isEraserMode = false
     private var lastX = 0f
     private var lastY = 0f
@@ -36,61 +37,53 @@ class ImageEditorActivity : AppCompatActivity() {
         
         try {
             originalBitmap = BitmapFactory.decodeFile(file.absolutePath)
-            // Buat bitmap yang bisa diedit (Mutable)
             mutableBitmap = originalBitmap.copy(Bitmap.Config.ARGB_8888, true)
             canvas = Canvas(mutableBitmap)
             b.ivImage.setImageBitmap(mutableBitmap)
-            
         } catch (e: Exception) {
             Toast.makeText(this, "Gagal memuat gambar", Toast.LENGTH_SHORT).show()
             finish()
             return
         }
 
-        // --- SETUP DAFTAR PILIHAN (SPINNER) ---
-        // 1. Daftar Ukuran 14px sampai 6000px
+        // --- 1. SETUP LOGIKA TAB ---
+        b.tabLayoutImage.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: TabLayout.Tab?) {
+                b.layoutTabUkuran.visibility = View.GONE
+                b.layoutTabPutar.visibility = View.GONE
+                b.layoutTabWarna.visibility = View.GONE
+                b.layoutTabLainnya.visibility = View.GONE
+                when(tab?.position) {
+                    0 -> b.layoutTabUkuran.visibility = View.VISIBLE
+                    1 -> b.layoutTabPutar.visibility = View.VISIBLE
+                    2 -> b.layoutTabWarna.visibility = View.VISIBLE
+                    3 -> b.layoutTabLainnya.visibility = View.VISIBLE
+                }
+            }
+            override fun onTabUnselected(tab: TabLayout.Tab?) {}
+            override fun onTabReselected(tab: TabLayout.Tab?) {}
+        })
+
+        // --- 2. SETUP SPINNER (UKURAN & PRESET) ---
         val sizes = arrayOf("14", "100", "500", "720", "1080", "1400", "2000", "4000", "6000")
         val sizeAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, sizes)
         b.spinnerWidth.adapter = sizeAdapter
         b.spinnerHeight.adapter = sizeAdapter
-        
-        // Set default ke ukuran asli gambar jika ada di daftar, kalau tidak set ke 1400
-        val defaultW = sizes.indexOf(mutableBitmap.width.toString()).takeIf { it >= 0 } ?: 5
-        val defaultH = sizes.indexOf(mutableBitmap.height.toString()).takeIf { it >= 0 } ?: 5
-        b.spinnerWidth.setSelection(defaultW)
-        b.spinnerHeight.setSelection(defaultH)
+        b.spinnerWidth.setSelection(5) // Default 1400
+        b.spinnerHeight.setSelection(5)
 
-        // 2. Daftar Format Gambar
+        val presets = arrayOf("Bebas", "1:1 (Persegi)", "3:4 (Pas Foto)", "4:6 (Pas Foto)", "16:9 (Video)")
+        b.spinnerPreset.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, presets)
+
         val formats = arrayOf("JPG", "PNG", "WEBP")
-        val formatAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, formats)
-        b.spinnerFormat.adapter = formatAdapter
+        b.spinnerFormat.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, formats)
 
-        // 3. Daftar Tes Warna
-        val colorFilters = arrayOf("Normal (Asli)", "Grayscale (Hitam Putih)", "Sepia (Klasik)", "Invert (Negatif)")
-        val colorAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, colorFilters)
-        b.spinnerColorFilter.adapter = colorAdapter
+        // --- 3. LOGIKA TOMBOL PUTAR & BALIK ---
+        b.btnRotateLeft.setOnClickListener { rotateImage(-90f) }
+        b.btnRotateRight.setOnClickListener { rotateImage(90f) }
+        b.btnFlip.setOnClickListener { flipImage() }
 
-        // Inisialisasi Paint untuk Teks / Brush
-        paint = Paint().apply {
-            color = Color.RED
-            textSize = 100f
-            isAntiAlias = true
-            strokeWidth = 50f
-            style = Paint.Style.STROKE
-        }
-
-        // --- LOGIKA RESIZE (Menggunakan Spinner) ---
-        b.btnResize.setOnClickListener {
-            val w = b.spinnerWidth.selectedItem.toString().toIntOrNull() ?: return@setOnClickListener
-            val h = b.spinnerHeight.selectedItem.toString().toIntOrNull() ?: return@setOnClickListener
-            
-            mutableBitmap = Bitmap.createScaledBitmap(mutableBitmap, w, h, true)
-            canvas = Canvas(mutableBitmap)
-            b.ivImage.setImageBitmap(mutableBitmap)
-            Toast.makeText(this, "Ukuran diubah ke $w x $h", Toast.LENGTH_SHORT).show()
-        }
-
-        // --- LOGIKA TAMBAH TEKS ---
+        // --- 4. LOGIKA TOMBOL TAMBAH TEKS & ERASER ---
         b.btnAddText.setOnClickListener {
             val text = b.etText.text.toString()
             if (text.isNotEmpty()) {
@@ -105,33 +98,20 @@ class ImageEditorActivity : AppCompatActivity() {
             }
         }
 
-        // --- LOGIKA HAPUS WATERMARK (MAGIC ERASER) ---
         b.btnMagicEraser.setOnClickListener {
             isEraserMode = !isEraserMode
-            if (isEraserMode) {
-                b.btnMagicEraser.text = "MODE HAPUS AKTIF (Gosok dengan Jari)"
-                Toast.makeText(this, "Gosokkan jari pada tulisan watermark", Toast.LENGTH_LONG).show()
-            } else {
-                b.btnMagicEraser.text = "Aktifkan Hapus Watermark (Gosok dengan Jari)"
-            }
+            b.btnMagicEraser.text = if (isEraserMode) "MODE HAPUS AKTIF" else "Gosok Hapus Watermark"
         }
 
         b.ivImage.setOnTouchListener { _, event ->
             if (!isEraserMode) return@setOnTouchListener false
-            
-            val x = event.x
-            val y = event.y
-            
             val scaleX = mutableBitmap.width.toFloat() / b.ivImage.width
             val scaleY = mutableBitmap.height.toFloat() / b.ivImage.height
-            val bmpX = x * scaleX
-            val bmpY = y * scaleY
+            val bmpX = event.x * scaleX
+            val bmpY = event.y * scaleY
 
             when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    lastX = bmpX
-                    lastY = bmpY
-                }
+                MotionEvent.ACTION_DOWN -> { lastX = bmpX; lastY = bmpY }
                 MotionEvent.ACTION_MOVE -> {
                     val eraserPaint = Paint().apply {
                         color = Color.TRANSPARENT
@@ -140,89 +120,133 @@ class ImageEditorActivity : AppCompatActivity() {
                         maskFilter = BlurMaskFilter(40f, BlurMaskFilter.Blur.NORMAL)
                     }
                     canvas.drawLine(lastX, lastY, bmpX, bmpY, eraserPaint)
-                    lastX = bmpX
-                    lastY = bmpY
+                    lastX = bmpX; lastY = bmpY
                     b.ivImage.invalidate()
                 }
             }
             true
         }
 
-        // --- LOGIKA SIMPAN ---
-        // Kita tidak perlu AlertDialog lagi karena format sudah dipilih di Spinner
-        b.btnSaveImage.setOnClickListener { 
-            val format = b.spinnerFormat.selectedItem.toString()
-            saveImage(format) 
+        // --- 5. LOGIKA TERAPKAN EFEK (WARNA & UKURAN) ---
+        b.btnApplyEffects.setOnClickListener {
+            applyColorAndSizeEffects()
         }
+
+        // --- 6. LOGIKA SIMPAN ---
+        b.btnSaveImage.setOnClickListener { saveImageToGallery(file) }
     }
 
-    private fun saveImage(format: String) {
+    private fun rotateImage(degrees: Float) {
+        val matrix = Matrix()
+        matrix.postRotate(degrees)
+        mutableBitmap = Bitmap.createBitmap(mutableBitmap, 0, 0, mutableBitmap.width, mutableBitmap.height, matrix, true)
+        canvas = Canvas(mutableBitmap)
+        b.ivImage.setImageBitmap(mutableBitmap)
+    }
+
+    private fun flipImage() {
+        val matrix = Matrix()
+        matrix.postScale(-1f, 1f, mutableBitmap.width / 2f, mutableBitmap.height / 2f)
+        mutableBitmap = Bitmap.createBitmap(mutableBitmap, 0, 0, mutableBitmap.width, mutableBitmap.height, matrix, true)
+        canvas = Canvas(mutableBitmap)
+        b.ivImage.setImageBitmap(mutableBitmap)
+    }
+
+    private fun applyColorAndSizeEffects() {
+        // 1. Terapkan Efek Warna (Brightness, Contrast, Saturation)
+        val brightness = b.seekBrightness.progress / 100f
+        val contrast = b.seekContrast.progress / 100f
+        val saturation = b.seekSaturation.progress / 100f
+
+        val colorMatrix = ColorMatrix()
+        // Saturasi
+        colorMatrix.setSaturation(saturation)
+        // Kecerahan & Kontras
+        val scale = brightness * contrast
+        val translate = (-0.5f * scale + 0.5f) * 255f
+        val brightnessMatrix = ColorMatrix(floatArrayOf(
+            scale, 0f, 0f, 0f, translate,
+            0f, scale, 0f, 0f, translate,
+            0f, 0f, scale, 0f, translate,
+            0f, 0f, 0f, 1f, 0f
+        ))
+        colorMatrix.postConcat(brightnessMatrix)
+
+        val filteredBitmap = Bitmap.createBitmap(mutableBitmap.width, mutableBitmap.height, Bitmap.Config.ARGB_8888)
+        val filterCanvas = Canvas(filteredBitmap)
+        val paint = Paint()
+        paint.colorFilter = ColorMatrixColorFilter(colorMatrix)
+        filterCanvas.drawBitmap(mutableBitmap, 0f, 0f, paint)
+        
+        mutableBitmap = filteredBitmap
+
+        // 2. Terapkan Ukuran (Resize & Preset)
+        val w = b.spinnerWidth.selectedItem.toString().toInt()
+        val h = b.spinnerHeight.selectedItem.toString().toInt()
+        
+        // Logika Preset Pas Foto
+        var finalW = w
+        var finalH = h
+        when(b.spinnerPreset.selectedItemPosition) {
+            1 -> finalH = finalW // 1:1
+            2 -> finalH = (finalW * 4) / 3 // 3:4
+            3 -> finalH = (finalW * 6) / 4 // 4:6
+            4 -> finalH = (finalW * 9) / 16 // 16:9
+        }
+
+        mutableBitmap = Bitmap.createScaledBitmap(mutableBitmap, finalW, finalH, true)
+        canvas = Canvas(mutableBitmap)
+        b.ivImage.setImageBitmap(mutableBitmap)
+        Toast.makeText(this, "Efek dan Ukuran Diterapkan!", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun saveImageToGallery(originalFile: File) {
         try {
+            val format = b.spinnerFormat.selectedItem.toString()
             val fileName = "EDIT_${System.currentTimeMillis()}.${format.lowercase()}"
-            val mimeType = when(format) {
-                "JPG" -> "image/jpeg"
-                "PNG" -> "image/png"
-                else -> "image/webp"
-            }
             
-            // --- LOGIKA TES WARNA (COLOR FILTER) ---
-            // Kita buat bitmap baru agar filter diterapkan saat disimpan tanpa merusak tampilan editor
-            var finalBitmap = mutableBitmap.copy(Bitmap.Config.ARGB_8888, true)
-            val filterName = b.spinnerColorFilter.selectedItem.toString()
-            
-            if (filterName != "Normal (Asli)") {
-                val filterCanvas = Canvas(finalBitmap)
-                val filterPaint = Paint()
-                val matrix = ColorMatrix()
-
-                when (filterName) {
-                    "Grayscale (Hitam Putih)" -> matrix.setSaturation(0f)
-                    "Sepia (Klasik)" -> {
-                        matrix.setSaturation(0.5f)
-                        val sepiaMatrix = ColorMatrix(floatArrayOf(
-                            0.393f, 0.769f, 0.189f, 0f, 0f,
-                            0.349f, 0.686f, 0.168f, 0f, 0f,
-                            0.272f, 0.534f, 0.131f, 0f, 0f,
-                            0f, 0f, 0f, 1f, 0f
-                        ))
-                        matrix.postConcat(sepiaMatrix)
-                    }
-                    "Invert (Negatif)" -> matrix.set(floatArrayOf(
-                        -1f, 0f, 0f, 0f, 255f,
-                        0f, -1f, 0f, 0f, 255f,
-                        0f, 0f, -1f, 0f, 255f,
-                        0f, 0f, 0f, 1f, 0f
-                    ))
+            // 1. Hapus EXIF jika dicentang
+            if (b.cbRemoveExif.isChecked) {
+                try {
+                    // ExifInterface butuh file asli. Jika file tidak ditemukan, abaikan.
+                    val exif = ExifInterface(originalFile.absolutePath)
+                    exif.setAttribute(ExifInterface.TAG_GPS_LATITUDE, null)
+                    exif.setAttribute(ExifInterface.TAG_GPS_LONGITUDE, null)
+                    exif.setAttribute(ExifInterface.TAG_MAKE, null)
+                    exif.setAttribute(ExifInterface.TAG_MODEL, null)
+                    exif.saveAttributes()
+                } catch (e: Exception) {
+                    // Abaikan jika gagal hapus exif
                 }
-                filterPaint.colorFilter = ColorMatrixColorFilter(matrix)
-                filterCanvas.drawBitmap(mutableBitmap, 0f, 0f, filterPaint)
             }
 
-            // Simpan ke folder Pictures
+            // 2. Simpan File
             val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
             val file = File(dir, fileName)
             val outputStream = FileOutputStream(file)
 
+            // 3. Kompresi (Kualitas 100 atau 50 jika dicentang)
+            val quality = if (b.cbCompress.isChecked) 50 else 100
+            
             val compressFormat = when(format) {
                 "JPG" -> Bitmap.CompressFormat.JPEG
                 "PNG" -> Bitmap.CompressFormat.PNG
                 else -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) Bitmap.CompressFormat.WEBP_LOSSLESS else Bitmap.CompressFormat.WEBP
             }
 
-            // Simpan bitmap yang sudah difilter
-            finalBitmap.compress(compressFormat, 100, outputStream)
+            mutableBitmap.compress(compressFormat, quality, outputStream)
             outputStream.flush()
             outputStream.close()
 
-            // Daftarkan ke Galeri
+            // 4. Daftarkan ke Galeri
             val values = ContentValues().apply {
                 put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
-                put(MediaStore.Images.Media.MIME_TYPE, mimeType)
+                put(MediaStore.Images.Media.MIME_TYPE, "image/*")
                 put(MediaStore.Images.Media.DATA, file.absolutePath)
             }
             contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
 
-            Toast.makeText(this, "Gambar disimpan di Galeri: $fileName", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Gambar disimpan: $fileName", Toast.LENGTH_LONG).show()
             finish()
         } catch (e: Exception) {
             Toast.makeText(this, "Gagal menyimpan: ${e.message}", Toast.LENGTH_LONG).show()
