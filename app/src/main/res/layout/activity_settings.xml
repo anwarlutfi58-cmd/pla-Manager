@@ -43,6 +43,51 @@
                 android:text="Tampilkan Petunjuk Screen Reader"
                 android:textSize="14sp" />
 
+            <!-- ========================================== -->
+            <!-- FITUR TOMBOL AJAIB (BISA DIMUNCULKAN/DISEMBUNYIKAN) -->
+            <!-- ========================================== -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="32dp"
+                android:text="Fitur Tambahan (Tampil di Beranda)"
+                android:textStyle="bold"
+                android:textSize="16sp" />
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/swShowImageEditor"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Tampilkan Menu Edit Gambar"
+                android:textSize="14sp" />
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/swShowAudioEditor"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Tampilkan Menu Edit Audio"
+                android:textSize="14sp" />
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/swShowVideoEditor"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Tampilkan Menu Edit Video"
+                android:textSize="14sp" />
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/swShowGithubBuilder"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Tampilkan Tab 'Buat APK' di Manajer Aplikasi"
+                android:textSize="14sp" />
+
+            <!-- ========================================== -->
+
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
