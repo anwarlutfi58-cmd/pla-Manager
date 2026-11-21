@@ -27,257 +27,167 @@
             android:textColor="?android:attr/textColorSecondary"
             android:textSize="12sp" />
 
-        <!-- GRID 3 KOLOM -->
+        <!-- GRID UTAMA (13 MENU) -->
         <GridLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:columnCount="3"
             android:layout_marginBottom="16dp">
 
-            <!-- 1. Penyimpanan Internal -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardStorage"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:layout_margin="6dp"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="0dp"
-                app:strokeWidth="1dp"
-                app:strokeColor="?android:attr/textColorSecondary"
-                android:clickable="true"
-                android:focusable="true">
+            <!-- Penyimpanan Internal -->
+            <com.google.android.material.card.MaterialCardView android:id="@+id/cardStorage" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:layout_margin="6dp" app:cardCornerRadius="12dp" app:cardElevation="0dp" app:strokeWidth="1dp" app:strokeColor="?android:attr/textColorSecondary" android:clickable="true" android:focusable="true">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:orientation="vertical" android:paddingVertical="16dp" android:paddingHorizontal="4dp">
                     <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@drawable/ic_folder" />
                     <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="@string/storage_title" android:textAlignment="center" android:textSize="11sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- 2. Kartu SD -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardSdCard"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:layout_margin="6dp"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="0dp"
-                app:strokeWidth="1dp"
-                app:strokeColor="?android:attr/textColorSecondary"
-                android:clickable="true"
-                android:focusable="true">
+            <!-- Kartu SD -->
+            <com.google.android.material.card.MaterialCardView android:id="@+id/cardSdCard" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:layout_margin="6dp" app:cardCornerRadius="12dp" app:cardElevation="0dp" app:strokeWidth="1dp" app:strokeColor="?android:attr/textColorSecondary" android:clickable="true" android:focusable="true">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:orientation="vertical" android:paddingVertical="16dp" android:paddingHorizontal="4dp">
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="💾" android:textSize="28sp" />
                     <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="Kartu SD" android:textAlignment="center" android:textSize="11sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- 3. Pengaturan (Pojok Kanan Atas) -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardSettings"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:layout_margin="6dp"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="0dp"
-                app:strokeWidth="1dp"
-                app:strokeColor="?android:attr/textColorSecondary"
-                android:clickable="true"
-                android:focusable="true">
+            <!-- Pengaturan -->
+            <com.google.android.material.card.MaterialCardView android:id="@+id/cardSettings" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:layout_margin="6dp" app:cardCornerRadius="12dp" app:cardElevation="0dp" app:strokeWidth="1dp" app:strokeColor="?android:attr/textColorSecondary" android:clickable="true" android:focusable="true">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:orientation="vertical" android:paddingVertical="16dp" android:paddingHorizontal="4dp">
                     <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@drawable/ic_save" />
                     <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="@string/settings_title" android:textAlignment="center" android:textSize="11sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- 4. Pengunduhan -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardDownloads"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:layout_margin="6dp"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="0dp"
-                app:strokeWidth="1dp"
-                app:strokeColor="?android:attr/textColorSecondary"
-                android:clickable="true"
-                android:focusable="true">
+            <!-- Pengunduhan -->
+            <com.google.android.material.card.MaterialCardView android:id="@+id/cardDownloads" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:layout_margin="6dp" app:cardCornerRadius="12dp" app:cardElevation="0dp" app:strokeWidth="1dp" app:strokeColor="?android:attr/textColorSecondary" android:clickable="true" android:focusable="true">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:orientation="vertical" android:paddingVertical="16dp" android:paddingHorizontal="4dp">
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="⬇️" android:textSize="28sp" />
                     <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="Pengunduhan" android:textAlignment="center" android:textSize="11sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- 5. Gambar -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardImages"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:layout_margin="6dp"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="0dp"
-                app:strokeWidth="1dp"
-                app:strokeColor="?android:attr/textColorSecondary"
-                android:clickable="true"
-                android:focusable="true">
+            <!-- Gambar -->
+            <com.google.android.material.card.MaterialCardView android:id="@+id/cardImages" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:layout_margin="6dp" app:cardCornerRadius="12dp" app:cardElevation="0dp" app:strokeWidth="1dp" app:strokeColor="?android:attr/textColorSecondary" android:clickable="true" android:focusable="true">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:orientation="vertical" android:paddingVertical="16dp" android:paddingHorizontal="4dp">
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🖼️" android:textSize="28sp" />
                     <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="Gambar" android:textAlignment="center" android:textSize="11sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- 6. Audio -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardAudio"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:layout_margin="6dp"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="0dp"
-                app:strokeWidth="1dp"
-                app:strokeColor="?android:attr/textColorSecondary"
-                android:clickable="true"
-                android:focusable="true">
+            <!-- Audio -->
+            <com.google.android.material.card.MaterialCardView android:id="@+id/cardAudio" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:layout_margin="6dp" app:cardCornerRadius="12dp" app:cardElevation="0dp" app:strokeWidth="1dp" app:strokeColor="?android:attr/textColorSecondary" android:clickable="true" android:focusable="true">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:orientation="vertical" android:paddingVertical="16dp" android:paddingHorizontal="4dp">
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🎵" android:textSize="28sp" />
                     <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="Audio" android:textAlignment="center" android:textSize="11sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- 7. Video -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardVideos"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:layout_margin="6dp"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="0dp"
-                app:strokeWidth="1dp"
-                app:strokeColor="?android:attr/textColorSecondary"
-                android:clickable="true"
-                android:focusable="true">
+            <!-- Video -->
+            <com.google.android.material.card.MaterialCardView android:id="@+id/cardVideos" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:layout_margin="6dp" app:cardCornerRadius="12dp" app:cardElevation="0dp" app:strokeWidth="1dp" app:strokeColor="?android:attr/textColorSecondary" android:clickable="true" android:focusable="true">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:orientation="vertical" android:paddingVertical="16dp" android:paddingHorizontal="4dp">
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🎬" android:textSize="28sp" />
                     <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="Video" android:textAlignment="center" android:textSize="11sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- 8. Dokumen -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardDocuments"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:layout_margin="6dp"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="0dp"
-                app:strokeWidth="1dp"
-                app:strokeColor="?android:attr/textColorSecondary"
-                android:clickable="true"
-                android:focusable="true">
+            <!-- Dokumen -->
+            <com.google.android.material.card.MaterialCardView android:id="@+id/cardDocuments" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:layout_margin="6dp" app:cardCornerRadius="12dp" app:cardElevation="0dp" app:strokeWidth="1dp" app:strokeColor="?android:attr/textColorSecondary" android:clickable="true" android:focusable="true">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:orientation="vertical" android:paddingVertical="16dp" android:paddingHorizontal="4dp">
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="📄" android:textSize="28sp" />
                     <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="Dokumen" android:textAlignment="center" android:textSize="11sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- 9. Aplikasi -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardApps"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:layout_margin="6dp"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="0dp"
-                app:strokeWidth="1dp"
-                app:strokeColor="?android:attr/textColorSecondary"
-                android:clickable="true"
-                android:focusable="true">
+            <!-- Aplikasi -->
+            <com.google.android.material.card.MaterialCardView android:id="@+id/cardApps" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:layout_margin="6dp" app:cardCornerRadius="12dp" app:cardElevation="0dp" app:strokeWidth="1dp" app:strokeColor="?android:attr/textColorSecondary" android:clickable="true" android:focusable="true">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:orientation="vertical" android:paddingVertical="16dp" android:paddingHorizontal="4dp">
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="📱" android:textSize="28sp" />
                     <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="Aplikasi" android:textAlignment="center" android:textSize="11sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- 10. Sampah -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardTrash"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:layout_margin="6dp"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="0dp"
-                app:strokeWidth="1dp"
-                app:strokeColor="?android:attr/textColorSecondary"
-                android:clickable="true"
-                android:focusable="true">
+            <!-- Sampah -->
+            <com.google.android.material.card.MaterialCardView android:id="@+id/cardTrash" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:layout_margin="6dp" app:cardCornerRadius="12dp" app:cardElevation="0dp" app:strokeWidth="1dp" app:strokeColor="?android:attr/textColorSecondary" android:clickable="true" android:focusable="true">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:orientation="vertical" android:paddingVertical="16dp" android:paddingHorizontal="4dp">
                     <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@drawable/ic_file" />
                     <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="@string/trash_title" android:textAlignment="center" android:textSize="11sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- 11. Manajer Proyek -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardProjects"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:layout_margin="6dp"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="0dp"
-                app:strokeWidth="1dp"
-                app:strokeColor="?android:attr/textColorSecondary"
-                android:clickable="true"
-                android:focusable="true">
+            <!-- Manajer Proyek -->
+            <com.google.android.material.card.MaterialCardView android:id="@+id/cardProjects" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:layout_margin="6dp" app:cardCornerRadius="12dp" app:cardElevation="0dp" app:strokeWidth="1dp" app:strokeColor="?android:attr/textColorSecondary" android:clickable="true" android:focusable="true">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:orientation="vertical" android:paddingVertical="16dp" android:paddingHorizontal="4dp">
                     <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@drawable/ic_add" />
                     <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="@string/projects_title" android:textAlignment="center" android:textSize="11sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- 12. Favorit -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardFavorites"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:layout_margin="6dp"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="0dp"
-                app:strokeWidth="1dp"
-                app:strokeColor="?android:attr/textColorSecondary"
-                android:clickable="true"
-                android:focusable="true">
+            <!-- Favorit -->
+            <com.google.android.material.card.MaterialCardView android:id="@+id/cardFavorites" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:layout_margin="6dp" app:cardCornerRadius="12dp" app:cardElevation="0dp" app:strokeWidth="1dp" app:strokeColor="?android:attr/textColorSecondary" android:clickable="true" android:focusable="true">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:orientation="vertical" android:paddingVertical="16dp" android:paddingHorizontal="4dp">
                     <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@drawable/ic_star" />
                     <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="@string/favorites_title" android:textAlignment="center" android:textSize="11sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- 13. Cloud -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardCloud"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:layout_margin="6dp"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="0dp"
-                app:strokeWidth="1dp"
-                app:strokeColor="?android:attr/textColorSecondary"
-                android:clickable="true"
-                android:focusable="true">
+            <!-- Cloud -->
+            <com.google.android.material.card.MaterialCardView android:id="@+id/cardCloud" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:layout_margin="6dp" app:cardCornerRadius="12dp" app:cardElevation="0dp" app:strokeWidth="1dp" app:strokeColor="?android:attr/textColorSecondary" android:clickable="true" android:focusable="true">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:orientation="vertical" android:paddingVertical="16dp" android:paddingHorizontal="4dp">
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="☁️" android:textSize="28sp" />
                     <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="Cloud" android:textAlignment="center" android:textSize="11sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+        </GridLayout>
+
+        <!-- SECTION BARU: TOOLS EDIT & GITHUB (Bisa disembunyikan) -->
+        <TextView
+            android:id="@+id/tvToolsTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Alat Tambahan"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp"
+            android:visibility="gone"/>
+
+        <GridLayout
+            android:id="@+id/gridTools"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:columnCount="3"
+            android:layout_marginBottom="16dp"
+            android:visibility="gone">
+
+            <!-- Edit Gambar -->
+            <com.google.android.material.card.MaterialCardView android:id="@+id/cardEditImage" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:layout_margin="6dp" app:cardCornerRadius="12dp" app:cardElevation="0dp" app:strokeWidth="1dp" app:strokeColor="#FF9800" android:clickable="true" android:focusable="true" android:visibility="gone">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:orientation="vertical" android:paddingVertical="16dp" android:paddingHorizontal="4dp">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🎨" android:textSize="28sp" />
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="Edit Gambar" android:textAlignment="center" android:textSize="11sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Edit Audio -->
+            <com.google.android.material.card.MaterialCardView android:id="@+id/cardEditAudio" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:layout_margin="6dp" app:cardCornerRadius="12dp" app:cardElevation="0dp" app:strokeWidth="1dp" app:strokeColor="#FF9800" android:clickable="true" android:focusable="true" android:visibility="gone">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:orientation="vertical" android:paddingVertical="16dp" android:paddingHorizontal="4dp">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🎧" android:textSize="28sp" />
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="Edit Audio" android:textAlignment="center" android:textSize="11sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Edit Video -->
+            <com.google.android.material.card.MaterialCardView android:id="@+id/cardEditVideo" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:layout_margin="6dp" app:cardCornerRadius="12dp" app:cardElevation="0dp" app:strokeWidth="1dp" app:strokeColor="#FF9800" android:clickable="true" android:focusable="true" android:visibility="gone">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:orientation="vertical" android:paddingVertical="16dp" android:paddingHorizontal="4dp">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="📹" android:textSize="28sp" />
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="Edit Video" android:textAlignment="center" android:textSize="11sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- GitHub Builder -->
+            <com.google.android.material.card.MaterialCardView android:id="@+id/cardGithub" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:layout_margin="6dp" app:cardCornerRadius="12dp" app:cardElevation="0dp" app:strokeWidth="1dp" app:strokeColor="#4CAF50" android:clickable="true" android:focusable="true" android:visibility="gone">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:orientation="vertical" android:paddingVertical="16dp" android:paddingHorizontal="4dp">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🐙" android:textSize="28sp" />
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="GitHub APK" android:textAlignment="center" android:textSize="11sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
