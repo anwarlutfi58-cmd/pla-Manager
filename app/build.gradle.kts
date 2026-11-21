@@ -12,15 +12,14 @@ android {
         applicationId = "com.pla.manajer"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0"
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // Tanda tangan sederhana untuk APK Rilis
             signingConfig = signingConfigs.getByName("debug")
         }
     }
@@ -47,4 +46,7 @@ dependencies {
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
     ksp("androidx.room:room-compiler:2.6.1")
+    
+    // MESIN FFMPEG UNTUK AUDIO
+    implementation("com.arthenica:ffmpeg-kit-audio:6.0-2")
 }
