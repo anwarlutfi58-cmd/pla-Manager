@@ -2,7 +2,6 @@ package com.pla.manajer
 
 import android.Manifest
 import android.app.AlertDialog
-import android.content.ClipData
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -134,9 +133,8 @@ class FileManagerActivity : AppCompatActivity() {
 
     private fun showContextMenu(f: File) {
         val ext = f.extension.lowercase()
-        val options = mutableListOf("Buka", "Ganti Nama", "Salin", "Pindah", "Hapus", "Kompres (ZIP)", "Ekstrak (ZIP)")
+        val options = mutableListOf("Buka", "Bagikan", "Ganti Nama", "Salin", "Pindah", "Hapus", "Kompres (ZIP)", "Ekstrak (ZIP)")
         
-        // Menu Khusus berdasarkan ekstensi
         if (ext in listOf("mp3", "wav", "aac", "m4a", "ogg")) {
             options.add(0, "Edit Audio")
         } else if (ext in listOf("jpg", "jpeg", "png", "webp")) {
@@ -159,6 +157,8 @@ class FileManagerActivity : AppCompatActivity() {
                         startActivity(intent)
                     }
                     "Buka" -> open(f)
+                    "Bagikan" -> shareFile(f)
+                    "Ganti Rename" -> renameDialog(f)
                     "Ganti Nama" -> renameDialog(f)
                     "Salin" -> { clipboard = f; isCut = false; toast("Disalin: ${f.name}"); b.fabPaste.show() }
                     "Pindah" -> { clipboard = f; isCut = true; toast("Siap pindah: ${f.name}"); b.fabPaste.show() }
@@ -168,6 +168,24 @@ class FileManagerActivity : AppCompatActivity() {
                 }
             }
             .setNegativeButton("Tutup", null).show()
+    }
+
+    // --- FITUR BARU: BAGIKAN FILE ---
+    private fun shareFile(f: File) {
+        try {
+            val uri = FileProvider.getUriForFile(this, "$packageName.provider", f)
+            var mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(f.extension.lowercase())
+            if (mime == null) mime = "*/*"
+
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = mime
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(Intent.createChooser(intent, "Bagikan File via"))
+        } catch (e: Exception) {
+            toast("Gagal membagikan: ${e.message}")
+        }
     }
 
     private fun toggleSelection(f: File) {
