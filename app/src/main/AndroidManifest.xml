@@ -47,6 +47,9 @@
         <activity android:name=".MediaManagerActivity" />
         <activity android:name=".AudioPlayerActivity" />
         <activity android:name=".CloudActivity" />
+        
+        <!-- HALAMAN BARU UNTUK EDIT AUDIO -->
+        <activity android:name=".AudioEditorActivity" />
 
         <provider
             android:name="androidx.core.content.FileProvider"
