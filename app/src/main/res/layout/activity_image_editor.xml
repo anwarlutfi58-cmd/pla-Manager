@@ -6,7 +6,7 @@
     android:background="#121212"
     android:orientation="vertical">
 
-    <!-- Area Gambar (Bisa disentuh untuk Hapus Watermark) -->
+    <!-- Area Gambar -->
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -38,32 +38,74 @@
                 android:textColor="#FFFFFF"
                 android:textSize="16sp"
                 android:textStyle="bold"
-                android:layout_marginBottom="8dp"/>
+                android:layout_marginBottom="12dp"/>
 
-            <!-- Resize -->
+            <!-- 1. RESIZE (DROPDOWN UKURAN) -->
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Ubah Ukuran (Pilih dari daftar):" android:textColor="#AAAAAA" android:textSize="12sp" android:layout_marginBottom="4dp"/>
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
-                <EditText android:id="@+id/etWidth" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:hint="Lebar (px)" android:inputType="number" android:textColor="#FFFFFF" android:textColorHint="#888888" />
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="x" android:textColor="#FFFFFF" android:layout_marginHorizontal="8dp"/>
-                <EditText android:id="@+id/etHeight" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:hint="Tinggi (px)" android:inputType="number" android:textColor="#FFFFFF" android:textColorHint="#888888" />
-                <com.google.android.material.button.MaterialButton android:id="@+id/btnResize" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Resize" android:layout_marginStart="8dp"/>
+                
+                <Spinner
+                    android:id="@+id/spinnerWidth"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:backgroundTint="#FFFFFF" />
+                
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text=" x " android:textColor="#FFFFFF" android:textStyle="bold"/>
+                
+                <Spinner
+                    android:id="@+id/spinnerHeight"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:backgroundTint="#FFFFFF" />
+
+                <com.google.android.material.button.MaterialButton 
+                    android:id="@+id/btnResize" 
+                    android:layout_width="wrap_content" 
+                    android:layout_height="40dp" 
+                    android:text="Resize" 
+                    android:layout_marginStart="8dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"/>
             </LinearLayout>
 
-            <!-- Teks -->
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginTop="8dp">
+            <!-- 2. FORMAT GAMBAR & WARNA -->
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Format &amp; Warna:" android:textColor="#AAAAAA" android:textSize="12sp" android:layout_marginTop="12dp" android:layout_marginBottom="4dp"/>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+                
+                <Spinner
+                    android:id="@+id/spinnerFormat"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:backgroundTint="#FFFFFF" />
+                
+                <Spinner
+                    android:id="@+id/spinnerColorFilter"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:backgroundTint="#FFFFFF" />
+            </LinearLayout>
+
+            <!-- 3. TEKS -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginTop="12dp">
                 <EditText android:id="@+id/etText" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:hint="Tulis teks di gambar..." android:textColor="#FFFFFF" android:textColorHint="#888888" />
                 <com.google.android.material.button.MaterialButton android:id="@+id/btnAddText" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Tambah" android:layout_marginStart="8dp"/>
             </LinearLayout>
 
-            <!-- Magic Eraser -->
+            <!-- 4. MAGIC ERASER -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnMagicEraser"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="12dp"
                 android:text="Aktifkan Hapus Watermark (Gosok dengan Jari)"
                 app:backgroundTint="#F44336" />
 
-            <!-- Simpan -->
+            <!-- 5. SIMPAN -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnSaveImage"
                 android:layout_width="match_parent"
