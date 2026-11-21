@@ -12,8 +12,8 @@ android {
         applicationId = "com.pla.manajer"
         minSdk = 24
         targetSdk = 34
-        versionCode = 2
-        versionName = "1.1.0"
+        versionCode = 3
+        versionName = "1.2.0"
     }
 
     buildTypes {
@@ -47,6 +47,6 @@ dependencies {
     implementation("androidx.room:room-ktx:2.6.1")
     ksp("androidx.room:room-compiler:2.6.1")
     
-    // MESIN FFMPEG UNTUK AUDIO
-    implementation("com.arthenica:ffmpeg-kit-audio:6.0-2")
+    // MESIN FFMPEG (MENGGUNAKAN FORK KOMUNITAS YANG MASIH AKTIF)
+    implementation("dev.ffmpegkit-maintained:ffmpeg-kit-audio:8.1.9")
 }
