@@ -2,6 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- IZIN DASAR -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" tools:ignore="ScopedStorage" />
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" tools:ignore="ScopedStorage" />
@@ -11,6 +12,9 @@
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    
+    <!-- IZIN INTERNET (WAJIB UNTUK FITUR GITHUB) -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <queries>
         <intent>
@@ -37,6 +41,7 @@
             </intent-filter>
         </activity>
 
+        <!-- MENU UTAMA -->
         <activity android:name=".FileManagerActivity" />
         <activity android:name=".ProjectManagerActivity" />
         <activity android:name=".CodeEditorActivity" />
@@ -47,15 +52,19 @@
         <activity android:name=".MediaManagerActivity" />
         <activity android:name=".AudioPlayerActivity" />
         <activity android:name=".CloudActivity" />
-        <activity android:name=".AudioEditorActivity" />
         
-        <!-- HALAMAN EDIT GAMBAR & COLLAGE -->
+        <!-- HALAMAN EDIT AUDIO -->
+        <activity android:name=".AudioEditorActivity" />
+        <activity android:name=".AudioMergeActivity" />
+
+        <!-- HALAMAN EDIT GAMBAR -->
         <activity android:name=".ImageEditorActivity" />
         <activity android:name=".CollageActivity" />
 
-        <!-- HALAMAN EDIT AUDIO & MERGE -->
-        <activity android:name=".AudioMergeActivity" />
+        <!-- HALAMAN GITHUB BUILDER -->
+        <activity android:name=".GithubBuilderActivity" />
 
+        <!-- PROVIDER UNTUK SHARE FILE -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.provider"
