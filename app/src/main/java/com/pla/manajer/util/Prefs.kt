@@ -23,8 +23,26 @@ class Prefs(ctx: Context) {
         get() = sp.getBoolean("srHints", true)
         set(v) = sp.edit().putBoolean("srHints", v).apply()
 
-    // TAMBAHAN BARU UNTUK SORTIR (Default: 1 = Nama A-Z)
     var sortMode: Int
         get() = sp.getInt("sortMode", 1)
         set(v) = sp.edit().putInt("sortMode", v).apply()
+
+    // ==========================================
+    // TAMBAHAN BARU: FITUR TOMBOL AJAIB
+    // ==========================================
+    var showImageEditor: Boolean
+        get() = sp.getBoolean("showImageEditor", false)
+        set(v) = sp.edit().putBoolean("showImageEditor", v).apply()
+
+    var showAudioEditor: Boolean
+        get() = sp.getBoolean("showAudioEditor", false)
+        set(v) = sp.edit().putBoolean("showAudioEditor", v).apply()
+
+    var showVideoEditor: Boolean
+        get() = sp.getBoolean("showVideoEditor", false)
+        set(v) = sp.edit().putBoolean("showVideoEditor", v).apply()
+
+    var showGithubBuilder: Boolean
+        get() = sp.getBoolean("showGithubBuilder", false)
+        set(v) = sp.edit().putBoolean("showGithubBuilder", v).apply()
 }
