@@ -23,6 +23,9 @@ class AudioPlayerActivity : AppCompatActivity() {
     private var isShuffle = false
     private var repeatMode = 0 // 0 = Off, 1 = Ulangi Semua, 2 = Ulangi Satu Lagu
     private var equalizer: Equalizer? = null
+    
+    // Fitur Tambahan: Menyimpan setelan Equalizer agar tidak hilang saat ganti lagu
+    private val savedBandLevels = mutableMapOf<Short, Short>() 
 
     override fun onCreate(s: Bundle?) {
         super.onCreate(s)
@@ -34,7 +37,7 @@ class AudioPlayerActivity : AppCompatActivity() {
 
         b.btnBack.setOnClickListener { finish() }
         
-        // PERBAIKAN TOMBOL PLAY/PAUSE
+        // LOGIKA TOMBOL PLAY/PAUSE
         b.btnPlayPause.setOnClickListener {
             if (PlaMediaPlayer.isPlaying) {
                 PlaMediaPlayer.pause()
@@ -45,9 +48,17 @@ class AudioPlayerActivity : AppCompatActivity() {
             }
         }
 
-        b.btnNext.setOnClickListener { playNextSong() }
+        // LOGIKA TOMBOL NEXT (SELALU KEMBALI KE AWAL JIKA DI UJUNG)
+        b.btnNext.setOnClickListener { playNextSong(manualClick = true) }
+        
+        // LOGIKA TOMBOL PREV (KEMBALI KE AKHIR JIKA DI AWAL)
         b.btnPrev.setOnClickListener {
-            if (currentIndex > 0) { currentIndex--; playSong(currentIndex) }
+            if (isShuffle) {
+                currentIndex = filePaths.indices.random()
+            } else {
+                currentIndex = if (currentIndex > 0) currentIndex - 1 else filePaths.size - 1
+            }
+            playSong(currentIndex)
         }
         
         b.btnShuffle.setOnClickListener {
@@ -59,9 +70,14 @@ class AudioPlayerActivity : AppCompatActivity() {
         b.btnRepeat.setOnClickListener {
             repeatMode = (repeatMode + 1) % 3
             updateRepeatIcon()
+            val modeText = when(repeatMode) {
+                0 -> "Ulangi: Mati"
+                1 -> "Ulangi: Semua Lagu"
+                else -> "Ulangi: Lagu Ini"
+            }
+            Toast.makeText(this, modeText, Toast.LENGTH_SHORT).show()
         }
 
-        // PERBAIKAN FITUR BAGIKAN
         b.btnShare.setOnClickListener { shareCurrentSong() }
         b.btnEqualizer.setOnClickListener { showEqualizerDialog() }
 
@@ -101,30 +117,47 @@ class AudioPlayerActivity : AppCompatActivity() {
         b.tvCounter.text = "${index + 1} dari ${filePaths.size}"
         
         PlaMediaPlayer.play(file) {
-            // PERBAIKAN: Saat lagu habis, kembalikan tombol ke ikon Play
+            // KETIKA LAGU HABIS (OTOMATIS)
             b.btnPlayPause.setImageResource(R.drawable.ic_play)
             
             when (repeatMode) {
-                2 -> playSong(currentIndex)
-                1 -> playNextSong()
-                0 -> if (currentIndex < filePaths.size - 1) playNextSong()
+                2 -> playSong(currentIndex) // Ulangi lagu ini
+                1 -> playNextSong(manualClick = false) // Ulangi semua (lanjut lagu berikutnya)
+                0 -> {
+                    // Mati: Lanjut ke lagu berikutnya, tapi kalau sudah terakhir, berhenti.
+                    if (currentIndex < filePaths.size - 1) {
+                        currentIndex++
+                        playSong(currentIndex)
+                    }
+                }
             }
         }
         
         b.btnPlayPause.setImageResource(R.drawable.ic_pause)
         updateSeekBar()
         
+        // PERBAIKAN EQUALIZER: Simpan setelan lama, pasang ke lagu baru
+        val sessionId = PlaMediaPlayer.audioSessionId
         equalizer?.release()
-        equalizer = Equalizer(0, PlaMediaPlayer.audioSessionId).apply { enabled = true }
+        equalizer = Equalizer(0, sessionId).apply { 
+            enabled = true 
+            // Kembalikan setelan slider yang sudah disimpan
+            savedBandLevels.forEach { (band, level) ->
+                setBandLevel(band, level)
+            }
+        }
     }
 
-    private fun playNextSong() {
+    // Logika Next yang sudah diperbaiki
+    private fun playNextSong(manualClick: Boolean) {
         if (isShuffle) {
             currentIndex = filePaths.indices.random()
         } else {
             if (currentIndex < filePaths.size - 1) {
                 currentIndex++
-            } else if (repeatMode == 1) {
+            } else {
+                // Jika di ujung, selalu kembali ke lagu pertama (0)
+                // Baik itu dipencet manual maupun otomatis
                 currentIndex = 0
             }
         }
@@ -134,10 +167,9 @@ class AudioPlayerActivity : AppCompatActivity() {
     private fun shareCurrentSong() {
         val file = PlaMediaPlayer.currentFile ?: return
         try {
-            // Menggunakan FileProvider untuk Android modern
             val uri = FileProvider.getUriForFile(this, "$packageName.provider", file)
             val intent = Intent(Intent.ACTION_SEND).apply {
-                type = "audio/*" // Menggunakan wildcard agar semua aplikasi mau menerima
+                type = "audio/*" 
                 putExtra(Intent.EXTRA_STREAM, uri)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
@@ -165,18 +197,26 @@ class AudioPlayerActivity : AppCompatActivity() {
         val range = equalizer!!.bandLevelRange
 
         for (i in 0 until minOf(3, numBands)) {
-            val freq = equalizer!!.getCenterFreq(i.toShort()) / 1000
+            val bandIndex = i.toShort()
+            val freq = equalizer!!.getCenterFreq(bandIndex) / 1000
             val label = android.widget.TextView(this).apply {
                 text = "${freq} Hz"
                 setTextColor(android.graphics.Color.WHITE)
             }
+            
             val seekBar = SeekBar(this).apply {
                 max = (range[1] - range[0]).toInt()
-                progress = (equalizer!!.getBandLevel(i.toShort()) - range[0]).toInt()
+                
+                // Ambil dari memori jika ada, kalau tidak ambil dari equalizer saat ini
+                val currentLevel = savedBandLevels[bandIndex] ?: equalizer!!.getBandLevel(bandIndex)
+                progress = (currentLevel - range[0]).toInt()
+                
                 setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                     override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
                         if (fromUser) {
-                            equalizer!!.setBandLevel(i.toShort(), (progress + range[0]).toShort())
+                            val newLevel = (progress + range[0]).toShort()
+                            equalizer!!.setBandLevel(bandIndex, newLevel)
+                            savedBandLevels[bandIndex] = newLevel // SIMPAN KE MEMORI
                         }
                     }
                     override fun onStartTrackingTouch(sb: SeekBar?) {}
