@@ -123,9 +123,14 @@ class MediaManagerActivity : AppCompatActivity() {
     private fun showMoreMenu(item: MediaItem) {
         val options = mutableListOf("Bagikan", "Tambahkan ke Layar Beranda", "Kompresikan")
         
-        // Jika ini file AUDIO, tambahkan menu Edit Audio
+        // Jika AUDIO, tambahkan Edit Audio
         if (mediaType == "AUDIO") {
             options.add(0, "Edit Audio")
+        }
+        
+        // Jika GAMBAR, tambahkan Edit Gambar
+        if (mediaType == "IMAGE") {
+            options.add(0, "Edit Gambar")
         }
 
         AlertDialog.Builder(this)
@@ -135,6 +140,11 @@ class MediaManagerActivity : AppCompatActivity() {
                 when (selectedOption) {
                     "Edit Audio" -> {
                         val intent = Intent(this, AudioEditorActivity::class.java)
+                        intent.putExtra("file_path", item.path)
+                        startActivity(intent)
+                    }
+                    "Edit Gambar" -> {
+                        val intent = Intent(this, ImageEditorActivity::class.java)
                         intent.putExtra("file_path", item.path)
                         startActivity(intent)
                     }
@@ -152,7 +162,7 @@ class MediaManagerActivity : AppCompatActivity() {
                 .setIntent(Intent(Intent.ACTION_VIEW).setData(Uri.parse("file://${item.path}")))
                 .build()
             ShortcutManagerCompat.pushDynamicShortcut(this, shortcut)
-            Toast.makeText(this, "Shortcut ditambahkan ke Layar Beranda", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Shortcut ditambahkan", Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
             Toast.makeText(this, "Gagal membuat shortcut", Toast.LENGTH_SHORT).show()
         }
