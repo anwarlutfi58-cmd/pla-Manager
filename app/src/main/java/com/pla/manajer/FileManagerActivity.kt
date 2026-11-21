@@ -60,10 +60,12 @@ class FileManagerActivity : AppCompatActivity() {
         val initialPath = intent.getStringExtra("initial_path") ?: prefs.lastPath
         currentDir = File(initialPath)
 
+        // PERUBAHAN: Menambahkan onMoreOptions ke adapter
         adapter = FileAdapter(
             onOpen = { f -> if (!adapter.isSelectionMode) open(f) },
             onLong = { f -> enableSelectionMode(f) },
-            onSelectToggle = { f -> toggleSelection(f) }
+            onSelectToggle = { f -> toggleSelection(f) },
+            onMoreOptions = { f -> showContextMenu(f) } 
         )
         b.recycler.layoutManager = LinearLayoutManager(this)
         b.recycler.adapter = adapter
@@ -158,7 +160,6 @@ class FileManagerActivity : AppCompatActivity() {
                     }
                     "Buka" -> open(f)
                     "Bagikan" -> shareFile(f)
-                    "Ganti Rename" -> renameDialog(f)
                     "Ganti Nama" -> renameDialog(f)
                     "Salin" -> { clipboard = f; isCut = false; toast("Disalin: ${f.name}"); b.fabPaste.show() }
                     "Pindah" -> { clipboard = f; isCut = true; toast("Siap pindah: ${f.name}"); b.fabPaste.show() }
@@ -170,7 +171,6 @@ class FileManagerActivity : AppCompatActivity() {
             .setNegativeButton("Tutup", null).show()
     }
 
-    // --- FITUR BARU: BAGIKAN FILE ---
     private fun shareFile(f: File) {
         try {
             val uri = FileProvider.getUriForFile(this, "$packageName.provider", f)
