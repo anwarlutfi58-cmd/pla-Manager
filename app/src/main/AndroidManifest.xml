@@ -10,8 +10,6 @@
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    
-    <!-- IZIN BARU UNTUK EQUALIZER -->
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
     <queries>
@@ -48,6 +46,7 @@
         <activity android:name=".AppManagerActivity" />
         <activity android:name=".MediaManagerActivity" />
         <activity android:name=".AudioPlayerActivity" />
+        <activity android:name=".CloudActivity" />
 
         <provider
             android:name="androidx.core.content.FileProvider"
