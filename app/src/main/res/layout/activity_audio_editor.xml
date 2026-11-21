@@ -20,36 +20,90 @@
             android:textStyle="bold"
             android:layout_marginBottom="16dp"/>
 
-        <!-- POTONG AUDIO -->
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Potong Audio (Format: MM:SS)" android:textStyle="bold"/>
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="8dp" android:layout_marginBottom="16dp">
-            <EditText android:id="@+id/etStartTime" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:hint="Mulai (00:00)" android:inputType="text" />
-            <EditText android:id="@+id/etEndTime" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="8dp" android:hint="Selesai (00:30)" android:inputType="text" />
+        <!-- MENU TAB AUDIO -->
+        <com.google.android.material.tabs.TabLayout
+            android:id="@+id/tabLayoutAudio"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:tabMode="scrollable"
+            app:tabIndicatorColor="?attr/colorPrimary"
+            android:layout_marginBottom="16dp">
+
+            <com.google.android.material.tabs.TabItem
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Potong" />
+
+            <com.google.android.material.tabs.TabItem
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Format" />
+
+            <com.google.android.material.tabs.TabItem
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Metadata" />
+        </com.google.android.material.tabs.TabLayout>
+
+        <!-- ========================================== -->
+        <!-- KONTEN 1: POTONG AUDIO                     -->
+        <!-- ========================================== -->
+        <LinearLayout
+            android:id="@+id/layoutTabTrim"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="visible"> <!-- Tampil pertama -->
+
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Potong Audio (Format: MM:SS)" android:textStyle="bold"/>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="8dp">
+                <EditText android:id="@+id/etStartTime" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:hint="Mulai (00:00)" android:inputType="text" />
+                <EditText android:id="@+id/etEndTime" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="8dp" android:hint="Selesai (00:30)" android:inputType="text" />
+            </LinearLayout>
         </LinearLayout>
 
-        <!-- UBAH FORMAT -->
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Ubah Format ke:" android:textStyle="bold"/>
-        <Spinner
-            android:id="@+id/spinnerFormat"
+        <!-- ========================================== -->
+        <!-- KONTEN 2: UBAH FORMAT & WATERMARK          -->
+        <!-- ========================================== -->
+        <LinearLayout
+            android:id="@+id/layoutTabFormat"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:layout_marginBottom="16dp"/>
+            android:orientation="vertical"
+            android:visibility="gone"> <!-- Disembunyikan dulu -->
 
-        <!-- METADATA -->
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Metadata (Opsional)" android:textStyle="bold"/>
-        <EditText android:id="@+id/etTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Judul Lagu" android:layout_marginTop="8dp"/>
-        <EditText android:id="@+id/etArtist" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Artis / Penyanyi" android:layout_marginTop="8dp"/>
-        
-        <!-- HAPUS WATERMARK SUNO -->
-        <CheckBox
-            android:id="@+id/cbRemoveWatermark"
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Ubah Format ke:" android:textStyle="bold"/>
+            <Spinner
+                android:id="@+id/spinnerFormat"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"/>
+            
+            <CheckBox
+                android:id="@+id/cbRemoveWatermark"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="Hapus Watermark Suno (Filter Frekuensi Tinggi)"
+                android:textStyle="bold"/>
+        </LinearLayout>
+
+        <!-- ========================================== -->
+        <!-- KONTEN 3: METADATA                         -->
+        <!-- ========================================== -->
+        <LinearLayout
+            android:id="@+id/layoutTabMetadata"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="Hapus Watermark Suno (Filter Frekuensi Tinggi)"
-            android:textStyle="bold"/>
+            android:orientation="vertical"
+            android:visibility="gone"> <!-- Disembunyikan dulu -->
 
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Metadata (Opsional)" android:textStyle="bold"/>
+            <EditText android:id="@+id/etTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Judul Lagu" android:layout_marginTop="8dp"/>
+            <EditText android:id="@+id/etArtist" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Artis / Penyanyi" android:layout_marginTop="8dp"/>
+        </LinearLayout>
+
+        <!-- TOMBOL PROSES (Selalu Tampil di Bawah) -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnProcess"
             android:layout_width="match_parent"
