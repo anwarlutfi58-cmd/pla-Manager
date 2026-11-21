@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="?attr/selectableItemBackground"
@@ -7,7 +8,7 @@
     android:orientation="horizontal"
     android:padding="12dp">
 
-    <!-- CHECKBOX TANDAI (Selalu Muncul) -->
+    <!-- CHECKBOX TANDAI -->
     <CheckBox
         android:id="@+id/cbSelect"
         android:layout_width="wrap_content"
@@ -42,5 +43,14 @@
             android:textColor="?android:attr/textColorSecondary" />
     </LinearLayout>
 
-    <!-- IKON BINTANG FAVORIT SUDAH DIHAPUS -->
+    <!-- TOMBOL TITIK 3 (MENU LAINNYA) -->
+    <ImageButton
+        android:id="@+id/btnMore"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="Menu Lainnya"
+        android:src="@drawable/ic_more"
+        app:tint="?android:attr/textColorSecondary" />
+
 </LinearLayout>
