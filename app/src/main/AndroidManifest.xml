@@ -49,8 +49,12 @@
         <activity android:name=".CloudActivity" />
         <activity android:name=".AudioEditorActivity" />
         
-        <!-- HALAMAN BARU UNTUK EDIT GAMBAR -->
+        <!-- HALAMAN EDIT GAMBAR & COLLAGE -->
         <activity android:name=".ImageEditorActivity" />
+        <activity android:name=".CollageActivity" />
+
+        <!-- HALAMAN EDIT AUDIO & MERGE -->
+        <activity android:name=".AudioMergeActivity" />
 
         <provider
             android:name="androidx.core.content.FileProvider"
