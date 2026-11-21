@@ -67,14 +67,12 @@ class MediaManagerActivity : AppCompatActivity() {
         fileAdapter = MediaAdapter(
             onOpen = { item -> 
                 if (mediaType == "AUDIO") {
-                    // Buka Pemutar Musik Internal
                     val intent = Intent(this, AudioPlayerActivity::class.java)
                     intent.putStringArrayListExtra("file_paths", ArrayList(currentFiles.map { it.path }))
                     intent.putExtra("index", currentFiles.indexOf(item))
                     startActivity(intent)
                     setupMiniPlayer(item)
                 } else {
-                    // Video / Gambar pakai aplikasi luar
                     openMediaFile(item)
                 }
             },
@@ -91,7 +89,6 @@ class MediaManagerActivity : AppCompatActivity() {
             closeSelectionMode() 
         }
         
-        // FITUR LAINNYA (TAMBAH KE LAYAR BERANDA)
         b.btnMoreSelected.setOnClickListener {
             val item = fileAdapter.selectedFiles.firstOrNull()
             if (item != null) showMoreMenu(item)
@@ -124,12 +121,24 @@ class MediaManagerActivity : AppCompatActivity() {
     }
 
     private fun showMoreMenu(item: MediaItem) {
-        val options = arrayOf("Bagikan", "Tambahkan ke Layar Beranda", "Kompresikan")
+        val options = mutableListOf("Bagikan", "Tambahkan ke Layar Beranda", "Kompresikan")
+        
+        // Jika ini file AUDIO, tambahkan menu Edit Audio
+        if (mediaType == "AUDIO") {
+            options.add(0, "Edit Audio")
+        }
+
         AlertDialog.Builder(this)
             .setTitle(item.name)
-            .setItems(options) { _, which ->
-                when (which) {
-                    1 -> addToHomeScreen(item)
+            .setItems(options.toTypedArray()) { _, which ->
+                val selectedOption = options[which]
+                when (selectedOption) {
+                    "Edit Audio" -> {
+                        val intent = Intent(this, AudioEditorActivity::class.java)
+                        intent.putExtra("file_path", item.path)
+                        startActivity(intent)
+                    }
+                    "Tambahkan ke Layar Beranda" -> addToHomeScreen(item)
                 }
             }.show()
     }
