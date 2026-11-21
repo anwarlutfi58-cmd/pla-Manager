@@ -29,32 +29,19 @@
             app:tabIndicatorColor="?attr/colorPrimary"
             android:layout_marginBottom="16dp">
 
-            <com.google.android.material.tabs.TabItem
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Potong" />
-
-            <com.google.android.material.tabs.TabItem
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Format" />
-
-            <com.google.android.material.tabs.TabItem
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Metadata" />
+            <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Potong" />
+            <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Format" />
+            <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Efek &amp; Master" />
+            <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Metadata" />
         </com.google.android.material.tabs.TabLayout>
 
-        <!-- ========================================== -->
-        <!-- KONTEN 1: POTONG AUDIO                     -->
-        <!-- ========================================== -->
+        <!-- KONTEN 1: POTONG AUDIO -->
         <LinearLayout
             android:id="@+id/layoutTabTrim"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:visibility="visible"> <!-- Tampil pertama -->
-
+            android:visibility="visible">
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Potong Audio (Format: MM:SS)" android:textStyle="bold"/>
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="8dp">
                 <EditText android:id="@+id/etStartTime" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:hint="Mulai (00:00)" android:inputType="text" />
@@ -62,23 +49,19 @@
             </LinearLayout>
         </LinearLayout>
 
-        <!-- ========================================== -->
-        <!-- KONTEN 2: UBAH FORMAT & WATERMARK          -->
-        <!-- ========================================== -->
+        <!-- KONTEN 2: FORMAT -->
         <LinearLayout
             android:id="@+id/layoutTabFormat"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:visibility="gone"> <!-- Disembunyikan dulu -->
-
+            android:visibility="gone">
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Ubah Format ke:" android:textStyle="bold"/>
             <Spinner
                 android:id="@+id/spinnerFormat"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"/>
-            
             <CheckBox
                 android:id="@+id/cbRemoveWatermark"
                 android:layout_width="match_parent"
@@ -88,22 +71,57 @@
                 android:textStyle="bold"/>
         </LinearLayout>
 
-        <!-- ========================================== -->
-        <!-- KONTEN 3: METADATA                         -->
-        <!-- ========================================== -->
+        <!-- KONTEN 3: EFEK & MASTERING (MANUAL) -->
+        <LinearLayout
+            android:id="@+id/layoutTabEfek"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+            
+            <!-- Volume -->
+            <TextView android:id="@+id/tvVolumeLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Volume: 100%" android:textStyle="bold"/>
+            <SeekBar android:id="@+id/seekVolume" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="200" android:progress="100" android:layout_marginBottom="12dp"/>
+
+            <!-- Bass 31 Hz -->
+            <TextView android:id="@+id/tvBass31Label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Bass (31 Hz): 0 dB" android:textStyle="bold"/>
+            <SeekBar android:id="@+id/seekBass31" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="20" android:progress="10" android:layout_marginBottom="12dp"/>
+
+            <!-- Bass 44 Hz -->
+            <TextView android:id="@+id/tvBass44Label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Bass (44 Hz): 0 dB" android:textStyle="bold"/>
+            <SeekBar android:id="@+id/seekBass44" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="20" android:progress="10" android:layout_marginBottom="12dp"/>
+
+            <!-- Bass 80 Hz -->
+            <TextView android:id="@+id/tvBass80Label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Bass (80 Hz): 0 dB" android:textStyle="bold"/>
+            <SeekBar android:id="@+id/seekBass80" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="20" android:progress="10" android:layout_marginBottom="12dp"/>
+
+            <!-- Mid -->
+            <TextView android:id="@+id/tvMidLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Mid (Vokal): 0 dB" android:textStyle="bold"/>
+            <SeekBar android:id="@+id/seekMid" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="20" android:progress="10" android:layout_marginBottom="12dp"/>
+
+            <!-- Treble -->
+            <TextView android:id="@+id/tvTrebleLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Treble (High): 0 dB" android:textStyle="bold"/>
+            <SeekBar android:id="@+id/seekTreble" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="20" android:progress="10" android:layout_marginBottom="12dp"/>
+
+            <!-- Mastering -->
+            <TextView android:id="@+id/tvMasterLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Mastering (Kompresi): Mati" android:textStyle="bold"/>
+            <CheckBox android:id="@+id/cbMastering" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Aktifkan Mastering (Ratakan Volume)"/>
+        </LinearLayout>
+
+        <!-- KONTEN 4: METADATA -->
         <LinearLayout
             android:id="@+id/layoutTabMetadata"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:visibility="gone"> <!-- Disembunyikan dulu -->
-
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Metadata (Opsional)" android:textStyle="bold"/>
+            android:visibility="gone">
             <EditText android:id="@+id/etTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Judul Lagu" android:layout_marginTop="8dp"/>
             <EditText android:id="@+id/etArtist" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Artis / Penyanyi" android:layout_marginTop="8dp"/>
+            <EditText android:id="@+id/etGenre" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Genre (Contoh: Pop, Rock)" android:layout_marginTop="8dp"/>
+            <EditText android:id="@+id/etComposer" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Komposer / Pencipta" android:layout_marginTop="8dp"/>
         </LinearLayout>
 
-        <!-- TOMBOL PROSES (Selalu Tampil di Bawah) -->
+        <!-- TOMBOL PROSES -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnProcess"
             android:layout_width="match_parent"
