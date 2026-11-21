@@ -1,5 +1,6 @@
 package com.pla.manajer
 
+import android.media.MediaPlayer
 import android.os.Bundle
 import android.view.View
 import android.widget.ArrayAdapter
@@ -16,6 +17,10 @@ class AudioEditorActivity : AppCompatActivity() {
     private lateinit var b: ActivityAudioEditorBinding
     private lateinit var inputFile: File
     private val formats = arrayOf("mp3", "wav", "aac", "m4a")
+    
+    // MediaPlayer untuk fitur Putar Preview
+    private var previewPlayer: MediaPlayer? = null
+    private var isPlayingPreview = false
 
     override fun onCreate(s: Bundle?) {
         super.onCreate(s)
@@ -26,18 +31,16 @@ class AudioEditorActivity : AppCompatActivity() {
         inputFile = File(path)
         b.tvFileName.text = inputFile.name
 
-        // Setup Spinner Format
         val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, formats)
         b.spinnerFormat.adapter = adapter
 
-        // --- LOGIKA PINDAH TAB ---
+        // --- SETUP TAB ---
         b.tabLayoutAudio.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab?) {
                 b.layoutTabTrim.visibility = View.GONE
                 b.layoutTabFormat.visibility = View.GONE
                 b.layoutTabEfek.visibility = View.GONE
                 b.layoutTabMetadata.visibility = View.GONE
-
                 when (tab?.position) {
                     0 -> b.layoutTabTrim.visibility = View.VISIBLE
                     1 -> b.layoutTabFormat.visibility = View.VISIBLE
@@ -49,70 +52,50 @@ class AudioEditorActivity : AppCompatActivity() {
             override fun onTabReselected(tab: TabLayout.Tab?) {}
         })
 
-        // --- LOGIKA SLIDER EFEK & MASTERING ---
-        // Volume (0% - 200%)
+        // --- SETUP LABEL VOLUME ---
         b.seekVolume.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                b.tvVolumeLabel.text = "Volume: $progress%"
+                b.tvVolumeLabel.text = "$progress%"
             }
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
 
-        // Bass 31 Hz
-        b.seekBass31.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                val db = progress - 10
-                b.tvBass31Label.text = "Bass (31 Hz): ${if(db > 0) "+" else ""}$db dB"
+        // --- FITUR PUTAR PREVIEW ---
+        b.btnPreviewAudio.setOnClickListener {
+            if (isPlayingPreview) {
+                previewPlayer?.pause()
+                isPlayingPreview = false
+                b.btnPreviewAudio.text = "Putar"
+                b.btnPreviewAudio.setIconResource(android.R.drawable.ic_media_play)
+            } else {
+                if (previewPlayer == null) {
+                    previewPlayer = MediaPlayer().apply {
+                        setDataSource(inputFile.absolutePath)
+                        prepare()
+                        setOnCompletionListener {
+                            isPlayingPreview = false
+                            b.btnPreviewAudio.text = "Putar"
+                            b.btnPreviewAudio.setIconResource(android.R.drawable.ic_media_play)
+                        }
+                    }
+                }
+                previewPlayer?.start()
+                isPlayingPreview = true
+                b.btnPreviewAudio.text = "Jeda"
+                b.btnPreviewAudio.setIconResource(android.R.drawable.ic_media_pause)
             }
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-        })
-
-        // Bass 44 Hz
-        b.seekBass44.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                val db = progress - 10
-                b.tvBass44Label.text = "Bass (44 Hz): ${if(db > 0) "+" else ""}$db dB"
-            }
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-        })
-
-        // Bass 80 Hz
-        b.seekBass80.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                val db = progress - 10
-                b.tvBass80Label.text = "Bass (80 Hz): ${if(db > 0) "+" else ""}$db dB"
-            }
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-        })
-
-        // Mid
-        b.seekMid.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                val db = progress - 10
-                b.tvMidLabel.text = "Mid (Vokal): ${if(db > 0) "+" else ""}$db dB"
-            }
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-        })
-
-        // Treble
-        b.seekTreble.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                val db = progress - 10
-                b.tvTrebleLabel.text = "Treble (High): ${if(db > 0) "+" else ""}$db dB"
-            }
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-        })
+        }
 
         b.btnProcess.setOnClickListener { processAudio() }
     }
 
     private fun processAudio() {
+        // Hentikan preview jika sedang berjalan
+        previewPlayer?.stop()
+        previewPlayer?.release()
+        previewPlayer = null
+
         val outputFormat = formats[b.spinnerFormat.selectedItemPosition]
         val outputFile = File(inputFile.parentFile, "EDIT_${System.currentTimeMillis()}.${outputFormat}")
 
@@ -128,71 +111,62 @@ class AudioEditorActivity : AppCompatActivity() {
 
         cmd.append("-i \"${inputFile.absolutePath}\" ")
 
-        // --- MERAKIT FILTER AUDIO (EQ MANUAL, VOLUME, DLL) ---
         val audioFilters = mutableListOf<String>()
 
-        // 1. Filter Hapus Watermark
         if (b.cbRemoveWatermark.isChecked) {
             audioFilters.add("lowpass=f=16000")
         }
 
-        // 2. Filter Volume
         val volProgress = b.seekVolume.progress
         if (volProgress != 100) {
-            val volMultiplier = volProgress / 100.0
-            audioFilters.add("volume=$volMultiplier")
+            audioFilters.add("volume=${volProgress / 100.0}")
         }
 
-        // 3. Filter Equalizer Manual (Bass, Mid, Treble)
-        val bass31Db = b.seekBass31.progress - 10
-        val bass44Db = b.seekBass44.progress - 10
-        val bass80Db = b.seekBass80.progress - 10
-        val midDb = b.seekMid.progress - 10
-        val trebleDb = b.seekTreble.progress - 10
-
-        if (bass31Db != 0) {
-            audioFilters.add("equalizer=f=31:width_type=o:width=2:g=$bass31Db")
-        }
-        if (bass44Db != 0) {
-            audioFilters.add("equalizer=f=44:width_type=o:width=2:g=$bass44Db")
-        }
-        if (bass80Db != 0) {
-            audioFilters.add("equalizer=f=80:width_type=o:width=2:g=$bass80Db")
-        }
-        if (midDb != 0) {
-            audioFilters.add("equalizer=f=1000:width_type=o:width=2:g=$midDb")
-        }
-        if (trebleDb != 0) {
-            audioFilters.add("equalizer=f=10000:width_type=o:width=2:g=$trebleDb")
+        // Fungsi pembantu untuk menambahkan EQ
+        fun addEq(freq: Int, seekBar: SeekBar) {
+            val db = seekBar.progress - 10
+            if (db != 0) {
+                audioFilters.add("equalizer=f=$freq:width_type=o:width=2:g=$db")
+            }
         }
 
-        // 4. Filter Mastering (Kompresi Dinamis agar suara rata)
+        addEq(31, b.seek31); addEq(44, b.seek44); addEq(80, b.seek80)
+        addEq(250, b.seek250); addEq(500, b.seek500); addEq(1000, b.seek1k)
+        addEq(2000, b.seek2k); addEq(4000, b.seek4k); addEq(8000, b.seek8k)
+        addEq(12000, b.seek12k)
+
         if (b.cbMastering.isChecked) {
             audioFilters.add("dynaudnorm=f=150:g=15")
         }
-
-        // Gabungkan semua filter ke dalam satu perintah
-        if (audioFilters.isNotEmpty()) {
-            val combinedFilters = audioFilters.joinToString(",")
-            cmd.append("-af \"$combinedFilters\" ")
+        if (b.cbLimiter.isChecked) {
+            audioFilters.add("alimiter=limit=0.95")
         }
 
-        // 5. Metadata
+        if (audioFilters.isNotEmpty()) {
+            cmd.append("-af \"${audioFilters.joinToString(",")}\" ")
+        }
+
         val title = b.etTitle.text.toString()
         val artist = b.etArtist.text.toString()
+        val album = b.etAlbum.text.toString()
         val genre = b.etGenre.text.toString()
         val composer = b.etComposer.text.toString()
+        val year = b.etYear.text.toString()
+        val track = b.etTrack.text.toString()
+
         if (title.isNotEmpty()) cmd.append("-metadata title=\"$title\" ")
         if (artist.isNotEmpty()) cmd.append("-metadata artist=\"$artist\" ")
+        if (album.isNotEmpty()) cmd.append("-metadata album=\"$album\" ")
         if (genre.isNotEmpty()) cmd.append("-metadata genre=\"$genre\" ")
         if (composer.isNotEmpty()) cmd.append("-metadata composer=\"$composer\" ")
+        if (year.isNotEmpty()) cmd.append("-metadata date=\"$year\" ")
+        if (track.isNotEmpty()) cmd.append("-metadata track=\"$track\" ")
 
         cmd.append("\"${outputFile.absolutePath}\"")
 
         b.btnProcess.isEnabled = false
         b.tvProgress.text = "Sedang memproses... Mohon tunggu."
 
-        // Jalankan FFmpeg
         FFmpegKit.executeAsync(cmd.toString(), { session ->
             runOnUiThread {
                 b.btnProcess.isEnabled = true
@@ -204,10 +178,12 @@ class AudioEditorActivity : AppCompatActivity() {
                     Toast.makeText(this, "Gagal: ${session.failStackTrace}", Toast.LENGTH_LONG).show()
                 }
             }
-        }, { log ->
-            // Abaikan log
-        }, { statistics ->
-            // Abaikan progress
-        })
+        }, { }, { })
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        previewPlayer?.release()
+        previewPlayer = null
     }
 }
