@@ -23,8 +23,6 @@ class AudioPlayerActivity : AppCompatActivity() {
     private var isShuffle = false
     private var repeatMode = 0 // 0 = Off, 1 = Ulangi Semua, 2 = Ulangi Satu Lagu
     private var equalizer: Equalizer? = null
-    
-    // Fitur Tambahan: Menyimpan setelan Equalizer agar tidak hilang saat ganti lagu
     private val savedBandLevels = mutableMapOf<Short, Short>() 
 
     override fun onCreate(s: Bundle?) {
@@ -37,21 +35,19 @@ class AudioPlayerActivity : AppCompatActivity() {
 
         b.btnBack.setOnClickListener { finish() }
         
-        // LOGIKA TOMBOL PLAY/PAUSE
+        // LOGIKA TOMBOL PLAY/PAUSE (DIPERBARUI UNTUK TALKBACK)
         b.btnPlayPause.setOnClickListener {
             if (PlaMediaPlayer.isPlaying) {
                 PlaMediaPlayer.pause()
-                b.btnPlayPause.setImageResource(R.drawable.ic_play)
+                updateTombolPutar(false) // Set ke Ikon Putar
             } else {
                 PlaMediaPlayer.resume()
-                b.btnPlayPause.setImageResource(R.drawable.ic_pause)
+                updateTombolPutar(true) // Set ke Ikon Jeda
             }
         }
 
-        // LOGIKA TOMBOL NEXT (SELALU KEMBALI KE AWAL JIKA DI UJUNG)
         b.btnNext.setOnClickListener { playNextSong(manualClick = true) }
         
-        // LOGIKA TOMBOL PREV (KEMBALI KE AKHIR JIKA DI AWAL)
         b.btnPrev.setOnClickListener {
             if (isShuffle) {
                 currentIndex = filePaths.indices.random()
@@ -92,19 +88,35 @@ class AudioPlayerActivity : AppCompatActivity() {
         })
     }
 
+    // FUNGSI BARU: Mengatur Ikon dan Suara TalkBack
+    private fun updateTombolPutar(isPlaying: Boolean) {
+        if (isPlaying) {
+            b.btnPlayPause.setImageResource(R.drawable.ic_pause)
+            // TalkBack akan membacakan "Jeda" dalam bahasa Indonesia
+            b.btnPlayPause.contentDescription = "Jeda" 
+        } else {
+            b.btnPlayPause.setImageResource(R.drawable.ic_play)
+            // TalkBack akan membacakan "Putar" dalam bahasa Indonesia
+            b.btnPlayPause.contentDescription = "Putar" 
+        }
+    }
+
     private fun updateRepeatIcon() {
         when (repeatMode) {
             0 -> {
                 b.btnRepeat.setImageResource(R.drawable.ic_repeat)
                 b.btnRepeat.setColorFilter(android.graphics.Color.parseColor("#555555"))
+                b.btnRepeat.contentDescription = "Ulangi Mati"
             }
             1 -> {
                 b.btnRepeat.setImageResource(R.drawable.ic_repeat)
                 b.btnRepeat.setColorFilter(android.graphics.Color.parseColor("#00BFA5"))
+                b.btnRepeat.contentDescription = "Ulangi Semua Lagu"
             }
             2 -> {
                 b.btnRepeat.setImageResource(R.drawable.ic_repeat_one)
                 b.btnRepeat.setColorFilter(android.graphics.Color.parseColor("#00BFA5"))
+                b.btnRepeat.contentDescription = "Ulangi Lagu Ini"
             }
         }
     }
@@ -117,14 +129,13 @@ class AudioPlayerActivity : AppCompatActivity() {
         b.tvCounter.text = "${index + 1} dari ${filePaths.size}"
         
         PlaMediaPlayer.play(file) {
-            // KETIKA LAGU HABIS (OTOMATIS)
-            b.btnPlayPause.setImageResource(R.drawable.ic_play)
+            // Saat lagu habis otomatis, kembalikan tombol ke Putar
+            updateTombolPutar(false)
             
             when (repeatMode) {
-                2 -> playSong(currentIndex) // Ulangi lagu ini
-                1 -> playNextSong(manualClick = false) // Ulangi semua (lanjut lagu berikutnya)
+                2 -> playSong(currentIndex) 
+                1 -> playNextSong(manualClick = false) 
                 0 -> {
-                    // Mati: Lanjut ke lagu berikutnya, tapi kalau sudah terakhir, berhenti.
                     if (currentIndex < filePaths.size - 1) {
                         currentIndex++
                         playSong(currentIndex)
@@ -133,22 +144,19 @@ class AudioPlayerActivity : AppCompatActivity() {
             }
         }
         
-        b.btnPlayPause.setImageResource(R.drawable.ic_pause)
+        updateTombolPutar(true) // Set ke Ikon Jeda saat lagu mulai
         updateSeekBar()
         
-        // PERBAIKAN EQUALIZER: Simpan setelan lama, pasang ke lagu baru
         val sessionId = PlaMediaPlayer.audioSessionId
         equalizer?.release()
         equalizer = Equalizer(0, sessionId).apply { 
             enabled = true 
-            // Kembalikan setelan slider yang sudah disimpan
             savedBandLevels.forEach { (band, level) ->
                 setBandLevel(band, level)
             }
         }
     }
 
-    // Logika Next yang sudah diperbaiki
     private fun playNextSong(manualClick: Boolean) {
         if (isShuffle) {
             currentIndex = filePaths.indices.random()
@@ -156,9 +164,7 @@ class AudioPlayerActivity : AppCompatActivity() {
             if (currentIndex < filePaths.size - 1) {
                 currentIndex++
             } else {
-                // Jika di ujung, selalu kembali ke lagu pertama (0)
-                // Baik itu dipencet manual maupun otomatis
-                currentIndex = 0
+                currentIndex = 0 
             }
         }
         playSong(currentIndex)
@@ -206,8 +212,6 @@ class AudioPlayerActivity : AppCompatActivity() {
             
             val seekBar = SeekBar(this).apply {
                 max = (range[1] - range[0]).toInt()
-                
-                // Ambil dari memori jika ada, kalau tidak ambil dari equalizer saat ini
                 val currentLevel = savedBandLevels[bandIndex] ?: equalizer!!.getBandLevel(bandIndex)
                 progress = (currentLevel - range[0]).toInt()
                 
@@ -216,7 +220,7 @@ class AudioPlayerActivity : AppCompatActivity() {
                         if (fromUser) {
                             val newLevel = (progress + range[0]).toShort()
                             equalizer!!.setBandLevel(bandIndex, newLevel)
-                            savedBandLevels[bandIndex] = newLevel // SIMPAN KE MEMORI
+                            savedBandLevels[bandIndex] = newLevel 
                         }
                     }
                     override fun onStartTrackingTouch(sb: SeekBar?) {}
