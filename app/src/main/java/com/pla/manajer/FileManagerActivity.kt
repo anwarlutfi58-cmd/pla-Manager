@@ -132,14 +132,15 @@ class FileManagerActivity : AppCompatActivity() {
         ensurePermission()
     }
 
-    // MENU EDIT AUDIO DARI FILE MANAGER
     private fun showContextMenu(f: File) {
         val ext = f.extension.lowercase()
         val options = mutableListOf("Buka", "Ganti Nama", "Salin", "Pindah", "Hapus", "Kompres (ZIP)", "Ekstrak (ZIP)")
         
-        // Jika file audio, tambahkan menu Edit Audio
+        // Menu Khusus berdasarkan ekstensi
         if (ext in listOf("mp3", "wav", "aac", "m4a", "ogg")) {
             options.add(0, "Edit Audio")
+        } else if (ext in listOf("jpg", "jpeg", "png", "webp")) {
+            options.add(0, "Edit Gambar")
         }
 
         AlertDialog.Builder(this)
@@ -149,6 +150,11 @@ class FileManagerActivity : AppCompatActivity() {
                 when (selected) {
                     "Edit Audio" -> {
                         val intent = Intent(this, AudioEditorActivity::class.java)
+                        intent.putExtra("file_path", f.absolutePath)
+                        startActivity(intent)
+                    }
+                    "Edit Gambar" -> {
+                        val intent = Intent(this, ImageEditorActivity::class.java)
                         intent.putExtra("file_path", f.absolutePath)
                         startActivity(intent)
                     }
