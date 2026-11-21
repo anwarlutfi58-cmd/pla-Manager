@@ -2,6 +2,7 @@ package com.pla.manajer
 
 import android.Manifest
 import android.app.AlertDialog
+import android.content.ClipData
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -131,6 +132,38 @@ class FileManagerActivity : AppCompatActivity() {
         ensurePermission()
     }
 
+    // MENU EDIT AUDIO DARI FILE MANAGER
+    private fun showContextMenu(f: File) {
+        val ext = f.extension.lowercase()
+        val options = mutableListOf("Buka", "Ganti Nama", "Salin", "Pindah", "Hapus", "Kompres (ZIP)", "Ekstrak (ZIP)")
+        
+        // Jika file audio, tambahkan menu Edit Audio
+        if (ext in listOf("mp3", "wav", "aac", "m4a", "ogg")) {
+            options.add(0, "Edit Audio")
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle(f.name)
+            .setItems(options.toTypedArray()) { _, which ->
+                val selected = options[which]
+                when (selected) {
+                    "Edit Audio" -> {
+                        val intent = Intent(this, AudioEditorActivity::class.java)
+                        intent.putExtra("file_path", f.absolutePath)
+                        startActivity(intent)
+                    }
+                    "Buka" -> open(f)
+                    "Ganti Nama" -> renameDialog(f)
+                    "Salin" -> { clipboard = f; isCut = false; toast("Disalin: ${f.name}"); b.fabPaste.show() }
+                    "Pindah" -> { clipboard = f; isCut = true; toast("Siap pindah: ${f.name}"); b.fabPaste.show() }
+                    "Hapus" -> deleteMultipleFiles(listOf(f))
+                    "Kompres (ZIP)" -> zipFile(f)
+                    "Ekstrak (ZIP)" -> unzipFile(f)
+                }
+            }
+            .setNegativeButton("Tutup", null).show()
+    }
+
     private fun toggleSelection(f: File) {
         if (adapter.selectedFiles.contains(f)) {
             adapter.selectedFiles.remove(f)
@@ -195,7 +228,6 @@ class FileManagerActivity : AppCompatActivity() {
         }
     }
 
-    // --- KUNCI PERBAIKAN: MEMBERI IZIN KE SEMUA APLIKASI ---
     private fun openWith(f: File) {
         try {
             val uri = FileProvider.getUriForFile(this, "$packageName.provider", f)
@@ -220,7 +252,6 @@ class FileManagerActivity : AppCompatActivity() {
                 addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
             }
 
-            // Memaksa sistem memberikan izin baca ke SEMUA aplikasi yang terinstal
             val resInfoList = packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
             for (resolveInfo in resInfoList) {
                 val packageName = resolveInfo.activityInfo.packageName
@@ -319,6 +350,25 @@ class FileManagerActivity : AppCompatActivity() {
                 val newFile = File(f.parentFile, input.text.toString())
                 if (f.renameTo(newFile)) load(currentDir) else toast("Gagal rename")
             }.setNegativeButton("Batal", null).show()
+    }
+
+    private fun zipFile(f: File) {
+        lifecycleScope.launch {
+            val out = File(f.parentFile, f.name + ".zip")
+            withContext(Dispatchers.IO) { FileUtils.zip(f, out) }
+            load(currentDir)
+            toast("Diarsipkan: ${out.name}")
+        }
+    }
+
+    private fun unzipFile(f: File) {
+        if (!f.name.endsWith(".zip")) { toast("Bukan file ZIP"); return }
+        lifecycleScope.launch {
+            val out = File(f.parentFile, f.nameWithoutExtension)
+            withContext(Dispatchers.IO) { FileUtils.unzip(f, out) }
+            load(currentDir)
+            toast("Diekstrak ke: ${out.name}")
+        }
     }
 
     private fun pasteHere() {
