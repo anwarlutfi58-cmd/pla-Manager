@@ -20,7 +20,6 @@ class AudioPlayerActivity : AppCompatActivity() {
     private var currentIndex = 0
     private var filePaths: List<String> = emptyList()
     
-    // Status Fitur
     private var isShuffle = false
     private var repeatMode = 0 // 0 = Off, 1 = Ulangi Semua, 2 = Ulangi Satu Lagu
     private var equalizer: Equalizer? = null
@@ -35,6 +34,7 @@ class AudioPlayerActivity : AppCompatActivity() {
 
         b.btnBack.setOnClickListener { finish() }
         
+        // PERBAIKAN TOMBOL PLAY/PAUSE
         b.btnPlayPause.setOnClickListener {
             if (PlaMediaPlayer.isPlaying) {
                 PlaMediaPlayer.pause()
@@ -45,39 +45,25 @@ class AudioPlayerActivity : AppCompatActivity() {
             }
         }
 
-        b.btnNext.setOnClickListener {
-            playNextSong()
-        }
-
+        b.btnNext.setOnClickListener { playNextSong() }
         b.btnPrev.setOnClickListener {
-            if (currentIndex > 0) {
-                currentIndex--
-                playSong(currentIndex)
-            }
+            if (currentIndex > 0) { currentIndex--; playSong(currentIndex) }
         }
         
-        // FITUR ACAK
         b.btnShuffle.setOnClickListener {
             isShuffle = !isShuffle
             b.btnShuffle.setColorFilter(if (isShuffle) android.graphics.Color.parseColor("#00BFA5") else android.graphics.Color.parseColor("#555555"))
             Toast.makeText(this, if (isShuffle) "Acak Aktif" else "Acak Mati", Toast.LENGTH_SHORT).show()
         }
         
-        // FITUR ULANGI
         b.btnRepeat.setOnClickListener {
             repeatMode = (repeatMode + 1) % 3
             updateRepeatIcon()
         }
 
-        // FITUR BAGIKAN
-        b.btnShare.setOnClickListener {
-            shareCurrentSong()
-        }
-
-        // FITUR EQUALIZER
-        b.btnEqualizer.setOnClickListener {
-            showEqualizerDialog()
-        }
+        // PERBAIKAN FITUR BAGIKAN
+        b.btnShare.setOnClickListener { shareCurrentSong() }
+        b.btnEqualizer.setOnClickListener { showEqualizerDialog() }
 
         playSong(currentIndex)
 
@@ -115,18 +101,19 @@ class AudioPlayerActivity : AppCompatActivity() {
         b.tvCounter.text = "${index + 1} dari ${filePaths.size}"
         
         PlaMediaPlayer.play(file) {
-            // Logika saat lagu selesai
+            // PERBAIKAN: Saat lagu habis, kembalikan tombol ke ikon Play
+            b.btnPlayPause.setImageResource(R.drawable.ic_play)
+            
             when (repeatMode) {
-                2 -> playSong(currentIndex) // Ulangi lagu ini
-                1 -> playNextSong() // Ulangi semua (lanjut next)
-                0 -> if (currentIndex < filePaths.size - 1) playNextSong() else b.btnPlayPause.setImageResource(R.drawable.ic_play)
+                2 -> playSong(currentIndex)
+                1 -> playNextSong()
+                0 -> if (currentIndex < filePaths.size - 1) playNextSong()
             }
         }
         
         b.btnPlayPause.setImageResource(R.drawable.ic_pause)
         updateSeekBar()
         
-        // Reset Equalizer untuk lagu baru
         equalizer?.release()
         equalizer = Equalizer(0, PlaMediaPlayer.audioSessionId).apply { enabled = true }
     }
@@ -134,33 +121,29 @@ class AudioPlayerActivity : AppCompatActivity() {
     private fun playNextSong() {
         if (isShuffle) {
             currentIndex = filePaths.indices.random()
-            playSong(currentIndex)
         } else {
             if (currentIndex < filePaths.size - 1) {
                 currentIndex++
-                playSong(currentIndex)
-            } else {
-                // Jika sudah di ujung dan mode ulangi semua
-                if (repeatMode == 1) {
-                    currentIndex = 0
-                    playSong(currentIndex)
-                }
+            } else if (repeatMode == 1) {
+                currentIndex = 0
             }
         }
+        playSong(currentIndex)
     }
 
     private fun shareCurrentSong() {
         val file = PlaMediaPlayer.currentFile ?: return
         try {
+            // Menggunakan FileProvider untuk Android modern
             val uri = FileProvider.getUriForFile(this, "$packageName.provider", file)
             val intent = Intent(Intent.ACTION_SEND).apply {
-                type = "audio/*"
+                type = "audio/*" // Menggunakan wildcard agar semua aplikasi mau menerima
                 putExtra(Intent.EXTRA_STREAM, uri)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
             startActivity(Intent.createChooser(intent, "Bagikan Lagu via"))
         } catch (e: Exception) {
-            Toast.makeText(this, "Gagal membagikan lagu", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Gagal membagikan: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -173,13 +156,11 @@ class AudioPlayerActivity : AppCompatActivity() {
         val builder = AlertDialog.Builder(this)
         builder.setTitle("Efek Suara (Equalizer)")
 
-        // Menggunakan layout sederhana via program
         val layout = android.widget.LinearLayout(this).apply {
             orientation = android.widget.LinearLayout.VERTICAL
             setPadding(50, 20, 50, 20)
         }
 
-        // Equalizer Android punya band frekuensi (biasanya 5). Kita ambil 3 utama: Bass, Mid, Treble
         val numBands = equalizer!!.numberOfBands
         val range = equalizer!!.bandLevelRange
 
