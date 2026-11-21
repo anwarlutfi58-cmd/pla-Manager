@@ -1,14 +1,31 @@
 package com.pla.manajer
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
+import android.provider.OpenableColumns
+import android.view.View
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import com.pla.manajer.databinding.ActivityMainBinding
+import com.pla.manajer.util.Prefs
+import java.io.File
+import java.io.FileOutputStream
 
 class MainActivity : AppCompatActivity() {
     private lateinit var b: ActivityMainBinding
+
+    // Picker untuk memilih gambar dari HP
+    private val pickImageLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let { handleSelectedFile(it, ImageEditorActivity::class.java) }
+    }
+
+    // Picker untuk memilih audio dari HP
+    private val pickAudioLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let { handleSelectedFile(it, AudioEditorActivity::class.java) }
+    }
 
     override fun onCreate(s: Bundle?) {
         super.onCreate(s)
@@ -27,13 +44,58 @@ class MainActivity : AppCompatActivity() {
         
         b.cardDocuments.setOnClickListener { openCategory(Environment.DIRECTORY_DOCUMENTS) }
         b.cardDownloads.setOnClickListener { openCategory(Environment.DIRECTORY_DOWNLOADS) }
-        
         b.cardApps.setOnClickListener      { startActivity(Intent(this, AppManagerActivity::class.java)) }
-        
-        // TOMBOL CLOUD SUDAH BERFUNGSI
         b.cardCloud.setOnClickListener     { startActivity(Intent(this, CloudActivity::class.java)) }
-        
         b.cardSdCard.setOnClickListener    { openSdCard() }
+
+        // ==========================================
+        // LOGIKA MENAMPILKAN TOMBOL AJAIB
+        // ==========================================
+        val prefs = Prefs(this)
+        
+        if (prefs.showImageEditor || prefs.showAudioEditor || prefs.showVideoEditor || prefs.showGithubBuilder) {
+            b.tvToolsTitle.visibility = View.VISIBLE
+            b.gridTools.visibility = View.VISIBLE
+        }
+
+        if (prefs.showImageEditor) b.cardEditImage.visibility = View.VISIBLE
+        if (prefs.showAudioEditor) b.cardEditAudio.visibility = View.VISIBLE
+        if (prefs.showVideoEditor) b.cardEditVideo.visibility = View.VISIBLE
+        if (prefs.showGithubBuilder) b.cardGithub.visibility = View.VISIBLE
+
+        // Aksi saat tombol ajaib diklik
+        b.cardEditImage.setOnClickListener { pickImageLauncher.launch("image/*") }
+        b.cardEditAudio.setOnClickListener { pickAudioLauncher.launch("audio/*") }
+        b.cardEditVideo.setOnClickListener { 
+            Toast.makeText(this, "Fitur Edit Video akan segera hadir!", Toast.LENGTH_SHORT).show() 
+        }
+        b.cardGithub.setOnClickListener { 
+            startActivity(Intent(this, GithubBuilderActivity::class.java)) 
+        }
+    }
+
+    // Fungsi untuk menyimpan file sementara dari Uri agar bisa diedit
+    private fun handleSelectedFile(uri: Uri, targetActivity: Class<*>) {
+        try {
+            var fileName = "temp_file"
+            contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (cursor.moveToFirst()) fileName = cursor.getString(nameIndex)
+            }
+
+            val tempFile = File(cacheDir, fileName)
+            contentResolver.openInputStream(uri)?.use { input ->
+                FileOutputStream(tempFile).use { output ->
+                    input.copyTo(output)
+                }
+            }
+
+            val intent = Intent(this, targetActivity)
+            intent.putExtra("file_path", tempFile.absolutePath)
+            startActivity(intent)
+        } catch (e: Exception) {
+            Toast.makeText(this, "Gagal membaca file: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun openMedia(type: String) {
