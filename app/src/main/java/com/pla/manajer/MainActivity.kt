@@ -21,7 +21,6 @@ class MainActivity : AppCompatActivity() {
         b.cardTrash.setOnClickListener     { startActivity(Intent(this, TrashActivity::class.java)) }
         b.cardSettings.setOnClickListener  { startActivity(Intent(this, SettingsActivity::class.java)) }
 
-        // --- KATEGORI MEDIA MENGGUNAKAN MEDIA MANAGER (INTERNAL + SD CARD) ---
         b.cardImages.setOnClickListener    { openMedia("IMAGE") }
         b.cardVideos.setOnClickListener    { openMedia("VIDEO") }
         b.cardAudio.setOnClickListener     { openMedia("AUDIO") }
@@ -30,7 +29,10 @@ class MainActivity : AppCompatActivity() {
         b.cardDownloads.setOnClickListener { openCategory(Environment.DIRECTORY_DOWNLOADS) }
         
         b.cardApps.setOnClickListener      { startActivity(Intent(this, AppManagerActivity::class.java)) }
-        b.cardCloud.setOnClickListener     { Toast.makeText(this, "Integrasi Cloud segera hadir!", Toast.LENGTH_LONG).show() }
+        
+        // TOMBOL CLOUD SUDAH BERFUNGSI
+        b.cardCloud.setOnClickListener     { startActivity(Intent(this, CloudActivity::class.java)) }
+        
         b.cardSdCard.setOnClickListener    { openSdCard() }
     }
 
