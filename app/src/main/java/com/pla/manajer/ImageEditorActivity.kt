@@ -9,6 +9,7 @@ import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
 import android.view.MotionEvent
+import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.pla.manajer.databinding.ActivityImageEditorBinding
@@ -40,12 +41,34 @@ class ImageEditorActivity : AppCompatActivity() {
             canvas = Canvas(mutableBitmap)
             b.ivImage.setImageBitmap(mutableBitmap)
             
-            b.etWidth.setText(mutableBitmap.width.toString())
-            b.etHeight.setText(mutableBitmap.height.toString())
         } catch (e: Exception) {
             Toast.makeText(this, "Gagal memuat gambar", Toast.LENGTH_SHORT).show()
             finish()
+            return
         }
+
+        // --- SETUP DAFTAR PILIHAN (SPINNER) ---
+        // 1. Daftar Ukuran 14px sampai 6000px
+        val sizes = arrayOf("14", "100", "500", "720", "1080", "1400", "2000", "4000", "6000")
+        val sizeAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, sizes)
+        b.spinnerWidth.adapter = sizeAdapter
+        b.spinnerHeight.adapter = sizeAdapter
+        
+        // Set default ke ukuran asli gambar jika ada di daftar, kalau tidak set ke 1400
+        val defaultW = sizes.indexOf(mutableBitmap.width.toString()).takeIf { it >= 0 } ?: 5
+        val defaultH = sizes.indexOf(mutableBitmap.height.toString()).takeIf { it >= 0 } ?: 5
+        b.spinnerWidth.setSelection(defaultW)
+        b.spinnerHeight.setSelection(defaultH)
+
+        // 2. Daftar Format Gambar
+        val formats = arrayOf("JPG", "PNG", "WEBP")
+        val formatAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, formats)
+        b.spinnerFormat.adapter = formatAdapter
+
+        // 3. Daftar Tes Warna
+        val colorFilters = arrayOf("Normal (Asli)", "Grayscale (Hitam Putih)", "Sepia (Klasik)", "Invert (Negatif)")
+        val colorAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, colorFilters)
+        b.spinnerColorFilter.adapter = colorAdapter
 
         // Inisialisasi Paint untuk Teks / Brush
         paint = Paint().apply {
@@ -56,18 +79,15 @@ class ImageEditorActivity : AppCompatActivity() {
             style = Paint.Style.STROKE
         }
 
-        // --- LOGIKA RESIZE ---
+        // --- LOGIKA RESIZE (Menggunakan Spinner) ---
         b.btnResize.setOnClickListener {
-            val w = b.etWidth.text.toString().toIntOrNull() ?: return@setOnClickListener
-            val h = b.etHeight.text.toString().toIntOrNull() ?: return@setOnClickListener
-            if (w in 100..6000 && h in 100..6000) {
-                mutableBitmap = Bitmap.createScaledBitmap(mutableBitmap, w, h, true)
-                canvas = Canvas(mutableBitmap)
-                b.ivImage.setImageBitmap(mutableBitmap)
-                Toast.makeText(this, "Ukuran diubah ke $w x $h", Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(this, "Ukuran maksimal 6000px", Toast.LENGTH_SHORT).show()
-            }
+            val w = b.spinnerWidth.selectedItem.toString().toIntOrNull() ?: return@setOnClickListener
+            val h = b.spinnerHeight.selectedItem.toString().toIntOrNull() ?: return@setOnClickListener
+            
+            mutableBitmap = Bitmap.createScaledBitmap(mutableBitmap, w, h, true)
+            canvas = Canvas(mutableBitmap)
+            b.ivImage.setImageBitmap(mutableBitmap)
+            Toast.makeText(this, "Ukuran diubah ke $w x $h", Toast.LENGTH_SHORT).show()
         }
 
         // --- LOGIKA TAMBAH TEKS ---
@@ -76,7 +96,7 @@ class ImageEditorActivity : AppCompatActivity() {
             if (text.isNotEmpty()) {
                 val textPaint = Paint().apply {
                     color = Color.RED
-                    textSize = mutableBitmap.width / 15f // Ukuran teks menyesuaikan lebar gambar
+                    textSize = mutableBitmap.width / 15f
                     isAntiAlias = true
                 }
                 canvas.drawText(text, 50f, mutableBitmap.height / 2f, textPaint)
@@ -102,7 +122,6 @@ class ImageEditorActivity : AppCompatActivity() {
             val x = event.x
             val y = event.y
             
-            // Konversi koordinat layar ke koordinat Bitmap
             val scaleX = mutableBitmap.width.toFloat() / b.ivImage.width
             val scaleY = mutableBitmap.height.toFloat() / b.ivImage.height
             val bmpX = x * scaleX
@@ -114,14 +133,12 @@ class ImageEditorActivity : AppCompatActivity() {
                     lastY = bmpY
                 }
                 MotionEvent.ACTION_MOVE -> {
-                    // Menggunakan Blur Mask Filter untuk mengaburkan area watermark
                     val eraserPaint = Paint().apply {
                         color = Color.TRANSPARENT
                         strokeWidth = 80f
                         style = Paint.Style.STROKE
                         maskFilter = BlurMaskFilter(40f, BlurMaskFilter.Blur.NORMAL)
                     }
-                    // Ambil area sekitar dan gambar ulang (teknik blur)
                     canvas.drawLine(lastX, lastY, bmpX, bmpY, eraserPaint)
                     lastX = bmpX
                     lastY = bmpY
@@ -131,18 +148,12 @@ class ImageEditorActivity : AppCompatActivity() {
             true
         }
 
-        // --- LOGIKA SIMPAN (UBAH FORMAT & SIMPAN) ---
-        b.btnSaveImage.setOnClickListener { showSaveDialog() }
-    }
-
-    private fun showSaveDialog() {
-        val formats = arrayOf("JPG", "PNG", "WEBP")
-        AlertDialog.Builder(this)
-            .setTitle("Pilih Format Simpan")
-            .setItems(formats) { _, which ->
-                val format = formats[which]
-                saveImage(format)
-            }.show()
+        // --- LOGIKA SIMPAN ---
+        // Kita tidak perlu AlertDialog lagi karena format sudah dipilih di Spinner
+        b.btnSaveImage.setOnClickListener { 
+            val format = b.spinnerFormat.selectedItem.toString()
+            saveImage(format) 
+        }
     }
 
     private fun saveImage(format: String) {
@@ -154,6 +165,39 @@ class ImageEditorActivity : AppCompatActivity() {
                 else -> "image/webp"
             }
             
+            // --- LOGIKA TES WARNA (COLOR FILTER) ---
+            // Kita buat bitmap baru agar filter diterapkan saat disimpan tanpa merusak tampilan editor
+            var finalBitmap = mutableBitmap.copy(Bitmap.Config.ARGB_8888, true)
+            val filterName = b.spinnerColorFilter.selectedItem.toString()
+            
+            if (filterName != "Normal (Asli)") {
+                val filterCanvas = Canvas(finalBitmap)
+                val filterPaint = Paint()
+                val matrix = ColorMatrix()
+
+                when (filterName) {
+                    "Grayscale (Hitam Putih)" -> matrix.setSaturation(0f)
+                    "Sepia (Klasik)" -> {
+                        matrix.setSaturation(0.5f)
+                        val sepiaMatrix = ColorMatrix(floatArrayOf(
+                            0.393f, 0.769f, 0.189f, 0f, 0f,
+                            0.349f, 0.686f, 0.168f, 0f, 0f,
+                            0.272f, 0.534f, 0.131f, 0f, 0f,
+                            0f, 0f, 0f, 1f, 0f
+                        ))
+                        matrix.postConcat(sepiaMatrix)
+                    }
+                    "Invert (Negatif)" -> matrix.set(floatArrayOf(
+                        -1f, 0f, 0f, 0f, 255f,
+                        0f, -1f, 0f, 0f, 255f,
+                        0f, 0f, -1f, 0f, 255f,
+                        0f, 0f, 0f, 1f, 0f
+                    ))
+                }
+                filterPaint.colorFilter = ColorMatrixColorFilter(matrix)
+                filterCanvas.drawBitmap(mutableBitmap, 0f, 0f, filterPaint)
+            }
+
             // Simpan ke folder Pictures
             val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
             val file = File(dir, fileName)
@@ -165,7 +209,8 @@ class ImageEditorActivity : AppCompatActivity() {
                 else -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) Bitmap.CompressFormat.WEBP_LOSSLESS else Bitmap.CompressFormat.WEBP
             }
 
-            mutableBitmap.compress(compressFormat, 100, outputStream)
+            // Simpan bitmap yang sudah difilter
+            finalBitmap.compress(compressFormat, 100, outputStream)
             outputStream.flush()
             outputStream.close()
 
