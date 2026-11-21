@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:gravity="center"
+    android:background="#121212">
+
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Gabung Audio (Merge)" android:textColor="#FFFFFF" android:textSize="24sp" android:textStyle="bold" android:layout_marginBottom="32dp"/>
+
+    <com.google.android.material.button.MaterialButton android:id="@+id/btnPickAudio1" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Pilih Audio 1" android:layout_marginBottom="16dp"/>
+    <com.google.android.material.button.MaterialButton android:id="@+id/btnPickAudio2" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Pilih Audio 2" android:layout_marginBottom="32dp"/>
+
+    <TextView android:id="@+id/tvStatusMerge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Pilih kedua file audio terlebih dahulu" android:textColor="#AAAAAA" android:layout_marginBottom="32dp" android:gravity="center"/>
+
+    <com.google.android.material.button.MaterialButton android:id="@+id/btnMergeAudio" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Gabungkan &amp; Simpan" app:backgroundTint="#4CAF50" android:padding="16dp"/>
+</LinearLayout>
