@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#121212"
+    android:orientation="vertical">
+
+    <!-- Area Gambar (Bisa disentuh untuk Hapus Watermark) -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="#000000">
+        <ImageView
+            android:id="@+id/ivImage"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="fitCenter" />
+    </FrameLayout>
+
+    <!-- Panel Kontrol -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#1E1E1E"
+        android:padding="12dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Fitur Edit Gambar"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp"/>
+
+            <!-- Resize -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+                <EditText android:id="@+id/etWidth" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:hint="Lebar (px)" android:inputType="number" android:textColor="#FFFFFF" android:textColorHint="#888888" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="x" android:textColor="#FFFFFF" android:layout_marginHorizontal="8dp"/>
+                <EditText android:id="@+id/etHeight" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:hint="Tinggi (px)" android:inputType="number" android:textColor="#FFFFFF" android:textColorHint="#888888" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/btnResize" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Resize" android:layout_marginStart="8dp"/>
+            </LinearLayout>
+
+            <!-- Teks -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginTop="8dp">
+                <EditText android:id="@+id/etText" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:hint="Tulis teks di gambar..." android:textColor="#FFFFFF" android:textColorHint="#888888" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/btnAddText" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Tambah" android:layout_marginStart="8dp"/>
+            </LinearLayout>
+
+            <!-- Magic Eraser -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnMagicEraser"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Aktifkan Hapus Watermark (Gosok dengan Jari)"
+                app:backgroundTint="#F44336" />
+
+            <!-- Simpan -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSaveImage"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Simpan Gambar"
+                app:backgroundTint="#4CAF50" />
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>
