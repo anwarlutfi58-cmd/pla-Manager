@@ -11,7 +11,7 @@
         android:layout_height="match_parent"
         android:orientation="vertical">
 
-        <!-- HEADER PATH -->
+        <!-- HEADER PATH & TOMBOL PILIH SEMUA -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -35,6 +35,17 @@
                 android:maxLines="1"
                 android:text="/storage/emulated/0"
                 android:textSize="13sp" />
+            
+            <!-- TOMBOL PILIH SEMUA (DI ATAS) -->
+            <ImageButton
+                android:id="@+id/btnSelectAllTop"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Pilih Semua"
+                android:src="@android:drawable/ic_menu_selectall"
+                app:tint="?attr/colorOnPrimaryContainer" />
+
             <ImageButton
                 android:id="@+id/btnTopUp"
                 android:layout_width="40dp"
@@ -87,28 +98,29 @@
             android:visibility="gone">
             
             <LinearLayout android:id="@+id/btnCopySelected" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:orientation="vertical">
-                <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_copy" />
+                <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_copy" app:tint="#FFFFFF"/>
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Salin" android:textColor="#FFFFFF" android:textSize="11sp" />
             </LinearLayout>
 
             <LinearLayout android:id="@+id/btnMoveSelected" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:orientation="vertical">
-                <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_move" />
+                <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_move" app:tint="#FFFFFF"/>
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Pindahkan" android:textColor="#FFFFFF" android:textSize="11sp" />
             </LinearLayout>
 
             <LinearLayout android:id="@+id/btnRenameSelected" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:orientation="vertical">
-                <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_rename" />
+                <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_rename" app:tint="#FFFFFF"/>
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Ganti Nama" android:textColor="#FFFFFF" android:textSize="11sp" />
             </LinearLayout>
 
             <LinearLayout android:id="@+id/btnDeleteSelected" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:orientation="vertical">
-                <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_delete" />
+                <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_delete" app:tint="#FFFFFF"/>
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Hapus" android:textColor="#FFFFFF" android:textSize="11sp" />
             </LinearLayout>
 
-            <LinearLayout android:id="@+id/btnSelectAll" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:orientation="vertical">
-                <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_more" />
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Semua" android:textColor="#FFFFFF" android:textSize="11sp" />
+            <!-- TOMBOL TITIK 3 / LAINNYA -->
+            <LinearLayout android:id="@+id/btnMoreActions" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:orientation="vertical">
+                <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_more" app:tint="#FFFFFF"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Lainnya" android:textColor="#FFFFFF" android:textSize="11sp" />
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>
