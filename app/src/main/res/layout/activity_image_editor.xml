@@ -20,99 +20,91 @@
     </FrameLayout>
 
     <!-- Panel Kontrol -->
-    <ScrollView
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="#1E1E1E"
+        android:orientation="vertical"
         android:padding="12dp">
 
-        <LinearLayout
+        <com.google.android.material.tabs.TabLayout
+            android:id="@+id/tabLayoutImage"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            app:tabMode="scrollable"
+            app:tabIndicatorColor="#4CAF50"
+            app:tabTextColor="#AAAAAA"
+            app:tabSelectedTextColor="#FFFFFF"
+            android:layout_marginBottom="8dp">
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Fitur Edit Gambar"
-                android:textColor="#FFFFFF"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:layout_marginBottom="12dp"/>
+            <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Ukuran" />
+            <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Putar" />
+            <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Warna" />
+            <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Lainnya" />
+        </com.google.android.material.tabs.TabLayout>
 
-            <!-- 1. RESIZE (DROPDOWN UKURAN) -->
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Ubah Ukuran (Pilih dari daftar):" android:textColor="#AAAAAA" android:textSize="12sp" android:layout_marginBottom="4dp"/>
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
-                
-                <Spinner
-                    android:id="@+id/spinnerWidth"
-                    android:layout_width="0dp"
-                    android:layout_height="40dp"
-                    android:layout_weight="1"
-                    android:backgroundTint="#FFFFFF" />
-                
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text=" x " android:textColor="#FFFFFF" android:textStyle="bold"/>
-                
-                <Spinner
-                    android:id="@+id/spinnerHeight"
-                    android:layout_width="0dp"
-                    android:layout_height="40dp"
-                    android:layout_weight="1"
-                    android:backgroundTint="#FFFFFF" />
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="200dp">
 
-                <com.google.android.material.button.MaterialButton 
-                    android:id="@+id/btnResize" 
-                    android:layout_width="wrap_content" 
-                    android:layout_height="40dp" 
-                    android:text="Resize" 
-                    android:layout_marginStart="8dp"
-                    android:insetTop="0dp"
-                    android:insetBottom="0dp"/>
-            </LinearLayout>
-
-            <!-- 2. FORMAT GAMBAR & WARNA -->
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Format &amp; Warna:" android:textColor="#AAAAAA" android:textSize="12sp" android:layout_marginTop="12dp" android:layout_marginBottom="4dp"/>
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
-                
-                <Spinner
-                    android:id="@+id/spinnerFormat"
-                    android:layout_width="0dp"
-                    android:layout_height="40dp"
-                    android:layout_weight="1"
-                    android:backgroundTint="#FFFFFF" />
-                
-                <Spinner
-                    android:id="@+id/spinnerColorFilter"
-                    android:layout_width="0dp"
-                    android:layout_height="40dp"
-                    android:layout_weight="1"
-                    android:layout_marginStart="8dp"
-                    android:backgroundTint="#FFFFFF" />
-            </LinearLayout>
-
-            <!-- 3. TEKS -->
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginTop="12dp">
-                <EditText android:id="@+id/etText" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:hint="Tulis teks di gambar..." android:textColor="#FFFFFF" android:textColorHint="#888888" />
-                <com.google.android.material.button.MaterialButton android:id="@+id/btnAddText" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Tambah" android:layout_marginStart="8dp"/>
-            </LinearLayout>
-
-            <!-- 4. MAGIC ERASER -->
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnMagicEraser"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:text="Aktifkan Hapus Watermark (Gosok dengan Jari)"
-                app:backgroundTint="#F44336" />
+                android:orientation="vertical">
 
-            <!-- 5. SIMPAN -->
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnSaveImage"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="Simpan Gambar"
-                app:backgroundTint="#4CAF50" />
+                <!-- TAB 1: UKURAN & FORMAT -->
+                <LinearLayout android:id="@+id/layoutTabUkuran" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="visible">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+                        <Spinner android:id="@+id/spinnerWidth" android:layout_width="0dp" android:layout_height="40dp" android:layout_weight="1" android:backgroundTint="#FFFFFF" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text=" x " android:textColor="#FFFFFF" android:textStyle="bold"/>
+                        <Spinner android:id="@+id/spinnerHeight" android:layout_width="0dp" android:layout_height="40dp" android:layout_weight="1" android:backgroundTint="#FFFFFF" />
+                    </LinearLayout>
+                    
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="8dp">
+                        <Spinner android:id="@+id/spinnerPreset" android:layout_width="0dp" android:layout_height="40dp" android:layout_weight="1" android:backgroundTint="#FFFFFF" />
+                        <Spinner android:id="@+id/spinnerFormat" android:layout_width="0dp" android:layout_height="40dp" android:layout_weight="1" android:layout_marginStart="8dp" android:backgroundTint="#FFFFFF" />
+                    </LinearLayout>
+
+                    <CheckBox android:id="@+id/cbCompress" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Kompres Ukuran File (Hemat Memori)" android:textColor="#FFFFFF" android:layout_marginTop="8dp"/>
+                </LinearLayout>
+
+                <!-- TAB 2: PUTAR & BALIK -->
+                <LinearLayout android:id="@+id/layoutTabPutar" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:visibility="gone" android:gravity="center">
+                    <com.google.android.material.button.MaterialButton android:id="@+id/btnRotateLeft" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Putar Kiri" android:layout_marginEnd="4dp"/>
+                    <com.google.android.material.button.MaterialButton android:id="@+id/btnRotateRight" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Putar Kanan" android:layout_marginStart="4dp"/>
+                    <com.google.android.material.button.MaterialButton android:id="@+id/btnFlip" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Balik" android:layout_marginStart="4dp"/>
+                </LinearLayout>
+
+                <!-- TAB 3: WARNA & EFEK -->
+                <LinearLayout android:id="@+id/layoutTabWarna" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Kecerahan" android:textColor="#FFFFFF" android:textSize="12sp"/>
+                    <SeekBar android:id="@+id/seekBrightness" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="200" android:progress="100" android:progressTint="#4CAF50"/>
+                    
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Kontras" android:textColor="#FFFFFF" android:textSize="12sp"/>
+                    <SeekBar android:id="@+id/seekContrast" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="200" android:progress="100" android:progressTint="#4CAF50"/>
+                    
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Saturasi (Ketebalan Warna)" android:textColor="#FFFFFF" android:textSize="12sp"/>
+                    <SeekBar android:id="@+id/seekSaturation" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="200" android:progress="100" android:progressTint="#4CAF50"/>
+                </LinearLayout>
+
+                <!-- TAB 4: LAINNYA (TEKS & PRIVASI) -->
+                <LinearLayout android:id="@+id/layoutTabLainnya" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+                        <EditText android:id="@+id/etText" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:hint="Tulis teks..." android:textColor="#FFFFFF" android:textColorHint="#888888" />
+                        <com.google.android.material.button.MaterialButton android:id="@+id/btnAddText" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Tambah" />
+                    </LinearLayout>
+
+                    <CheckBox android:id="@+id/cbRemoveExif" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Hapus Metadata Privasi (Lokasi GPS & Kamera)" android:textColor="#FFFFFF" android:layout_marginTop="8dp"/>
+                    <com.google.android.material.button.MaterialButton android:id="@+id/btnMagicEraser" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="Gosok Hapus Watermark" app:backgroundTint="#F44336" />
+                </LinearLayout>
+
+            </LinearLayout>
+        </ScrollView>
+
+        <!-- Tombol Aksi Bawah -->
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="8dp">
+            <com.google.android.material.button.MaterialButton android:id="@+id/btnApplyEffects" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Terapkan Efek" app:backgroundTint="#2196F3" android:layout_marginEnd="8dp"/>
+            <com.google.android.material.button.MaterialButton android:id="@+id/btnSaveImage" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Simpan Gambar" app:backgroundTint="#4CAF50" />
         </LinearLayout>
-    </ScrollView>
+    </LinearLayout>
 </LinearLayout>
