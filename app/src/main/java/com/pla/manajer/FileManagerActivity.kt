@@ -60,12 +60,10 @@ class FileManagerActivity : AppCompatActivity() {
         val initialPath = intent.getStringExtra("initial_path") ?: prefs.lastPath
         currentDir = File(initialPath)
 
-        // PERUBAHAN: Menambahkan onMoreOptions ke adapter
         adapter = FileAdapter(
             onOpen = { f -> if (!adapter.isSelectionMode) open(f) },
             onLong = { f -> enableSelectionMode(f) },
-            onSelectToggle = { f -> toggleSelection(f) },
-            onMoreOptions = { f -> showContextMenu(f) } 
+            onSelectToggle = { f -> toggleSelection(f) }
         )
         b.recycler.layoutManager = LinearLayoutManager(this)
         b.recycler.adapter = adapter
@@ -76,14 +74,25 @@ class FileManagerActivity : AppCompatActivity() {
         b.btnSort.setOnClickListener    { showSortDialog() }
         b.fabPaste.setOnClickListener   { pasteHere() }
 
-        b.btnSelectAll.setOnClickListener { 
-            adapter.selectedFiles.clear()
-            adapter.selectedFiles.addAll(allFiles)
-            adapter.isSelectionMode = true
+        // LOGIKA TOMBOL PILIH SEMUA (DI ATAS)
+        b.btnSelectAllTop.setOnClickListener {
+            val query = b.etSearch.text?.toString()?.lowercase() ?: ""
+            val filtered = if (query.isEmpty()) allFiles else allFiles.filter { it.name.lowercase().contains(query) }
+            
+            if (adapter.selectedFiles.size == filtered.size) {
+                // Jika sudah terpilih semua, maka batalkan semua (Unselect All)
+                adapter.selectedFiles.clear()
+                adapter.isSelectionMode = false
+            } else {
+                // Pilih semua file yang ada di layar
+                adapter.selectedFiles.clear()
+                adapter.selectedFiles.addAll(filtered)
+                adapter.isSelectionMode = true
+            }
             adapter.notifyDataSetChanged()
             updateSelectionUi()
         }
-        
+
         b.btnDeleteSelected.setOnClickListener {
             val filesToDelete = adapter.selectedFiles.toList()
             if (filesToDelete.isNotEmpty()) {
@@ -129,8 +138,28 @@ class FileManagerActivity : AppCompatActivity() {
             }
         }
 
+        // LOGIKA TOMBOL "LAINNYA" DI BAR BAWAH
+        b.btnMoreActions.setOnClickListener {
+            if (adapter.selectedFiles.size == 1) {
+                showContextMenu(adapter.selectedFiles.first())
+            } else {
+                showMultiSelectMenu()
+            }
+        }
+
         b.etSearch.doAfterTextChanged { refreshList() }
         ensurePermission()
+    }
+
+    private fun showMultiSelectMenu() {
+        val options = arrayOf("Bagikan File Terpilih")
+        AlertDialog.Builder(this)
+            .setTitle("Aksi Lainnya (${adapter.selectedFiles.size} file)")
+            .setItems(options) { _, which ->
+                if (which == 0) {
+                    toast("Fitur bagikan banyak file akan segera hadir")
+                }
+            }.show()
     }
 
     private fun showContextMenu(f: File) {
@@ -141,6 +170,8 @@ class FileManagerActivity : AppCompatActivity() {
             options.add(0, "Edit Audio")
         } else if (ext in listOf("jpg", "jpeg", "png", "webp")) {
             options.add(0, "Edit Gambar")
+        } else if (ext in listOf("mp4", "mkv", "avi")) {
+            options.add(0, "Edit Video")
         }
 
         AlertDialog.Builder(this)
@@ -167,6 +198,7 @@ class FileManagerActivity : AppCompatActivity() {
                     "Kompres (ZIP)" -> zipFile(f)
                     "Ekstrak (ZIP)" -> unzipFile(f)
                 }
+                closeSelectionMode()
             }
             .setNegativeButton("Tutup", null).show()
     }
