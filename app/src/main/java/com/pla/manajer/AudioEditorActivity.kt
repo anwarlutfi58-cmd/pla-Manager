@@ -1,11 +1,13 @@
 package com.pla.manajer
 
 import android.os.Bundle
+import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.arthenica.ffmpegkit.FFmpegKit
 import com.arthenica.ffmpegkit.ReturnCode
+import com.google.android.material.tabs.TabLayout
 import com.pla.manajer.databinding.ActivityAudioEditorBinding
 import java.io.File
 
@@ -26,6 +28,25 @@ class AudioEditorActivity : AppCompatActivity() {
         // Setup Spinner Format
         val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, formats)
         b.spinnerFormat.adapter = adapter
+
+        // --- LOGIKA PINDAH TAB (BARU) ---
+        b.tabLayoutAudio.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: TabLayout.Tab?) {
+                // Sembunyikan semua tampilan tab dulu
+                b.layoutTabTrim.visibility = View.GONE
+                b.layoutTabFormat.visibility = View.GONE
+                b.layoutTabMetadata.visibility = View.GONE
+
+                // Tampilkan sesuai tab yang dipilih
+                when (tab?.position) {
+                    0 -> b.layoutTabTrim.visibility = View.VISIBLE   // Tab Potong
+                    1 -> b.layoutTabFormat.visibility = View.VISIBLE // Tab Format
+                    2 -> b.layoutTabMetadata.visibility = View.VISIBLE // Tab Metadata
+                }
+            }
+            override fun onTabUnselected(tab: TabLayout.Tab?) {}
+            override fun onTabReselected(tab: TabLayout.Tab?) {}
+        })
 
         b.btnProcess.setOnClickListener { processAudio() }
     }
