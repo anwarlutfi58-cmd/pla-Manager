@@ -11,7 +11,8 @@ import java.io.File
 class FileAdapter(
     private val onOpen: (File) -> Unit,
     private val onLong: (File) -> Unit,
-    private val onSelectToggle: (File) -> Unit
+    private val onSelectToggle: (File) -> Unit,
+    private val onMoreOptions: (File) -> Unit // Tambahan untuk titik 3
 ) : RecyclerView.Adapter<FileAdapter.VH>() {
     private var items: List<File> = emptyList()
     
@@ -34,12 +35,16 @@ class FileAdapter(
         h.b.tvMeta.text = if (f.isDirectory) "Folder" else FileUtils.humanSize(f.length())
         h.b.ivIcon.setImageResource(if (f.isDirectory) R.drawable.ic_folder else R.drawable.ic_file)
         
-        // Atur status Checkbox
+        // FIX: Putus listener sementara agar tidak terjadi infinite loop saat di-scroll
+        h.b.cbSelect.setOnCheckedChangeListener(null)
         h.b.cbSelect.isChecked = selectedFiles.contains(f)
-
-        // Klik Checkbox = Tandai / Batal Tandai
-        h.b.cbSelect.setOnClickListener {
-            onSelectToggle(f)
+        
+        // Sambungkan kembali listener CheckBox
+        h.b.cbSelect.setOnCheckedChangeListener { _, isChecked ->
+            // Hanya panggil toggle jika statusnya berbeda dengan memori adapter
+            if (isChecked != selectedFiles.contains(f)) {
+                onSelectToggle(f)
+            }
         }
 
         // Klik List (Baris) = Buka file ATAU Tandai (jika sedang mode pilih)
@@ -55,6 +60,11 @@ class FileAdapter(
         h.b.root.setOnLongClickListener { 
             onLong(f)
             true 
+        }
+
+        // Klik Tombol Titik 3 = Buka Menu Aksi (Bagikan, Hapus, dll)
+        h.b.btnMore.setOnClickListener {
+            onMoreOptions(f)
         }
     }
 
