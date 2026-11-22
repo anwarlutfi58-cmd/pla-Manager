@@ -30,8 +30,13 @@ class MainActivity : AppCompatActivity() {
         b = ActivityMainBinding.inflate(layoutInflater)
         setContentView(b.root)
 
-        // Menu Utama
-        b.cardStorage.setOnClickListener   { startActivity(Intent(this, FileManagerActivity::class.java)) }
+        // PERBAIKAN: Memori Internal selalu membuka folder akar (bukan folder terakhir)
+        b.cardStorage.setOnClickListener { 
+            val intent = Intent(this, FileManagerActivity::class.java)
+            intent.putExtra("initial_path", Environment.getExternalStorageDirectory().absolutePath)
+            startActivity(intent) 
+        }
+
         b.cardProjects.setOnClickListener  { startActivity(Intent(this, ProjectManagerActivity::class.java)) }
         b.cardFavorites.setOnClickListener { startActivity(Intent(this, FavoritesActivity::class.java)) }
         b.cardTrash.setOnClickListener     { startActivity(Intent(this, TrashActivity::class.java)) }
@@ -45,29 +50,23 @@ class MainActivity : AppCompatActivity() {
         b.cardCloud.setOnClickListener     { startActivity(Intent(this, CloudActivity::class.java)) }
         b.cardSdCard.setOnClickListener    { openSdCard() }
 
-        // Aksi Tombol Edit (Saat dipencet)
+        // Aksi Tombol Edit
         b.cardEditImage.setOnClickListener { pickImageLauncher.launch("image/*") }
         b.cardEditAudio.setOnClickListener { pickAudioLauncher.launch("audio/*") }
-        b.cardEditVideo.setOnClickListener { 
-            startActivity(Intent(this, VideoEditorActivity::class.java)) 
-        }
-        b.cardGithub.setOnClickListener { 
-            startActivity(Intent(this, GithubBuilderActivity::class.java)) 
-        }
+        b.cardEditVideo.setOnClickListener { startActivity(Intent(this, VideoEditorActivity::class.java)) }
+        b.cardGithub.setOnClickListener { startActivity(Intent(this, GithubBuilderActivity::class.java)) }
 
-        // LOGIKA TEKAN LAMA UNTUK MEMBUKA MIXER AUDIO
+        // Tekan lama untuk Mixer Audio
         b.cardEditAudio.setOnLongClickListener {
             startActivity(Intent(this, AudioMixerActivity::class.java))
             true
         }
     }
 
-    // LOGIKA CEK PENGATURAN SETIAP KALI KEMBALI KE BERANDA
     override fun onResume() {
         super.onResume()
         val prefs = Prefs(this)
 
-        // 1. Sembunyikan semua dulu (reset)
         b.tvToolsTitle.visibility = View.GONE
         b.gridTools.visibility = View.GONE
         b.cardEditImage.visibility = View.GONE
@@ -75,7 +74,6 @@ class MainActivity : AppCompatActivity() {
         b.cardEditVideo.visibility = View.GONE
         b.cardGithub.visibility = View.GONE
 
-        // 2. Tampilkan sesuai pengaturan yang aktif
         if (prefs.showImageEditor || prefs.showAudioEditor || prefs.showVideoEditor || prefs.showGithubBuilder) {
             b.tvToolsTitle.visibility = View.VISIBLE
             b.gridTools.visibility = View.VISIBLE
@@ -94,14 +92,10 @@ class MainActivity : AppCompatActivity() {
                 val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
                 if (cursor.moveToFirst()) fileName = cursor.getString(nameIndex)
             }
-
             val tempFile = File(cacheDir, fileName)
             contentResolver.openInputStream(uri)?.use { input ->
-                FileOutputStream(tempFile).use { output ->
-                    input.copyTo(output)
-                }
+                FileOutputStream(tempFile).use { output -> input.copyTo(output) }
             }
-
             val intent = Intent(this, targetActivity)
             intent.putExtra("file_path", tempFile.absolutePath)
             startActivity(intent)
