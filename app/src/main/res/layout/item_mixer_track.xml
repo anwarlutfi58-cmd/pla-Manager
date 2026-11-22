@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="12dp"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="2dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="12dp">
+
+        <!-- Nama File & Tombol Hapus -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+            <TextView
+                android:id="@+id/tvMixerFileName"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Nama Audio"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:maxLines="1"
+                android:ellipsize="end"/>
+            <ImageButton
+                android:id="@+id/btnRemoveTrack"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_delete"
+                app:tint="#F44336" />
+        </LinearLayout>
+
+        <!-- Waktu Mulai -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="8dp">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Mulai: "
+                android:textSize="12sp"/>
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnMixerStartTime"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:text="00:00:00"
+                android:textSize="12sp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"/>
+        </LinearLayout>
+
+        <!-- Volume & Panning -->
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Volume &amp; Panning:" android:textSize="12sp" android:layout_marginTop="8dp"/>
+        
+        <TextView android:id="@+id/tvMixerVolLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Volume: 100%" android:textSize="10sp"/>
+        <SeekBar android:id="@+id/seekMixerVol" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="200" android:progress="100"/>
+        
+        <TextView android:id="@+id/tvMixerPanLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Panning: Tengah" android:textSize="10sp"/>
+        <SeekBar android:id="@+id/seekMixerPan" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="200" android:progress="100"/>
+
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>
