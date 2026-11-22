@@ -17,12 +17,10 @@ import java.io.FileOutputStream
 class MainActivity : AppCompatActivity() {
     private lateinit var b: ActivityMainBinding
 
-    // Picker untuk memilih gambar dari HP
     private val pickImageLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let { handleSelectedFile(it, ImageEditorActivity::class.java) }
     }
 
-    // Picker untuk memilih audio dari HP
     private val pickAudioLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let { handleSelectedFile(it, AudioEditorActivity::class.java) }
     }
@@ -32,16 +30,15 @@ class MainActivity : AppCompatActivity() {
         b = ActivityMainBinding.inflate(layoutInflater)
         setContentView(b.root)
 
+        // Menu Utama
         b.cardStorage.setOnClickListener   { startActivity(Intent(this, FileManagerActivity::class.java)) }
         b.cardProjects.setOnClickListener  { startActivity(Intent(this, ProjectManagerActivity::class.java)) }
         b.cardFavorites.setOnClickListener { startActivity(Intent(this, FavoritesActivity::class.java)) }
         b.cardTrash.setOnClickListener     { startActivity(Intent(this, TrashActivity::class.java)) }
         b.cardSettings.setOnClickListener  { startActivity(Intent(this, SettingsActivity::class.java)) }
-
         b.cardImages.setOnClickListener    { openMedia("IMAGE") }
         b.cardVideos.setOnClickListener    { openMedia("VIDEO") }
         b.cardAudio.setOnClickListener     { openMedia("AUDIO") }
-        
         b.cardDocuments.setOnClickListener { openCategory(Environment.DIRECTORY_DOCUMENTS) }
         b.cardDownloads.setOnClickListener { openCategory(Environment.DIRECTORY_DOWNLOADS) }
         b.cardApps.setOnClickListener      { startActivity(Intent(this, AppManagerActivity::class.java)) }
@@ -49,32 +46,34 @@ class MainActivity : AppCompatActivity() {
         b.cardSdCard.setOnClickListener    { openSdCard() }
 
         // ==========================================
-        // LOGIKA MENAMPILKAN TOMBOL AJAIB
+        // LOGIKA MENAMPILKAN TOMBOL AJAIB DI BERANDA
         // ==========================================
         val prefs = Prefs(this)
         
+        // Jika salah satu menyala, tampilkan judul "Alat Tambahan" dan Grid-nya
         if (prefs.showImageEditor || prefs.showAudioEditor || prefs.showVideoEditor || prefs.showGithubBuilder) {
             b.tvToolsTitle.visibility = View.VISIBLE
             b.gridTools.visibility = View.VISIBLE
         }
 
+        // Tampilkan tombol sesuai pengaturan
         if (prefs.showImageEditor) b.cardEditImage.visibility = View.VISIBLE
         if (prefs.showAudioEditor) b.cardEditAudio.visibility = View.VISIBLE
         if (prefs.showVideoEditor) b.cardEditVideo.visibility = View.VISIBLE
         if (prefs.showGithubBuilder) b.cardGithub.visibility = View.VISIBLE
 
-        // Aksi saat tombol ajaib diklik
+        // Aksi Tombol Ajaib
         b.cardEditImage.setOnClickListener { pickImageLauncher.launch("image/*") }
         b.cardEditAudio.setOnClickListener { pickAudioLauncher.launch("audio/*") }
         b.cardEditVideo.setOnClickListener { 
-            Toast.makeText(this, "Fitur Edit Video akan segera hadir!", Toast.LENGTH_SHORT).show() 
+            // Langsung buka VideoEditorActivity
+            startActivity(Intent(this, VideoEditorActivity::class.java)) 
         }
         b.cardGithub.setOnClickListener { 
             startActivity(Intent(this, GithubBuilderActivity::class.java)) 
         }
     }
 
-    // Fungsi untuk menyimpan file sementara dari Uri agar bisa diedit
     private fun handleSelectedFile(uri: Uri, targetActivity: Class<*>) {
         try {
             var fileName = "temp_file"
