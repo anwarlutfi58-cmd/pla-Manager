@@ -18,8 +18,11 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // Minify dan Shrink agar ukuran APK lebih kecil (Aplikasi Rilis)
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // Tetap gunakan debug signing agar APK bisa langsung dipasang di HP tanpa perlu Keystore Play Store
             signingConfig = signingConfigs.getByName("debug")
         }
     }
@@ -47,12 +50,10 @@ dependencies {
     implementation("androidx.room:room-ktx:2.6.1")
     ksp("androidx.room:room-compiler:2.6.1")
     
-    // MESIN FFMPEG (MENGGUNAKAN FORK KOMUNITAS YANG MASIH AKTIF)
+    // MESIN FFMPEG
     implementation("dev.ffmpegkit-maintained:ffmpeg-kit-audio:8.1.9")
     
-    // =========================================================
-    // TAMBAHAN UNTUK FITUR GITHUB (KONEKSI INTERNET & DATA)
-    // =========================================================
+    // UNTUK FITUR GITHUB
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.google.code.gson:gson:2.10.1")
 }
