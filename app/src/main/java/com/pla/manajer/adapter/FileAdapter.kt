@@ -11,7 +11,8 @@ import java.io.File
 class FileAdapter(
     private val onOpen: (File) -> Unit,
     private val onLong: (File) -> Unit,
-    private val onSelectToggle: (File) -> Unit
+    private val onSelectToggle: (File) -> Unit,
+    private val onMoreOptions: (File) -> Unit // Tambahan untuk titik 3
 ) : RecyclerView.Adapter<FileAdapter.VH>() {
     private var items: List<File> = emptyList()
     
@@ -34,18 +35,16 @@ class FileAdapter(
         h.b.tvMeta.text = if (f.isDirectory) "Folder" else FileUtils.humanSize(f.length())
         h.b.ivIcon.setImageResource(if (f.isDirectory) R.drawable.ic_folder else R.drawable.ic_file)
         
-        // FIX: Putus listener sementara agar tidak terjadi infinite loop saat di-scroll
+        // Logika CheckBox
         h.b.cbSelect.setOnCheckedChangeListener(null)
         h.b.cbSelect.isChecked = selectedFiles.contains(f)
         
-        // Sambungkan kembali listener CheckBox
-        h.b.cbSelect.setOnCheckedChangeListener { _, isChecked ->
-            if (isChecked != selectedFiles.contains(f)) {
-                onSelectToggle(f)
-            }
+        // Klik CheckBox
+        h.b.cbSelect.setOnClickListener {
+            onSelectToggle(f)
         }
 
-        // Klik List (Baris) = Buka file ATAU Tandai (jika sedang mode pilih)
+        // Klik Baris File
         h.b.root.setOnClickListener { 
             if (isSelectionMode) {
                 onSelectToggle(f)
@@ -54,10 +53,15 @@ class FileAdapter(
             }
         }
         
-        // Tahan Lama = Masuk ke mode pilih
+        // Tahan Lama Baris File
         h.b.root.setOnLongClickListener { 
             onLong(f)
             true 
+        }
+
+        // Klik Titik 3 (More Options)
+        h.b.btnMore.setOnClickListener {
+            onMoreOptions(f)
         }
     }
 
