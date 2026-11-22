@@ -1,17 +1,18 @@
 package com.pla.manajer
 
 import android.app.AlertDialog
+import android.content.ContentValues
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.view.View
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import com.arthenica.ffmpegkit.FFmpegKit
 import com.arthenica.ffmpegkit.ReturnCode
 import com.pla.manajer.databinding.ActivityVideoEditorBinding
@@ -67,7 +68,7 @@ class VideoEditorActivity : AppCompatActivity() {
         b.toolAudio.setOnClickListener { showPanel(b.panelAudio) }
         b.toolRatio.setOnClickListener { showPanel(b.panelRatio) }
         b.toolFilter.setOnClickListener { showPanel(b.panelFilter) }
-        
+
         b.toolRotateScreen.setOnClickListener {
             isLandscape = !isLandscape
             requestedOrientation = if (isLandscape) {
@@ -140,7 +141,11 @@ class VideoEditorActivity : AppCompatActivity() {
         // Siapkan file sementara untuk list gambar (format FFmpeg concat)
         val duration = b.etDuration.text.toString().toIntOrNull() ?: 3
         val concatFile = File(cacheDir, "concat_list.txt")
-        val outputFile = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES), "VIDEO_${System.currentTimeMillis()}.mp4")
+
+        // PERBAIKAN: Simpan ke folder PlaProjects/Edit_Video di memori internal
+        val outputDir = File(Environment.getExternalStorageDirectory(), "PlaProjects/Edit_Video")
+        if (!outputDir.exists()) outputDir.mkdirs()
+        val outputFile = File(outputDir, "EDIT_${System.currentTimeMillis()}.mp4")
 
         try {
             val writer = concatFile.bufferedWriter()
@@ -163,7 +168,7 @@ class VideoEditorActivity : AppCompatActivity() {
             // Bangun perintah FFmpeg
             val cmd = StringBuilder()
             cmd.append("-y -f concat -safe 0 -i \"${concatFile.absolutePath}\" ")
-            
+
             if (audioUri != null) {
                 val tempAudio = File(cacheDir, "bgm.m4a")
                 contentResolver.openInputStream(audioUri!!)?.use { input ->
@@ -174,9 +179,9 @@ class VideoEditorActivity : AppCompatActivity() {
 
             cmd.append("-vf scale=$resolution,setsar=1,fps=$fps ")
             cmd.append("-c:v libx264 -pix_fmt yuv420p ")
-            
+
             if (audioUri != null) cmd.append("-c:a aac -shortest ")
-            
+
             cmd.append("\"${outputFile.absolutePath}\"")
 
             // Eksekusi FFmpeg
@@ -185,7 +190,9 @@ class VideoEditorActivity : AppCompatActivity() {
                     b.btnExport.isEnabled = true
                     b.btnExport.text = "Ekspor"
                     if (ReturnCode.isSuccess(session.returnCode)) {
-                        Toast.makeText(this, "Berhasil disimpan di Movies: ${outputFile.name}", Toast.LENGTH_LONG).show()
+                        // PERBAIKAN: Daftarkan video ke MediaStore agar muncul di galeri & File Manager
+                        registerVideoToMediaStore(outputFile)
+                        Toast.makeText(this, "Berhasil disimpan di PlaProjects/Edit_Video", Toast.LENGTH_LONG).show()
                         finish()
                     } else {
                         Toast.makeText(this, "Gagal membuat video. Coba kurangi jumlah gambar.", Toast.LENGTH_LONG).show()
@@ -197,6 +204,24 @@ class VideoEditorActivity : AppCompatActivity() {
             b.btnExport.isEnabled = true
             b.btnExport.text = "Ekspor"
             Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // PERBAIKAN: Fungsi baru untuk mendaftarkan video ke MediaStore
+    private fun registerVideoToMediaStore(file: File) {
+        try {
+            val values = ContentValues().apply {
+                put(MediaStore.Video.Media.DISPLAY_NAME, file.name)
+                put(MediaStore.Video.Media.MIME_TYPE, "video/mp4")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    put(MediaStore.Video.Media.RELATIVE_PATH, "PlaProjects/Edit_Video")
+                } else {
+                    put(MediaStore.Video.Media.DATA, file.absolutePath)
+                }
+            }
+            contentResolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values)
+        } catch (e: Exception) {
+            // Diamkan saja, file tetap tersimpan di folder
         }
     }
 
