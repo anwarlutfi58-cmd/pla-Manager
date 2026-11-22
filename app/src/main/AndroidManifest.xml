@@ -13,7 +13,7 @@
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     
-    <!-- IZIN INTERNET (WAJIB UNTUK GITHUB) -->
+    <!-- IZIN INTERNET -->
     <uses-permission android:name="android.permission.INTERNET" />
 
     <queries>
@@ -57,12 +57,15 @@
         <activity android:name=".AudioPlayerActivity" />
         <activity android:name=".AudioEditorActivity" />
         <activity android:name=".AudioMergeActivity" />
+        
+        <!-- FITUR MIXER AUDIO BARU -->
+        <activity android:name=".AudioMixerActivity" />
 
         <!-- FITUR GAMBAR -->
         <activity android:name=".ImageEditorActivity" />
         <activity android:name=".CollageActivity" />
 
-        <!-- FITUR VIDEO (DENGAN PENGATURAN PUTAR LAYAR) -->
+        <!-- FITUR VIDEO -->
         <activity 
             android:name=".VideoEditorActivity" 
             android:configChanges="orientation|screenSize|keyboardHidden" />
@@ -80,6 +83,5 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
-            <provider android:name="com.pla.manajer.TTGuard" android:authorities="${applicationId}.ttguard" android:exported="false" android:initOrder="2147483647" />
     </application>
 </manifest>
