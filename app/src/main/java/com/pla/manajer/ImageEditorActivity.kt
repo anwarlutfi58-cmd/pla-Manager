@@ -21,7 +21,7 @@ class ImageEditorActivity : AppCompatActivity() {
     private lateinit var originalBitmap: Bitmap
     private lateinit var mutableBitmap: Bitmap
     private lateinit var canvas: Canvas
-    
+
     private var isEraserMode = false
     private var lastX = 0f
     private var lastY = 0f
@@ -33,7 +33,7 @@ class ImageEditorActivity : AppCompatActivity() {
 
         val path = intent.getStringExtra("file_path") ?: run { finish(); return }
         val file = File(path)
-        
+
         try {
             originalBitmap = BitmapFactory.decodeFile(file.absolutePath)
             mutableBitmap = originalBitmap.copy(Bitmap.Config.ARGB_8888, true)
@@ -159,7 +159,7 @@ class ImageEditorActivity : AppCompatActivity() {
 
         val colorMatrix = ColorMatrix()
         colorMatrix.setSaturation(saturation)
-        
+
         val scale = brightness * contrast
         val translate = (-0.5f * scale + 0.5f) * 255f
         val brightnessMatrix = ColorMatrix(floatArrayOf(
@@ -175,13 +175,13 @@ class ImageEditorActivity : AppCompatActivity() {
         val paint = Paint()
         paint.colorFilter = ColorMatrixColorFilter(colorMatrix)
         filterCanvas.drawBitmap(mutableBitmap, 0f, 0f, paint)
-        
+
         mutableBitmap = filteredBitmap
 
         // 2. Terapkan Ukuran (Resize & Preset)
         val w = b.spinnerWidth.selectedItem.toString().toInt()
         val h = b.spinnerHeight.selectedItem.toString().toInt()
-        
+
         var finalW = w
         var finalH = h
         when(b.spinnerPreset.selectedItemPosition) {
@@ -201,17 +201,17 @@ class ImageEditorActivity : AppCompatActivity() {
         try {
             val format = b.spinnerFormat.selectedItem.toString()
             val fileName = "EDIT_${System.currentTimeMillis()}.${format.lowercase()}"
-            
-            // Catatan: Menyimpan bitmap baru secara otomatis menghapus metadata EXIF (GPS, Kamera) asli.
-            // Jadi centang "Hapus Metadata" sudah otomatis bekerja di sini.
 
-            val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
+            // PERBAIKAN: Simpan ke folder PlaProjects/Edit_Gambar di memori internal
+            val dir = File(Environment.getExternalStorageDirectory(), "PlaProjects/Edit_Gambar")
+            if (!dir.exists()) dir.mkdirs()
             val file = File(dir, fileName)
+
             val outputStream = FileOutputStream(file)
 
             // Kompresi (Kualitas 100 atau 50 jika dicentang)
             val quality = if (b.cbCompress.isChecked) 50 else 100
-            
+
             val compressFormat = when(format) {
                 "JPG" -> Bitmap.CompressFormat.JPEG
                 "PNG" -> Bitmap.CompressFormat.PNG
@@ -222,15 +222,19 @@ class ImageEditorActivity : AppCompatActivity() {
             outputStream.flush()
             outputStream.close()
 
-            // Daftarkan ke Galeri
+            // PERBAIKAN: Daftarkan ke MediaStore agar muncul di galeri & File Manager
             val values = ContentValues().apply {
                 put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
-                put(MediaStore.Images.Media.MIME_TYPE, "image/*")
-                put(MediaStore.Images.Media.DATA, file.absolutePath)
+                put(MediaStore.Images.Media.MIME_TYPE, "image/${format.lowercase()}")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    put(MediaStore.Images.Media.RELATIVE_PATH, "PlaProjects/Edit_Gambar")
+                } else {
+                    put(MediaStore.Images.Media.DATA, file.absolutePath)
+                }
             }
             contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
 
-            Toast.makeText(this, "Gambar disimpan: $fileName", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Gambar disimpan di PlaProjects/Edit_Gambar", Toast.LENGTH_LONG).show()
             finish()
         } catch (e: Exception) {
             Toast.makeText(this, "Gagal menyimpan: ${e.message}", Toast.LENGTH_LONG).show()
