@@ -16,6 +16,7 @@ import com.google.android.material.tabs.TabLayout
 import com.pla.manajer.adapter.AppAdapter
 import com.pla.manajer.databinding.ActivityAppManagerBinding
 import com.pla.manajer.databinding.DialogAppActionBinding
+import com.pla.manajer.util.Prefs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -29,6 +30,7 @@ class AppManagerActivity : AppCompatActivity() {
     
     private var allApps: List<ApplicationInfo> = emptyList()
     private var userApps: List<ApplicationInfo> = emptyList()
+    private var showGithubTab = false
 
     override fun onCreate(s: Bundle?) {
         super.onCreate(s)
@@ -37,6 +39,10 @@ class AppManagerActivity : AppCompatActivity() {
         
         b.fabBack.setOnClickListener { finish() }
 
+        // Cek apakah Tab Buat APK diaktifkan di Pengaturan
+        val prefs = Prefs(this)
+        showGithubTab = prefs.showGithubBuilder
+
         adapter = AppAdapter(packageManager) { app ->
             showActionDialog(app)
         }
@@ -44,20 +50,37 @@ class AppManagerActivity : AppCompatActivity() {
         b.recyclerApps.layoutManager = LinearLayoutManager(this)
         b.recyclerApps.adapter = adapter
 
-        // Setup Tab SEMUA & DIUNDUH
+        // Setup Tab
         b.tabLayout.addTab(b.tabLayout.newTab().setText("SEMUA"))
         b.tabLayout.addTab(b.tabLayout.newTab().setText("DIUNDUH"))
+        
+        // Jika pengaturan ON, tambahkan Tab Buat APK
+        if (showGithubTab) {
+            b.tabLayout.addTab(b.tabLayout.newTab().setText("BUAT APK"))
+        }
 
         b.tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab?) {
-                if (tab?.position == 0) {
-                    adapter.submit(allApps)
-                } else {
-                    adapter.submit(userApps)
+                when (tab?.position) {
+                    0 -> adapter.submit(allApps)
+                    1 -> adapter.submit(userApps)
+                    2 -> {
+                        // Jika Tab ke-3 (Buat APK) dipilih, buka layar Github Builder
+                        if (showGithubTab) {
+                            startActivity(Intent(this@AppManagerActivity, GithubBuilderActivity::class.java))
+                            // Kembalikan posisi tab ke awal setelah dibuka
+                            b.tabLayout.getTabAt(0)?.select()
+                        }
+                    }
                 }
             }
             override fun onTabUnselected(tab: TabLayout.Tab?) {}
-            override fun onTabReselected(tab: TabLayout.Tab?) {}
+            override fun onTabReselected(tab: TabLayout.Tab?) {
+                // Jika tab yang sama diklik lagi, buka Github Builder
+                if (tab?.position == 2 && showGithubTab) {
+                    startActivity(Intent(this@AppManagerActivity, GithubBuilderActivity::class.java))
+                }
+            }
         })
 
         loadApps()
@@ -77,7 +100,7 @@ class AppManagerActivity : AppCompatActivity() {
             
             if (b.tabLayout.selectedTabPosition == 0 || b.tabLayout.selectedTabPosition == -1) {
                 adapter.submit(allApps)
-            } else {
+            } else if (b.tabLayout.selectedTabPosition == 1) {
                 adapter.submit(userApps)
             }
         }
@@ -91,24 +114,19 @@ class AppManagerActivity : AppCompatActivity() {
             .setNegativeButton("Tutup", null)
             .create()
 
-        // 1. AKSI BUKA
         dialogBinding.actionOpen.setOnClickListener {
             val intent = packageManager.getLaunchIntentForPackage(app.packageName)
-            if (intent != null) {
-                startActivity(intent)
-            } else {
-                Toast.makeText(this, "Aplikasi tidak bisa dibuka", Toast.LENGTH_SHORT).show()
-            }
+            if (intent != null) startActivity(intent)
+            else Toast.makeText(this, "Aplikasi tidak bisa dibuka", Toast.LENGTH_SHORT).show()
             dialog.dismiss()
         }
 
-        // 2. AKSI BAGIKAN APK (Diperbaiki: Copy ke cache dulu)
+        // AKSI BAGIKAN APK (Diperbaiki: Copy ke cache dulu)
         dialogBinding.actionShare.setOnClickListener {
             dialog.dismiss()
             shareApk(app)
         }
 
-        // 3. AKSI HAPUS (Uninstall)
         dialogBinding.actionDelete.setOnClickListener {
             val intent = Intent(Intent.ACTION_DELETE)
             intent.data = Uri.parse("package:${app.packageName}")
@@ -116,7 +134,6 @@ class AppManagerActivity : AppCompatActivity() {
             dialog.dismiss()
         }
 
-        // 4. AKSI CADANGKAN (Backup APK ke folder)
         dialogBinding.actionBackup.setOnClickListener {
             dialog.dismiss()
             backupApk(app)
@@ -125,15 +142,11 @@ class AppManagerActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    // PERBAIKAN: Bagikan APK dengan menyalin ke cache dulu
     private fun shareApk(app: ApplicationInfo) {
         lifecycleScope.launch {
             try {
-                // 1. Ambil APK asli
                 val apkPath = app.sourceDir
                 val apkFile = File(apkPath)
-                
-                // 2. Salin ke folder cache (folder yang aman untuk dibagikan)
                 val appName = packageManager.getApplicationLabel(app).toString().replace(" ", "_")
                 val cacheApk = File(cacheDir, "$appName.apk")
                 
@@ -145,7 +158,6 @@ class AppManagerActivity : AppCompatActivity() {
                     }
                 }
 
-                // 3. Bagikan file dari cache
                 val uri = FileProvider.getUriForFile(
                     this@AppManagerActivity,
                     "$packageName.provider",
