@@ -13,7 +13,7 @@
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     
-    <!-- IZIN INTERNET (WAJIB UNTUK FITUR GITHUB) -->
+    <!-- IZIN INTERNET (WAJIB UNTUK GITHUB) -->
     <uses-permission android:name="android.permission.INTERNET" />
 
     <queries>
@@ -34,6 +34,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.PlaManajer">
 
+        <!-- MENU UTAMA -->
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -41,7 +42,7 @@
             </intent-filter>
         </activity>
 
-        <!-- MENU UTAMA -->
+        <!-- FITUR FILE MANAGER & APLIKASI -->
         <activity android:name=".FileManagerActivity" />
         <activity android:name=".ProjectManagerActivity" />
         <activity android:name=".CodeEditorActivity" />
@@ -50,18 +51,23 @@
         <activity android:name=".SettingsActivity" />
         <activity android:name=".AppManagerActivity" />
         <activity android:name=".MediaManagerActivity" />
-        <activity android:name=".AudioPlayerActivity" />
         <activity android:name=".CloudActivity" />
-        
-        <!-- HALAMAN EDIT AUDIO -->
+
+        <!-- FITUR AUDIO -->
+        <activity android:name=".AudioPlayerActivity" />
         <activity android:name=".AudioEditorActivity" />
         <activity android:name=".AudioMergeActivity" />
 
-        <!-- HALAMAN EDIT GAMBAR -->
+        <!-- FITUR GAMBAR -->
         <activity android:name=".ImageEditorActivity" />
         <activity android:name=".CollageActivity" />
 
-        <!-- HALAMAN GITHUB BUILDER -->
+        <!-- FITUR VIDEO (DENGAN PENGATURAN PUTAR LAYAR) -->
+        <activity 
+            android:name=".VideoEditorActivity" 
+            android:configChanges="orientation|screenSize|keyboardHidden" />
+
+        <!-- FITUR GITHUB -->
         <activity android:name=".GithubBuilderActivity" />
 
         <!-- PROVIDER UNTUK SHARE FILE -->
