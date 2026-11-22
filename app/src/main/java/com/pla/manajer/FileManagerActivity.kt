@@ -61,11 +61,14 @@ class FileManagerActivity : AppCompatActivity() {
         val initialPath = intent.getStringExtra("initial_path") ?: prefs.lastPath
         currentDir = File(initialPath)
 
+        // PERBAIKAN: Menambahkan parameter onMoreOptions
         adapter = FileAdapter(
             onOpen = { f -> if (!adapter.isSelectionMode) open(f) },
             onLong = { f -> enableSelectionMode(f) },
-            onSelectToggle = { f -> toggleSelection(f) }
+            onSelectToggle = { f -> toggleSelection(f) },
+            onMoreOptions = { f -> showContextMenu(f) }
         )
+        
         b.recycler.layoutManager = LinearLayoutManager(this)
         b.recycler.adapter = adapter
 
