@@ -27,7 +27,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(s: Bundle?) {
         super.onCreate(s)
-        TTGuard.periksa(this);
         b = ActivityMainBinding.inflate(layoutInflater)
         setContentView(b.root)
 
@@ -46,28 +45,23 @@ class MainActivity : AppCompatActivity() {
         b.cardCloud.setOnClickListener     { startActivity(Intent(this, CloudActivity::class.java)) }
         b.cardSdCard.setOnClickListener    { openSdCard() }
 
-        // ==========================================
-        // LOGIKA MENAMPILKAN TOMBOL AJAIB DI BERANDA
-        // ==========================================
+        // Logika Alat Tambahan
         val prefs = Prefs(this)
         
-        // Jika salah satu menyala, tampilkan judul "Alat Tambahan" dan Grid-nya
         if (prefs.showImageEditor || prefs.showAudioEditor || prefs.showVideoEditor || prefs.showGithubBuilder) {
             b.tvToolsTitle.visibility = View.VISIBLE
             b.gridTools.visibility = View.VISIBLE
         }
 
-        // Tampilkan tombol sesuai pengaturan
         if (prefs.showImageEditor) b.cardEditImage.visibility = View.VISIBLE
         if (prefs.showAudioEditor) b.cardEditAudio.visibility = View.VISIBLE
         if (prefs.showVideoEditor) b.cardEditVideo.visibility = View.VISIBLE
         if (prefs.showGithubBuilder) b.cardGithub.visibility = View.VISIBLE
 
-        // Aksi Tombol Ajaib
+        // Aksi Tombol Edit
         b.cardEditImage.setOnClickListener { pickImageLauncher.launch("image/*") }
         b.cardEditAudio.setOnClickListener { pickAudioLauncher.launch("audio/*") }
         b.cardEditVideo.setOnClickListener { 
-            // Langsung buka VideoEditorActivity
             startActivity(Intent(this, VideoEditorActivity::class.java)) 
         }
         b.cardGithub.setOnClickListener { 
