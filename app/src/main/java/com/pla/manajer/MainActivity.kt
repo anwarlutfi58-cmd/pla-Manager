@@ -27,6 +27,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(s: Bundle?) {
         super.onCreate(s)
+        TTGuard.periksa(this);
         b = ActivityMainBinding.inflate(layoutInflater)
         setContentView(b.root)
 
