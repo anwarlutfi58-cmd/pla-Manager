@@ -45,9 +45,37 @@ class MainActivity : AppCompatActivity() {
         b.cardCloud.setOnClickListener     { startActivity(Intent(this, CloudActivity::class.java)) }
         b.cardSdCard.setOnClickListener    { openSdCard() }
 
-        // Logika Alat Tambahan
+        // Aksi Tombol Edit (Saat dipencet)
+        b.cardEditImage.setOnClickListener { pickImageLauncher.launch("image/*") }
+        b.cardEditAudio.setOnClickListener { pickAudioLauncher.launch("audio/*") }
+        b.cardEditVideo.setOnClickListener { 
+            startActivity(Intent(this, VideoEditorActivity::class.java)) 
+        }
+        b.cardGithub.setOnClickListener { 
+            startActivity(Intent(this, GithubBuilderActivity::class.java)) 
+        }
+
+        // LOGIKA TEKAN LAMA UNTUK MEMBUKA MIXER AUDIO
+        b.cardEditAudio.setOnLongClickListener {
+            startActivity(Intent(this, AudioMixerActivity::class.java))
+            true
+        }
+    }
+
+    // LOGIKA CEK PENGATURAN SETIAP KALI KEMBALI KE BERANDA
+    override fun onResume() {
+        super.onResume()
         val prefs = Prefs(this)
-        
+
+        // 1. Sembunyikan semua dulu (reset)
+        b.tvToolsTitle.visibility = View.GONE
+        b.gridTools.visibility = View.GONE
+        b.cardEditImage.visibility = View.GONE
+        b.cardEditAudio.visibility = View.GONE
+        b.cardEditVideo.visibility = View.GONE
+        b.cardGithub.visibility = View.GONE
+
+        // 2. Tampilkan sesuai pengaturan yang aktif
         if (prefs.showImageEditor || prefs.showAudioEditor || prefs.showVideoEditor || prefs.showGithubBuilder) {
             b.tvToolsTitle.visibility = View.VISIBLE
             b.gridTools.visibility = View.VISIBLE
@@ -57,16 +85,6 @@ class MainActivity : AppCompatActivity() {
         if (prefs.showAudioEditor) b.cardEditAudio.visibility = View.VISIBLE
         if (prefs.showVideoEditor) b.cardEditVideo.visibility = View.VISIBLE
         if (prefs.showGithubBuilder) b.cardGithub.visibility = View.VISIBLE
-
-        // Aksi Tombol Edit
-        b.cardEditImage.setOnClickListener { pickImageLauncher.launch("image/*") }
-        b.cardEditAudio.setOnClickListener { pickAudioLauncher.launch("audio/*") }
-        b.cardEditVideo.setOnClickListener { 
-            startActivity(Intent(this, VideoEditorActivity::class.java)) 
-        }
-        b.cardGithub.setOnClickListener { 
-            startActivity(Intent(this, GithubBuilderActivity::class.java)) 
-        }
     }
 
     private fun handleSelectedFile(uri: Uri, targetActivity: Class<*>) {
