@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.os.StatFs
 import android.provider.Settings
 import android.view.View
 import android.webkit.MimeTypeMap
@@ -57,18 +58,17 @@ class FileManagerActivity : AppCompatActivity() {
         b = ActivityFileManagerBinding.inflate(layoutInflater)
         setContentView(b.root)
         prefs = Prefs(this)
-        
+
         val initialPath = intent.getStringExtra("initial_path") ?: prefs.lastPath
         currentDir = File(initialPath)
 
-        // PERBAIKAN: Menambahkan parameter onMoreOptions
+        // PERBAIKAN: onMoreOptions dihapus karena FileAdapter baru tidak punya parameter itu
         adapter = FileAdapter(
             onOpen = { f -> if (!adapter.isSelectionMode) open(f) },
             onLong = { f -> enableSelectionMode(f) },
-            onSelectToggle = { f -> toggleSelection(f) },
-            onMoreOptions = { f -> showContextMenu(f) }
+            onSelectToggle = { f -> toggleSelection(f) }
         )
-        
+
         b.recycler.layoutManager = LinearLayoutManager(this)
         b.recycler.adapter = adapter
 
@@ -81,7 +81,7 @@ class FileManagerActivity : AppCompatActivity() {
         b.btnSelectAllTop.setOnClickListener {
             val query = b.etSearch.text?.toString()?.lowercase() ?: ""
             val filtered = if (query.isEmpty()) allFiles else allFiles.filter { it.name.lowercase().contains(query) }
-            
+
             if (adapter.selectedFiles.size == filtered.size) {
                 adapter.selectedFiles.clear()
                 adapter.isSelectionMode = false
@@ -105,7 +105,7 @@ class FileManagerActivity : AppCompatActivity() {
                     }.setNegativeButton("Batal", null).show()
             }
         }
-        
+
         b.btnCopySelected.setOnClickListener {
             if (adapter.selectedFiles.size == 1) {
                 clipboard = adapter.selectedFiles.first()
@@ -165,7 +165,7 @@ class FileManagerActivity : AppCompatActivity() {
     private fun showContextMenu(f: File) {
         val ext = f.extension.lowercase()
         val options = mutableListOf("Buka", "Bagikan", "Ganti Nama", "Salin", "Pindah", "Hapus", "Kompres (ZIP)", "Ekstrak (ZIP)")
-        
+
         if (ext in listOf("mp3", "wav", "aac", "m4a", "ogg")) {
             options.add(0, "Edit Audio")
         } else if (ext in listOf("jpg", "jpeg", "png", "webp")) {
@@ -318,7 +318,7 @@ class FileManagerActivity : AppCompatActivity() {
                 val packageName = resolveInfo.activityInfo.packageName
                 grantUriPermission(packageName, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-            
+
             startActivity(Intent.createChooser(intent, "Buka dengan"))
         } catch (e: Exception) {
             toast("Tidak ada aplikasi untuk membuka file ini")
@@ -379,6 +379,19 @@ class FileManagerActivity : AppCompatActivity() {
         currentDir = dir
         prefs.lastPath = dir.absolutePath
         b.tvPath.text = dir.absolutePath
+
+        // PERBAIKAN: Hitung persen memori terpakai
+        try {
+            val stat = StatFs(dir.absolutePath)
+            val bytesAvailable = stat.blockSizeLong * stat.availableBlocksLong
+            val bytesTotal = stat.blockSizeLong * stat.blockCountLong
+            val usedBytes = bytesTotal - bytesAvailable
+            val percentUsed = (usedBytes.toDouble() / bytesTotal.toDouble() * 100).toInt()
+            b.tvStorageInfo.text = "$percentUsed% DIGUNAKAN"
+        } catch (e: Exception) {
+            b.tvStorageInfo.text = "0% DIGUNAKAN"
+        }
+
         lifecycleScope.launch {
             allFiles = withContext(Dispatchers.IO) { FileUtils.listFiles(dir) }
             refreshList()
@@ -440,7 +453,7 @@ class FileManagerActivity : AppCompatActivity() {
                 if (isCut) FileUtils.move(src, dst) else FileUtils.copy(src, dst)
             }
             clipboard = null
-            b.fabPaste.hide() 
+            b.fabPaste.hide()
             load(currentDir)
             toast("Ditempel")
         }
