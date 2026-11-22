@@ -1,6 +1,7 @@
 package com.pla.manajer
 
 import android.app.AlertDialog
+import android.content.ClipData
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.net.Uri
@@ -36,7 +37,6 @@ class AppManagerActivity : AppCompatActivity() {
         
         b.fabBack.setOnClickListener { finish() }
 
-        // Saat aplikasi di klik, munculkan menu pop-up
         adapter = AppAdapter(packageManager) { app ->
             showActionDialog(app)
         }
@@ -102,29 +102,10 @@ class AppManagerActivity : AppCompatActivity() {
             dialog.dismiss()
         }
 
-        // 2. AKSI BAGIKAN (Bagikan file APK)
+        // 2. AKSI BAGIKAN APK (Diperbaiki: Copy ke cache dulu)
         dialogBinding.actionShare.setOnClickListener {
-            try {
-                val apkPath = app.sourceDir
-                val apkFile = File(apkPath)
-                
-                // Menggunakan FileProvider untuk keamanan Android modern
-                val uri = FileProvider.getUriForFile(
-                    this,
-                    "$packageName.provider",
-                    apkFile
-                )
-                
-                val intent = Intent(Intent.ACTION_SEND).apply {
-                    type = "application/vnd.android.package-archive"
-                    putExtra(Intent.EXTRA_STREAM, uri)
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                }
-                startActivity(Intent.createChooser(intent, "Bagikan APK via"))
-            } catch (e: Exception) {
-                Toast.makeText(this, "Gagal membagikan: ${e.message}", Toast.LENGTH_SHORT).show()
-            }
             dialog.dismiss()
+            shareApk(app)
         }
 
         // 3. AKSI HAPUS (Uninstall)
@@ -144,12 +125,52 @@ class AppManagerActivity : AppCompatActivity() {
         dialog.show()
     }
 
+    // PERBAIKAN: Bagikan APK dengan menyalin ke cache dulu
+    private fun shareApk(app: ApplicationInfo) {
+        lifecycleScope.launch {
+            try {
+                // 1. Ambil APK asli
+                val apkPath = app.sourceDir
+                val apkFile = File(apkPath)
+                
+                // 2. Salin ke folder cache (folder yang aman untuk dibagikan)
+                val appName = packageManager.getApplicationLabel(app).toString().replace(" ", "_")
+                val cacheApk = File(cacheDir, "$appName.apk")
+                
+                withContext(Dispatchers.IO) {
+                    FileInputStream(apkFile).use { input ->
+                        FileOutputStream(cacheApk).use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                }
+
+                // 3. Bagikan file dari cache
+                val uri = FileProvider.getUriForFile(
+                    this@AppManagerActivity,
+                    "$packageName.provider",
+                    cacheApk
+                )
+                
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = "application/vnd.android.package-archive"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    clipData = ClipData.newRawUri("APK", uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                startActivity(Intent.createChooser(intent, "Bagikan APK via"))
+                
+            } catch (e: Exception) {
+                Toast.makeText(this@AppManagerActivity, "Gagal membagikan APK: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     private fun backupApk(app: ApplicationInfo) {
         val appName = packageManager.getApplicationLabel(app).toString().replace(" ", "_")
         val apkPath = app.sourceDir
         val apkFile = File(apkPath)
 
-        // Simpan ke folder /PlaProjects/Backup_Aplikasi/
         val backupDir = File(Environment.getExternalStorageDirectory(), "PlaProjects/Backup_Aplikasi")
         if (!backupDir.exists()) backupDir.mkdirs()
 
