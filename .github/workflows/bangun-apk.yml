@@ -35,20 +35,19 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      # ⚠️ Repo kamu belum punya gradlew / gradle wrapper,
-      # jadi kita pakai gradle yang disediakan action ini:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: '8.2'
 
-      - name: Build Debug APK
-        run: gradle assembleDebug --stacktrace --no-daemon
+      # MENGUBAH DARI DEBUG KE RELEASE
+      - name: Build Release APK
+        run: gradle assembleRelease --stacktrace --no-daemon
 
       - name: Upload APK
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: pla-manajer-debug
-          path: app/build/outputs/apk/debug/*.apk
+          name: pla-manajer-release
+          path: app/build/outputs/apk/release/*.apk
           if-no-files-found: warn
