@@ -11,7 +11,7 @@
         android:layout_height="match_parent"
         android:orientation="vertical">
 
-        <!-- HEADER PATH & TOMBOL PILIH SEMUA -->
+        <!-- HEADER PATH -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -36,7 +36,16 @@
                 android:text="/storage/emulated/0"
                 android:textSize="13sp" />
             
-            <!-- TOMBOL PILIH SEMUA (MENGGUNAKAN TEKS) -->
+            <!-- INDIKATOR PENYIMPANAN -->
+            <TextView
+                android:id="@+id/tvStorageInfo"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0% DIGUNAKAN"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:layout_marginEnd="8dp"/>
+            
             <TextView
                 android:id="@+id/btnSelectAllTop"
                 android:layout_width="wrap_content"
@@ -120,7 +129,6 @@
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Hapus" android:textColor="#FFFFFF" android:textSize="11sp" />
             </LinearLayout>
 
-            <!-- TOMBOL TITIK 3 / LAINNYA -->
             <LinearLayout android:id="@+id/btnMoreActions" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:orientation="vertical">
                 <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_more" app:tint="#FFFFFF"/>
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Lainnya" android:textColor="#FFFFFF" android:textSize="11sp" />
