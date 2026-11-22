@@ -31,14 +31,14 @@ import java.io.File
 class MediaManagerActivity : AppCompatActivity() {
     private lateinit var b: ActivityMediaManagerBinding
     private var mediaType: String = "AUDIO"
-    
+
     private lateinit var folderAdapter: MediaFolderAdapter
     private lateinit var fileAdapter: MediaAdapter
-    
+
     private var currentFolderId: String? = null
     private var currentFolders: List<MediaFolder> = emptyList()
     private var currentFiles: List<MediaItem> = emptyList()
-    private var sortMode: Int = 2 
+    private var sortMode: Int = 2
 
     override fun onCreate(s: Bundle?) {
         super.onCreate(s)
@@ -65,7 +65,7 @@ class MediaManagerActivity : AppCompatActivity() {
         }
 
         fileAdapter = MediaAdapter(
-            onOpen = { item -> 
+            onOpen = { item ->
                 if (mediaType == "AUDIO") {
                     val intent = Intent(this, AudioPlayerActivity::class.java)
                     intent.putStringArrayListExtra("file_paths", ArrayList(currentFiles.map { it.path }))
@@ -77,18 +77,19 @@ class MediaManagerActivity : AppCompatActivity() {
                 }
             },
             onLong = { item -> enableSelectionMode(item) },
-            onSelectToggle = { item -> toggleSelection(item) }
+            onSelectToggle = { item -> toggleSelection(item) },
+            onMoreOptions = { item -> showMoreMenu(item) }
         )
 
         b.btnDeleteSelected.setOnClickListener { deleteSelectedFiles() }
         b.btnCopySelected.setOnClickListener { Toast.makeText(this, "Disalin", Toast.LENGTH_SHORT).show(); closeSelectionMode() }
         b.btnMoveSelected.setOnClickListener { Toast.makeText(this, "Dipindah", Toast.LENGTH_SHORT).show(); closeSelectionMode() }
-        b.btnRenameSelected.setOnClickListener { 
+        b.btnRenameSelected.setOnClickListener {
             val item = fileAdapter.selectedFiles.firstOrNull()
             if (item != null) renameMediaFile(item)
-            closeSelectionMode() 
+            closeSelectionMode()
         }
-        
+
         b.btnMoreSelected.setOnClickListener {
             val item = fileAdapter.selectedFiles.firstOrNull()
             if (item != null) showMoreMenu(item)
@@ -103,7 +104,7 @@ class MediaManagerActivity : AppCompatActivity() {
         b.miniPlayerLayout.visibility = View.VISIBLE
         b.tvMiniPlayerTitle.text = item.name
         b.btnMiniPlay.setImageResource(R.drawable.ic_pause)
-        
+
         b.btnMiniPlay.setOnClickListener {
             if (PlaMediaPlayer.isPlaying) {
                 PlaMediaPlayer.pause()
@@ -113,7 +114,7 @@ class MediaManagerActivity : AppCompatActivity() {
                 b.btnMiniPlay.setImageResource(R.drawable.ic_pause)
             }
         }
-        
+
         b.btnMiniStop.setOnClickListener {
             PlaMediaPlayer.stop()
             b.miniPlayerLayout.visibility = View.GONE
@@ -122,31 +123,18 @@ class MediaManagerActivity : AppCompatActivity() {
 
     private fun showMoreMenu(item: MediaItem) {
         val options = mutableListOf("Bagikan", "Tambahkan ke Layar Beranda", "Kompresikan")
-        
-        // Jika AUDIO, tambahkan Edit Audio
-        if (mediaType == "AUDIO") {
-            options.add(0, "Edit Audio")
-        }
-        
-        // Jika GAMBAR, tambahkan Edit Gambar
-        if (mediaType == "IMAGE") {
-            options.add(0, "Edit Gambar")
-        }
+        if (mediaType == "AUDIO") options.add(0, "Edit Audio")
+        if (mediaType == "IMAGE") options.add(0, "Edit Gambar")
 
         AlertDialog.Builder(this)
             .setTitle(item.name)
             .setItems(options.toTypedArray()) { _, which ->
-                val selectedOption = options[which]
-                when (selectedOption) {
+                when (options[which]) {
                     "Edit Audio" -> {
-                        val intent = Intent(this, AudioEditorActivity::class.java)
-                        intent.putExtra("file_path", item.path)
-                        startActivity(intent)
+                        startActivity(Intent(this, AudioEditorActivity::class.java).putExtra("file_path", item.path))
                     }
                     "Edit Gambar" -> {
-                        val intent = Intent(this, ImageEditorActivity::class.java)
-                        intent.putExtra("file_path", item.path)
-                        startActivity(intent)
+                        startActivity(Intent(this, ImageEditorActivity::class.java).putExtra("file_path", item.path))
                     }
                     "Tambahkan ke Layar Beranda" -> addToHomeScreen(item)
                 }
@@ -188,7 +176,6 @@ class MediaManagerActivity : AppCompatActivity() {
             currentFolders = withContext(Dispatchers.IO) {
                 val result = mutableMapOf<String, MediaFolder>()
                 val contentUri = getContentUri()
-                
                 val projection = arrayOf(
                     MediaStore.MediaColumns.BUCKET_ID,
                     MediaStore.MediaColumns.BUCKET_DISPLAY_NAME,
@@ -196,7 +183,6 @@ class MediaManagerActivity : AppCompatActivity() {
                     MediaStore.MediaColumns.DATE_MODIFIED,
                     MediaStore.MediaColumns.SIZE
                 )
-
                 val cursor = contentResolver.query(contentUri, projection, null, null, null)
                 cursor?.use {
                     val bucketIdCol = it.getColumnIndexOrThrow(MediaStore.MediaColumns.BUCKET_ID)
@@ -204,7 +190,6 @@ class MediaManagerActivity : AppCompatActivity() {
                     val idCol = it.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
                     val dateCol = it.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_MODIFIED)
                     val sizeCol = it.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)
-
                     while (it.moveToNext()) {
                         val bucketId = it.getString(bucketIdCol) ?: "unknown"
                         val bucketName = it.getString(bucketNameCol) ?: "Lainnya"
@@ -212,7 +197,6 @@ class MediaManagerActivity : AppCompatActivity() {
                         val date = it.getLong(dateCol) * 1000
                         val size = it.getLong(sizeCol)
                         val uriString = Uri.withAppendedPath(contentUri, id.toString()).toString()
-
                         if (result.containsKey(bucketId)) {
                             val existing = result[bucketId]!!
                             result[bucketId] = existing.copy(
@@ -241,16 +225,14 @@ class MediaManagerActivity : AppCompatActivity() {
                 val contentUri = getContentUri()
                 val selection = "${MediaStore.MediaColumns.BUCKET_ID} = ?"
                 val selectionArgs = arrayOf(bucketId)
-                
                 val projection = arrayOf(
                     MediaStore.MediaColumns._ID,
                     MediaStore.MediaColumns.DISPLAY_NAME,
                     MediaStore.MediaColumns.DATA,
                     MediaStore.MediaColumns.SIZE,
                     MediaStore.MediaColumns.DATE_MODIFIED,
-                    MediaStore.MediaColumns.MIME_TYPE 
+                    MediaStore.MediaColumns.MIME_TYPE
                 )
-
                 val cursor = contentResolver.query(contentUri, projection, selection, selectionArgs, null)
                 cursor?.use {
                     val idCol = it.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
@@ -259,16 +241,14 @@ class MediaManagerActivity : AppCompatActivity() {
                     val sizeCol = it.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)
                     val dateCol = it.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_MODIFIED)
                     val mimeCol = it.getColumnIndexOrThrow(MediaStore.MediaColumns.MIME_TYPE)
-
                     while (it.moveToNext()) {
                         val id = it.getLong(idCol)
                         val name = it.getString(nameCol) ?: "Unknown"
                         val path = it.getString(pathCol) ?: ""
                         val size = it.getLong(sizeCol)
-                        val date = it.getLong(dateCol) * 1000 
+                        val date = it.getLong(dateCol) * 1000
                         val uriString = Uri.withAppendedPath(contentUri, id.toString()).toString()
                         val mime = it.getString(mimeCol) ?: "*/*"
-
                         if (path.isNotEmpty()) result.add(MediaItem(id, name, path, size, date, uriString, mime))
                     }
                 }
@@ -388,35 +368,28 @@ class MediaManagerActivity : AppCompatActivity() {
             if (mime == "*/*" || mime.isEmpty()) {
                 mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(File(mediaItem.path).extension.lowercase()) ?: "*/*"
             }
-            
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, mime)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
             }
-
             val resInfoList = packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
             for (resolveInfo in resInfoList) {
-                val packageName = resolveInfo.activityInfo.packageName
-                grantUriPermission(packageName, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                grantUriPermission(resolveInfo.activityInfo.packageName, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-            
             startActivity(Intent.createChooser(intent, "Buka dengan"))
         } catch (e: Exception) {
             try {
                 val file = File(mediaItem.path)
                 val uri = FileProvider.getUriForFile(this, "$packageName.provider", file)
                 var mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(file.extension.lowercase()) ?: "*/*"
-                
                 val intent = Intent(Intent.ACTION_VIEW).apply {
                     setDataAndType(uri, mime)
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
-                
                 val resInfoList = packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
                 for (resolveInfo in resInfoList) {
-                    val packageName = resolveInfo.activityInfo.packageName
-                    grantUriPermission(packageName, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    grantUriPermission(resolveInfo.activityInfo.packageName, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
                 startActivity(Intent.createChooser(intent, "Buka dengan"))
             } catch (ex: Exception) {
