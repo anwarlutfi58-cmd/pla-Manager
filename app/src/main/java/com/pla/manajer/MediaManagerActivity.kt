@@ -1,6 +1,7 @@
 package com.pla.manajer
 
 import android.app.AlertDialog
+import android.content.ClipData
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -136,9 +137,53 @@ class MediaManagerActivity : AppCompatActivity() {
                     "Edit Gambar" -> {
                         startActivity(Intent(this, ImageEditorActivity::class.java).putExtra("file_path", item.path))
                     }
+                    "Bagikan" -> shareFile(item)
                     "Tambahkan ke Layar Beranda" -> addToHomeScreen(item)
                 }
             }.show()
+    }
+
+    private fun shareFile(item: MediaItem) {
+        try {
+            val file = File(item.path)
+            if (!file.exists()) {
+                Toast.makeText(this, "File tidak ditemukan", Toast.LENGTH_SHORT).show()
+                return
+            }
+            val uri = FileProvider.getUriForFile(this, "$packageName.provider", file)
+
+            var mime = item.mimeType
+            if (mime.isBlank() || mime == "*/*") {
+                mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(file.extension.lowercase()) ?: "*/*"
+            }
+            if (mime == "*/*") {
+                mime = when (file.extension.lowercase()) {
+                    "mp3" -> "audio/mpeg"; "wav" -> "audio/x-wav"; "ogg" -> "audio/ogg"
+                    "m4a" -> "audio/mp4"; "flac" -> "audio/flac"; "opus" -> "audio/opus"
+                    "mp4" -> "video/mp4"; "mkv" -> "video/x-matroska"
+                    "jpg", "jpeg" -> "image/jpeg"; "png" -> "image/png"; "webp" -> "image/webp"
+                    "apk" -> "application/vnd.android.package-archive"
+                    "pdf" -> "application/pdf"
+                    "zip" -> "application/zip"
+                    else -> "*/*"
+                }
+            }
+
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = mime
+                putExtra(Intent.EXTRA_STREAM, uri)
+                clipData = ClipData.newRawUri("File", uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+
+            packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY).forEach {
+                grantUriPermission(it.activityInfo.packageName, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+
+            startActivity(Intent.createChooser(intent, "Bagikan via"))
+        } catch (e: Exception) {
+            Toast.makeText(this, "Gagal bagikan: ${e.message}", Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun addToHomeScreen(item: MediaItem) {
