@@ -1,8 +1,12 @@
 package com.pla.manajer
 
 import android.app.AlertDialog
+import android.content.ContentValues
 import android.media.MediaPlayer
+import android.os.Build
 import android.os.Bundle
+import android.os.Environment
+import android.provider.MediaStore
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.ArrayAdapter
@@ -12,7 +16,6 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.arthenica.ffmpegkit.FFmpegKit
 import com.arthenica.ffmpegkit.ReturnCode
-import com.google.android.material.button.MaterialButton
 import com.google.android.material.tabs.TabLayout
 import com.pla.manajer.databinding.ActivityAudioEditorBinding
 import java.io.File
@@ -21,7 +24,7 @@ class AudioEditorActivity : AppCompatActivity() {
     private lateinit var b: ActivityAudioEditorBinding
     private lateinit var inputFile: File
     private val formats = arrayOf("mp3", "wav", "aac", "m4a")
-    
+
     private var previewPlayer: MediaPlayer? = null
     private var isPlayingPreview = false
 
@@ -171,12 +174,12 @@ class AudioEditorActivity : AppCompatActivity() {
     }
 
     private fun setupTimePickers() {
-        b.btnPickStartTime.setOnClickListener { showTimePicker("Waktu Mulai", startTime) { newTime -> 
+        b.btnPickStartTime.setOnClickListener { showTimePicker("Waktu Mulai", startTime) { newTime ->
             startTime = newTime
             b.btnPickStartTime.text = newTime
         }}
-        
-        b.btnPickEndTime.setOnClickListener { showTimePicker("Waktu Selesai", endTime) { newTime -> 
+
+        b.btnPickEndTime.setOnClickListener { showTimePicker("Waktu Selesai", endTime) { newTime ->
             endTime = newTime
             b.btnPickEndTime.text = newTime
         }}
@@ -187,7 +190,7 @@ class AudioEditorActivity : AppCompatActivity() {
         val etHours = dialogView.findViewById<EditText>(R.id.etHours)
         val etMinutes = dialogView.findViewById<EditText>(R.id.etMinutes)
         val etSeconds = dialogView.findViewById<EditText>(R.id.etSeconds)
-        
+
         // Split format "HH:MM:SS"
         val parts = currentTime.split(":")
         etHours.setText(parts[0])
@@ -223,7 +226,11 @@ class AudioEditorActivity : AppCompatActivity() {
 
         val outputFormat = formats[b.spinnerFormat.selectedItemPosition]
         val isRingtone = b.spinnerSaveAs.selectedItemPosition != 0
-        val outputFile = File(inputFile.parentFile, "EDIT_${System.currentTimeMillis()}.${outputFormat}")
+
+        // PERBAIKAN: Simpan ke folder PlaProjects/Edit_Audio di memori internal
+        val outputDir = File(Environment.getExternalStorageDirectory(), "PlaProjects/Edit_Audio")
+        if (!outputDir.exists()) outputDir.mkdirs()
+        val outputFile = File(outputDir, "EDIT_${System.currentTimeMillis()}.${outputFormat}")
 
         val cmd = StringBuilder()
         cmd.append("-y ")
@@ -243,9 +250,9 @@ class AudioEditorActivity : AppCompatActivity() {
         // Tempo & Pitch
         val tempo = (b.seekTempo.progress + 50) / 100f
         val pitch = (b.seekPitch.progress - 50) / 10f
-        
+
         if (tempo != 1.0f) audioFilters.add("atempo=$tempo")
-        
+
         if (pitch != 0.0f) {
             val pitchMultiplier = Math.pow(2.0, pitch.toDouble() / 12.0)
             audioFilters.add("asetrate=44100*${pitchMultiplier},aresample=44100,atempo=${1.0/pitchMultiplier}")
@@ -287,7 +294,7 @@ class AudioEditorActivity : AppCompatActivity() {
         // Format & Kualitas
         cmd.append("-b:a ${b.spinnerBitrate.selectedItem} ")
         cmd.append("-ar ${b.spinnerSampleRate.selectedItem} ")
-        
+
         if (b.cbRemoveMetadata.isChecked) cmd.append("-map_metadata -1 ")
 
         cmd.append("\"${outputFile.absolutePath}\"")
@@ -299,10 +306,13 @@ class AudioEditorActivity : AppCompatActivity() {
             runOnUiThread {
                 b.btnProcess.isEnabled = true
                 if (ReturnCode.isSuccess(session.returnCode)) {
+                    // PERBAIKAN: Daftarkan ke MediaStore agar muncul di galeri & File Manager
+                    registerAudioToMediaStore(outputFile, outputFormat)
+
                     if (isRingtone) {
                         b.tvProgress.text = "Berhasil disimpan sebagai Nada Dering!"
                     } else {
-                        b.tvProgress.text = "Berhasil disimpan di:\n${outputFile.name}"
+                        b.tvProgress.text = "Berhasil disimpan di:\nPlaProjects/Edit_Audio/${outputFile.name}"
                     }
                     Toast.makeText(this, "Audio berhasil diproses!", Toast.LENGTH_LONG).show()
                 } else {
@@ -311,6 +321,24 @@ class AudioEditorActivity : AppCompatActivity() {
                 }
             }
         }, { }, { })
+    }
+
+    // PERBAIKAN: Fungsi baru untuk mendaftarkan audio ke MediaStore
+    private fun registerAudioToMediaStore(file: File, ext: String) {
+        try {
+            val values = ContentValues().apply {
+                put(MediaStore.Audio.Media.DISPLAY_NAME, file.name)
+                put(MediaStore.Audio.Media.MIME_TYPE, "audio/$ext")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    put(MediaStore.Audio.Media.RELATIVE_PATH, "PlaProjects/Edit_Audio")
+                } else {
+                    put(MediaStore.Audio.Media.DATA, file.absolutePath)
+                }
+            }
+            contentResolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values)
+        } catch (e: Exception) {
+            // Diamkan saja, file tetap tersimpan di folder
+        }
     }
 
     override fun onDestroy() {
