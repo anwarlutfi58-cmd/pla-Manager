@@ -1,445 +1,208 @@
 package com.pla.manajer
 
-import android.Manifest
 import android.app.AlertDialog
+import android.content.ClipData
 import android.content.Intent
-import android.content.pm.PackageManager
+import android.content.pm.ApplicationInfo
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.os.Environment
-import android.provider.Settings
-import android.view.View
-import android.webkit.MimeTypeMap
-import android.widget.EditText
 import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
-import androidx.core.widget.doAfterTextChanged
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.pla.manajer.adapter.FileAdapter
-import com.pla.manajer.data.TrashItem
-import com.pla.manajer.databinding.ActivityFileManagerBinding
-import com.pla.manajer.util.FileUtils
+import com.google.android.material.tabs.TabLayout
+import com.pla.manajer.adapter.AppAdapter
+import com.pla.manajer.databinding.ActivityAppManagerBinding
+import com.pla.manajer.databinding.DialogAppActionBinding
 import com.pla.manajer.util.Prefs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
 
-class FileManagerActivity : AppCompatActivity() {
-    private lateinit var b: ActivityFileManagerBinding
-    private lateinit var adapter: FileAdapter
-    private lateinit var currentDir: File
-    private lateinit var prefs: Prefs
-    private var clipboard: File? = null
-    private var isCut = false
-    private var allFiles: List<File> = emptyList()
-
-    private val allFilesPerm = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            if (Environment.isExternalStorageManager()) load(File(prefs.lastPath))
-            else toast("Izin penyimpanan diperlukan")
-        }
-    }
-
-    private val legacyPerm = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { res ->
-        if (res.values.all { it }) load(File(prefs.lastPath))
-        else toast("Izin penyimpanan diperlukan")
-    }
+class AppManagerActivity : AppCompatActivity() {
+    private lateinit var b: ActivityAppManagerBinding
+    private lateinit var adapter: AppAdapter
+    
+    private var allApps: List<ApplicationInfo> = emptyList()
+    private var userApps: List<ApplicationInfo> = emptyList()
+    private var showGithubTab = false
 
     override fun onCreate(s: Bundle?) {
         super.onCreate(s)
-        b = ActivityFileManagerBinding.inflate(layoutInflater)
+        b = ActivityAppManagerBinding.inflate(layoutInflater)
         setContentView(b.root)
-        prefs = Prefs(this)
         
-        val initialPath = intent.getStringExtra("initial_path") ?: prefs.lastPath
-        currentDir = File(initialPath)
+        b.fabBack.setOnClickListener { finish() }
 
-        adapter = FileAdapter(
-            onOpen = { f -> if (!adapter.isSelectionMode) open(f) },
-            onLong = { f -> enableSelectionMode(f) },
-            onSelectToggle = { f -> toggleSelection(f) }
-        )
-        b.recycler.layoutManager = LinearLayoutManager(this)
-        b.recycler.adapter = adapter
+        // Cek apakah Tab Buat APK diaktifkan di Pengaturan
+        val prefs = Prefs(this)
+        showGithubTab = prefs.showGithubBuilder
 
-        b.btnTopBack.setOnClickListener { finish() }
-        b.btnTopUp.setOnClickListener   { currentDir.parentFile?.let { load(it) } }
-        b.btnTopNew.setOnClickListener  { showCreateDialog() }
-        b.btnSort.setOnClickListener    { showSortDialog() }
-        b.fabPaste.setOnClickListener   { pasteHere() }
-
-        // LOGIKA TOMBOL PILIH SEMUA (DI ATAS)
-        b.btnSelectAllTop.setOnClickListener {
-            val query = b.etSearch.text?.toString()?.lowercase() ?: ""
-            val filtered = if (query.isEmpty()) allFiles else allFiles.filter { it.name.lowercase().contains(query) }
-            
-            if (adapter.selectedFiles.size == filtered.size) {
-                // Jika sudah terpilih semua, maka batalkan semua (Unselect All)
-                adapter.selectedFiles.clear()
-                adapter.isSelectionMode = false
-            } else {
-                // Pilih semua file yang ada di layar
-                adapter.selectedFiles.clear()
-                adapter.selectedFiles.addAll(filtered)
-                adapter.isSelectionMode = true
-            }
-            adapter.notifyDataSetChanged()
-            updateSelectionUi()
-        }
-
-        b.btnDeleteSelected.setOnClickListener {
-            val filesToDelete = adapter.selectedFiles.toList()
-            if (filesToDelete.isNotEmpty()) {
-                AlertDialog.Builder(this)
-                    .setTitle("Hapus ${filesToDelete.size} item?")
-                    .setPositiveButton("Hapus") { _, _ ->
-                        deleteMultipleFiles(filesToDelete)
-                        closeSelectionMode()
-                    }.setNegativeButton("Batal", null).show()
-            }
+        adapter = AppAdapter(packageManager) { app ->
+            showActionDialog(app)
         }
         
-        b.btnCopySelected.setOnClickListener {
-            if (adapter.selectedFiles.size == 1) {
-                clipboard = adapter.selectedFiles.first()
-                isCut = false
-                b.fabPaste.show()
-                toast("Disalin: ${clipboard?.name}")
-                closeSelectionMode()
-            } else {
-                toast("Pilih hanya 1 file untuk menyalin")
-            }
-        }
+        b.recyclerApps.layoutManager = LinearLayoutManager(this)
+        b.recyclerApps.adapter = adapter
 
-        b.btnMoveSelected.setOnClickListener {
-            if (adapter.selectedFiles.size == 1) {
-                clipboard = adapter.selectedFiles.first()
-                isCut = true
-                b.fabPaste.show()
-                toast("Siap pindah: ${clipboard?.name}")
-                closeSelectionMode()
-            } else {
-                toast("Pilih hanya 1 file untuk memindah")
-            }
-        }
-
-        b.btnRenameSelected.setOnClickListener {
-            if (adapter.selectedFiles.size == 1) {
-                renameDialog(adapter.selectedFiles.first())
-                closeSelectionMode()
-            } else {
-                toast("Pilih hanya 1 file untuk ganti nama")
-            }
-        }
-
-        // LOGIKA TOMBOL "LAINNYA" DI BAR BAWAH
-        b.btnMoreActions.setOnClickListener {
-            if (adapter.selectedFiles.size == 1) {
-                showContextMenu(adapter.selectedFiles.first())
-            } else {
-                showMultiSelectMenu()
-            }
-        }
-
-        b.etSearch.doAfterTextChanged { refreshList() }
-        ensurePermission()
-    }
-
-    private fun showMultiSelectMenu() {
-        val options = arrayOf("Bagikan File Terpilih")
-        AlertDialog.Builder(this)
-            .setTitle("Aksi Lainnya (${adapter.selectedFiles.size} file)")
-            .setItems(options) { _, which ->
-                if (which == 0) {
-                    toast("Fitur bagikan banyak file akan segera hadir")
-                }
-            }.show()
-    }
-
-    private fun showContextMenu(f: File) {
-        val ext = f.extension.lowercase()
-        val options = mutableListOf("Buka", "Bagikan", "Ganti Nama", "Salin", "Pindah", "Hapus", "Kompres (ZIP)", "Ekstrak (ZIP)")
+        // Setup Tab
+        b.tabLayout.addTab(b.tabLayout.newTab().setText("SEMUA"))
+        b.tabLayout.addTab(b.tabLayout.newTab().setText("DIUNDUH"))
         
-        if (ext in listOf("mp3", "wav", "aac", "m4a", "ogg")) {
-            options.add(0, "Edit Audio")
-        } else if (ext in listOf("jpg", "jpeg", "png", "webp")) {
-            options.add(0, "Edit Gambar")
-        } else if (ext in listOf("mp4", "mkv", "avi")) {
-            options.add(0, "Edit Video")
+        // Jika pengaturan ON, tambahkan Tab Buat APK
+        if (showGithubTab) {
+            b.tabLayout.addTab(b.tabLayout.newTab().setText("BUAT APK"))
         }
 
-        AlertDialog.Builder(this)
-            .setTitle(f.name)
-            .setItems(options.toTypedArray()) { _, which ->
-                val selected = options[which]
-                when (selected) {
-                    "Edit Audio" -> {
-                        val intent = Intent(this, AudioEditorActivity::class.java)
-                        intent.putExtra("file_path", f.absolutePath)
-                        startActivity(intent)
+        b.tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: TabLayout.Tab?) {
+                when (tab?.position) {
+                    0 -> adapter.submit(allApps)
+                    1 -> adapter.submit(userApps)
+                    2 -> {
+                        // Jika Tab ke-3 (Buat APK) dipilih, buka layar Github Builder
+                        if (showGithubTab) {
+                            startActivity(Intent(this@AppManagerActivity, GithubBuilderActivity::class.java))
+                            // Kembalikan posisi tab ke awal setelah dibuka
+                            b.tabLayout.getTabAt(0)?.select()
+                        }
                     }
-                    "Edit Gambar" -> {
-                        val intent = Intent(this, ImageEditorActivity::class.java)
-                        intent.putExtra("file_path", f.absolutePath)
-                        startActivity(intent)
-                    }
-                    "Buka" -> open(f)
-                    "Bagikan" -> shareFile(f)
-                    "Ganti Nama" -> renameDialog(f)
-                    "Salin" -> { clipboard = f; isCut = false; toast("Disalin: ${f.name}"); b.fabPaste.show() }
-                    "Pindah" -> { clipboard = f; isCut = true; toast("Siap pindah: ${f.name}"); b.fabPaste.show() }
-                    "Hapus" -> deleteMultipleFiles(listOf(f))
-                    "Kompres (ZIP)" -> zipFile(f)
-                    "Ekstrak (ZIP)" -> unzipFile(f)
-                }
-                closeSelectionMode()
-            }
-            .setNegativeButton("Tutup", null).show()
-    }
-
-    private fun shareFile(f: File) {
-        try {
-            val uri = FileProvider.getUriForFile(this, "$packageName.provider", f)
-            var mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(f.extension.lowercase())
-            if (mime == null) mime = "*/*"
-
-            val intent = Intent(Intent.ACTION_SEND).apply {
-                type = mime
-                putExtra(Intent.EXTRA_STREAM, uri)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            startActivity(Intent.createChooser(intent, "Bagikan File via"))
-        } catch (e: Exception) {
-            toast("Gagal membagikan: ${e.message}")
-        }
-    }
-
-    private fun toggleSelection(f: File) {
-        if (adapter.selectedFiles.contains(f)) {
-            adapter.selectedFiles.remove(f)
-        } else {
-            adapter.selectedFiles.add(f)
-        }
-        adapter.isSelectionMode = adapter.selectedFiles.isNotEmpty()
-        adapter.notifyDataSetChanged()
-        updateSelectionUi()
-    }
-
-    private fun enableSelectionMode(f: File) {
-        adapter.isSelectionMode = true
-        adapter.selectedFiles.add(f)
-        adapter.notifyDataSetChanged()
-        updateSelectionUi()
-    }
-
-    private fun closeSelectionMode() {
-        adapter.isSelectionMode = false
-        adapter.selectedFiles.clear()
-        adapter.notifyDataSetChanged()
-        b.selectionToolbar.visibility = View.GONE
-    }
-
-    private fun updateSelectionUi() {
-        if (adapter.selectedFiles.isEmpty()) {
-            b.selectionToolbar.visibility = View.GONE
-        } else {
-            b.selectionToolbar.visibility = View.VISIBLE
-        }
-    }
-
-    private fun deleteMultipleFiles(files: List<File>) {
-        lifecycleScope.launch {
-            val dao = (application as PlaApp).database.trashDao()
-            withContext(Dispatchers.IO) {
-                val trashDir = File(prefs.trashFolder).apply { mkdirs() }
-                files.forEach { f ->
-                    val target = File(trashDir, "${System.currentTimeMillis()}_${f.name}")
-                    FileUtils.move(f, target)
-                    dao.add(TrashItem(originalPath = f.absolutePath, trashPath = target.absolutePath, name = f.name, isDir = f.isDirectory))
                 }
             }
-            load(currentDir)
-            toast("${files.size} item dipindah ke Sampah")
-        }
-    }
-
-    private fun open(f: File) {
-        if (f.isDirectory) {
-            closeSelectionMode()
-            load(f)
-        } else {
-            val ext = f.extension.lowercase()
-            val codeExts = listOf("kt", "java", "py", "js", "html", "css", "json", "md", "xml", "gradle", "kts", "txt", "properties", "yml", "yaml", "cpp", "c", "h")
-            if (codeExts.contains(ext)) {
-                startActivity(Intent(this, CodeEditorActivity::class.java).putExtra("path", f.absolutePath))
-            } else {
-                openWith(f)
-            }
-        }
-    }
-
-    private fun openWith(f: File) {
-        try {
-            val uri = FileProvider.getUriForFile(this, "$packageName.provider", f)
-            var mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(f.extension.lowercase())
-            if (mime == null || mime == "*/*") {
-                mime = when (f.extension.lowercase()) {
-                    "mp3" -> "audio/mpeg"
-                    "wav" -> "audio/x-wav"
-                    "ogg" -> "audio/ogg"
-                    "m4a" -> "audio/mp4"
-                    "mp4" -> "video/mp4"
-                    "mkv" -> "video/x-matroska"
-                    "jpg", "jpeg" -> "image/jpeg"
-                    "png" -> "image/png"
-                    else -> "*/*"
+            override fun onTabUnselected(tab: TabLayout.Tab?) {}
+            override fun onTabReselected(tab: TabLayout.Tab?) {
+                // Jika tab yang sama diklik lagi, buka Github Builder
+                if (tab?.position == 2 && showGithubTab) {
+                    startActivity(Intent(this@AppManagerActivity, GithubBuilderActivity::class.java))
                 }
             }
+        })
 
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, mime)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-            }
-
-            val resInfoList = packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
-            for (resolveInfo in resInfoList) {
-                val packageName = resolveInfo.activityInfo.packageName
-                grantUriPermission(packageName, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            
-            startActivity(Intent.createChooser(intent, "Buka dengan"))
-        } catch (e: Exception) {
-            toast("Tidak ada aplikasi untuk membuka file ini")
-        }
+        loadApps()
     }
 
-    private fun showSortDialog() {
-        val options = arrayOf("Nama (A-Z)", "Nama (Z-A)", "Tanggal (Terlama)", "Tanggal (Terbaru)", "Ukuran (Terkecil)", "Ukuran (Terbesar)")
-        AlertDialog.Builder(this)
-            .setTitle("Sortir Berdasarkan")
-            .setSingleChoiceItems(options, prefs.sortMode) { dialog, which ->
-                prefs.sortMode = which
-                refreshList()
-                dialog.dismiss()
-            }
-            .setNegativeButton("Batal", null)
-            .show()
-    }
-
-    private fun refreshList() {
-        val query = b.etSearch.text?.toString()?.lowercase() ?: ""
-        val filtered: List<File> = if (query.isEmpty()) allFiles else allFiles.filter { it.name.lowercase().contains(query) }
-
-        val mode = prefs.sortMode
-        val sortedList: List<File> = when (mode) {
-            0 -> filtered.sortedWith(compareBy<File>({ !it.isDirectory }, { it.name.lowercase() }))
-            1 -> filtered.sortedWith(compareBy<File>({ !it.isDirectory }, { it.name.lowercase() }).reversed())
-            2 -> filtered.sortedBy { it.lastModified() }
-            3 -> filtered.sortedByDescending { it.lastModified() }
-            4 -> filtered.sortedBy { it.length() }
-            5 -> filtered.sortedByDescending { it.length() }
-            else -> filtered.sortedWith(compareBy<File>({ !it.isDirectory }, { it.name.lowercase() }))
-        }
-        adapter.submit(sortedList)
-    }
-
-    private fun ensurePermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            if (!Environment.isExternalStorageManager()) {
-                try {
-                    val i = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
-                    i.data = Uri.parse("package:$packageName")
-                    allFilesPerm.launch(i)
-                } catch (_: Exception) {
-                    allFilesPerm.launch(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
-                }
-            } else load(currentDir)
-        } else {
-            val okRead  = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)  == PackageManager.PERMISSION_GRANTED
-            val okWrite = ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
-            if (okRead && okWrite) load(currentDir)
-            else legacyPerm.launch(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE))
-        }
-    }
-
-    private fun load(dir: File) {
-        if (!dir.exists()) dir.mkdirs()
-        currentDir = dir
-        prefs.lastPath = dir.absolutePath
-        b.tvPath.text = dir.absolutePath
-        lifecycleScope.launch {
-            allFiles = withContext(Dispatchers.IO) { FileUtils.listFiles(dir) }
-            refreshList()
-        }
-    }
-
-    private fun showCreateDialog() {
-        val input = EditText(this).apply {
-            hint = "app/src/main/java/com/pla/agent/PlAiEngine.kt"
-            setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 14f)
-            val pad = (16 * resources.displayMetrics.density).toInt()
-            setPadding(pad, pad, pad, pad)
-        }
-        AlertDialog.Builder(this).setTitle("Buat Jalur / Berkas Baru").setView(input)
-            .setPositiveButton("Buat") { _, _ ->
-                val path = input.text.toString().trim()
-                if (path.isEmpty()) return@setPositiveButton
-                lifecycleScope.launch {
-                    withContext(Dispatchers.IO) { FileUtils.createSmartPath(currentDir, path) }
-                    load(currentDir)
-                    toast("Dibuat: $path")
-                }
-            }.setNegativeButton("Batal", null).show()
-    }
-
-    private fun renameDialog(f: File) {
-        val input = EditText(this).apply { setText(f.name) }
-        AlertDialog.Builder(this).setTitle("Ganti Nama").setView(input)
-            .setPositiveButton("OK") { _, _ ->
-                val newFile = File(f.parentFile, input.text.toString())
-                if (f.renameTo(newFile)) load(currentDir) else toast("Gagal rename")
-            }.setNegativeButton("Batal", null).show()
-    }
-
-    private fun zipFile(f: File) {
-        lifecycleScope.launch {
-            val out = File(f.parentFile, f.name + ".zip")
-            withContext(Dispatchers.IO) { FileUtils.zip(f, out) }
-            load(currentDir)
-            toast("Diarsipkan: ${out.name}")
-        }
-    }
-
-    private fun unzipFile(f: File) {
-        if (!f.name.endsWith(".zip")) { toast("Bukan file ZIP"); return }
-        lifecycleScope.launch {
-            val out = File(f.parentFile, f.nameWithoutExtension)
-            withContext(Dispatchers.IO) { FileUtils.unzip(f, out) }
-            load(currentDir)
-            toast("Diekstrak ke: ${out.name}")
-        }
-    }
-
-    private fun pasteHere() {
-        val src = clipboard ?: run { toast("Clipboard kosong"); return }
+    private fun loadApps() {
         lifecycleScope.launch {
             withContext(Dispatchers.IO) {
-                val dst = File(currentDir, src.name)
-                if (isCut) FileUtils.move(src, dst) else FileUtils.copy(src, dst)
+                val pm = packageManager
+                val apps = pm.getInstalledApplications(0)
+                
+                allApps = apps.sortedBy { pm.getApplicationLabel(it).toString().lowercase() }
+                userApps = apps.filter { 
+                    (it.flags and ApplicationInfo.FLAG_SYSTEM) == 0 
+                }.sortedBy { pm.getApplicationLabel(it).toString().lowercase() }
             }
-            clipboard = null
-            b.fabPaste.hide() 
-            load(currentDir)
-            toast("Ditempel")
+            
+            if (b.tabLayout.selectedTabPosition == 0 || b.tabLayout.selectedTabPosition == -1) {
+                adapter.submit(allApps)
+            } else if (b.tabLayout.selectedTabPosition == 1) {
+                adapter.submit(userApps)
+            }
         }
     }
 
-    private fun toast(s: String) = Toast.makeText(this, s, Toast.LENGTH_SHORT).show()
+    private fun showActionDialog(app: ApplicationInfo) {
+        val dialogBinding = DialogAppActionBinding.inflate(layoutInflater)
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(packageManager.getApplicationLabel(app))
+            .setView(dialogBinding.root)
+            .setNegativeButton("Tutup", null)
+            .create()
+
+        dialogBinding.actionOpen.setOnClickListener {
+            val intent = packageManager.getLaunchIntentForPackage(app.packageName)
+            if (intent != null) startActivity(intent)
+            else Toast.makeText(this, "Aplikasi tidak bisa dibuka", Toast.LENGTH_SHORT).show()
+            dialog.dismiss()
+        }
+
+        // AKSI BAGIKAN APK (Diperbaiki: Copy ke cache dulu)
+        dialogBinding.actionShare.setOnClickListener {
+            dialog.dismiss()
+            shareApk(app)
+        }
+
+        dialogBinding.actionDelete.setOnClickListener {
+            val intent = Intent(Intent.ACTION_DELETE)
+            intent.data = Uri.parse("package:${app.packageName}")
+            startActivity(intent)
+            dialog.dismiss()
+        }
+
+        dialogBinding.actionBackup.setOnClickListener {
+            dialog.dismiss()
+            backupApk(app)
+        }
+
+        dialog.show()
+    }
+
+    private fun shareApk(app: ApplicationInfo) {
+        lifecycleScope.launch {
+            try {
+                val apkPath = app.sourceDir
+                val apkFile = File(apkPath)
+                val appName = packageManager.getApplicationLabel(app).toString().replace(" ", "_")
+                val cacheApk = File(cacheDir, "$appName.apk")
+                
+                withContext(Dispatchers.IO) {
+                    FileInputStream(apkFile).use { input ->
+                        FileOutputStream(cacheApk).use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                }
+
+                val uri = FileProvider.getUriForFile(
+                    this@AppManagerActivity,
+                    "$packageName.provider",
+                    cacheApk
+                )
+                
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = "application/vnd.android.package-archive"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    clipData = ClipData.newRawUri("APK", uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                startActivity(Intent.createChooser(intent, "Bagikan APK via"))
+                
+            } catch (e: Exception) {
+                Toast.makeText(this@AppManagerActivity, "Gagal membagikan APK: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun backupApk(app: ApplicationInfo) {
+        val appName = packageManager.getApplicationLabel(app).toString().replace(" ", "_")
+        val apkPath = app.sourceDir
+        val apkFile = File(apkPath)
+
+        val backupDir = File(Environment.getExternalStorageDirectory(), "PlaProjects/Backup_Aplikasi")
+        if (!backupDir.exists()) backupDir.mkdirs()
+
+        val destFile = File(backupDir, "$appName.apk")
+
+        Toast.makeText(this, "Mencadangkan $appName...", Toast.LENGTH_SHORT).show()
+
+        lifecycleScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    FileInputStream(apkFile).use { input ->
+                        FileOutputStream(destFile).use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                }
+                Toast.makeText(this@AppManagerActivity, "Berhasil dicadangkan ke:\n${destFile.absolutePath}", Toast.LENGTH_LONG).show()
+            } catch (e: Exception) {
+                Toast.makeText(this@AppManagerActivity, "Gagal mencadangkan: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 }
