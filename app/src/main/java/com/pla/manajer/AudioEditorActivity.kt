@@ -1,19 +1,18 @@
 package com.pla.manajer
 
-import android.content.ContentValues
+import android.app.AlertDialog
 import android.media.MediaPlayer
-import android.net.Uri
-import android.os.Build
 import android.os.Bundle
-import android.os.Environment
-import android.provider.MediaStore
+import android.view.LayoutInflater
 import android.view.View
 import android.widget.ArrayAdapter
+import android.widget.EditText
 import android.widget.SeekBar
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.arthenica.ffmpegkit.FFmpegKit
 import com.arthenica.ffmpegkit.ReturnCode
+import com.google.android.material.button.MaterialButton
 import com.google.android.material.tabs.TabLayout
 import com.pla.manajer.databinding.ActivityAudioEditorBinding
 import java.io.File
@@ -26,6 +25,14 @@ class AudioEditorActivity : AppCompatActivity() {
     private var previewPlayer: MediaPlayer? = null
     private var isPlayingPreview = false
 
+    // Waktu Potong
+    private var startTime = "00:00:00"
+    private var endTime = "00:00:00"
+
+    // Daftar 16 Band EQ
+    private lateinit var eqFreqs: IntArray
+    private lateinit var eqBars: Array<SeekBar>
+
     override fun onCreate(s: Bundle?) {
         super.onCreate(s)
         b = ActivityAudioEditorBinding.inflate(layoutInflater)
@@ -35,56 +42,12 @@ class AudioEditorActivity : AppCompatActivity() {
         inputFile = File(path)
         b.tvFileName.text = inputFile.name
 
-        // Setup Spinner
-        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, formats)
-        b.spinnerFormat.adapter = adapter
-        b.spinnerBitrate.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, arrayOf("64k", "128k", "192k", "320k"))
-        b.spinnerSampleRate.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, arrayOf("44100", "48000"))
+        setupSpinners()
+        setupTabs()
+        setupSliders()
+        setupTimePickers()
 
-        // Setup Tab
-        b.tabLayoutAudio.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
-            override fun onTabSelected(tab: TabLayout.Tab?) {
-                b.layoutTabWaktu.visibility = View.GONE
-                b.layoutTabKualitas.visibility = View.GONE
-                b.layoutTabEfek.visibility = View.GONE
-                b.layoutTabMetadata.visibility = View.GONE
-                when (tab?.position) {
-                    0 -> b.layoutTabWaktu.visibility = View.VISIBLE
-                    1 -> b.layoutTabKualitas.visibility = View.VISIBLE
-                    2 -> b.layoutTabEfek.visibility = View.VISIBLE
-                    3 -> b.layoutTabMetadata.visibility = View.VISIBLE
-                }
-            }
-            override fun onTabUnselected(tab: TabLayout.Tab?) {}
-            override fun onTabReselected(tab: TabLayout.Tab?) {}
-        })
-
-        // Setup Slider Label
-        b.seekVolume.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) { b.tvVolumeLabel.text = "$progress%" }
-            override fun onStartTrackingTouch(sb: SeekBar?) {}
-            override fun onStopTrackingTouch(sb: SeekBar?) {}
-        })
-        
-        b.seekTempo.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
-                val speed = (progress + 50) / 100f
-                b.tvTempoLabel.text = "Kecepatan (Tempo): ${String.format("%.2f", speed)}x"
-            }
-            override fun onStartTrackingTouch(sb: SeekBar?) {}
-            override fun onStopTrackingTouch(sb: SeekBar?) {}
-        })
-
-        b.seekPitch.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
-                val pitch = (progress - 50) / 10f
-                b.tvPitchLabel.text = "Nada (Pitch): ${if (pitch > 0) "+" else ""}$pitch semitone"
-            }
-            override fun onStartTrackingTouch(sb: SeekBar?) {}
-            override fun onStopTrackingTouch(sb: SeekBar?) {}
-        })
-
-        // Fitur Putar
+        // Fitur Putar Preview
         b.btnPreviewAudio.setOnClickListener {
             if (isPlayingPreview) {
                 previewPlayer?.pause()
@@ -113,95 +76,219 @@ class AudioEditorActivity : AppCompatActivity() {
         b.btnProcess.setOnClickListener { processAudio() }
     }
 
+    private fun setupSpinners() {
+        b.spinnerFormat.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, formats)
+        b.spinnerBitrate.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, arrayOf("64k", "128k", "192k", "320k"))
+        b.spinnerSampleRate.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, arrayOf("44100", "48000"))
+        b.spinnerQuality.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, arrayOf("Kualitas Rendah (Kompres)", "Kualitas Normal", "Kualitas Tinggi"))
+        b.spinnerSaveAs.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, arrayOf("Simpan Normal", "Nada Dering (Ringtone)", "Suara Alarm", "Suara Notifikasi"))
+    }
+
+    private fun setupTabs() {
+        b.tabLayoutAudio.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: TabLayout.Tab?) {
+                b.layoutTabTrim.visibility = View.GONE
+                b.layoutTabFormat.visibility = View.GONE
+                b.layoutTabSpeed.visibility = View.GONE
+                b.layoutTabEq.visibility = View.GONE
+                b.layoutTabStereo.visibility = View.GONE
+                when (tab?.position) {
+                    0 -> b.layoutTabTrim.visibility = View.VISIBLE
+                    1 -> b.layoutTabFormat.visibility = View.VISIBLE
+                    2 -> b.layoutTabSpeed.visibility = View.VISIBLE
+                    3 -> b.layoutTabEq.visibility = View.VISIBLE
+                    4 -> b.layoutTabStereo.visibility = View.VISIBLE
+                }
+            }
+            override fun onTabUnselected(tab: TabLayout.Tab?) {}
+            override fun onTabReselected(tab: TabLayout.Tab?) {}
+        })
+    }
+
+    private fun setupSliders() {
+        // Kecepatan & Nada
+        b.seekTempo.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
+                val speed = (progress + 50) / 100f
+                b.tvTempoLabel.text = "Kecepatan: ${String.format("%.2f", speed)}x"
+            }
+            override fun onStartTrackingTouch(sb: SeekBar?) {}
+            override fun onStopTrackingTouch(sb: SeekBar?) {}
+        })
+
+        b.seekPitch.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
+                val pitch = (progress - 50) / 10f
+                b.tvPitchLabel.text = "Nada: ${if (pitch > 0) "+" else ""}$pitch"
+            }
+            override fun onStartTrackingTouch(sb: SeekBar?) {}
+            override fun onStopTrackingTouch(sb: SeekBar?) {}
+        })
+
+        // EQ 16 Band
+        eqFreqs = intArrayOf(31, 44, 60, 80, 150, 250, 360, 460, 700, 900, 1500, 2500, 4000, 6000, 8000, 12000)
+        eqBars = arrayOf(b.eq31, b.eq44, b.eq60, b.eq80, b.eq150, b.eq250, b.eq360, b.eq460, b.eq700, b.eq900, b.eq1500, b.eq2500, b.eq4000, b.eq6000, b.eq8000, b.eq12000)
+
+        b.seekVolume.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) { b.tvVolumeLabel.text = "Volume: $progress%" }
+            override fun onStartTrackingTouch(sb: SeekBar?) {}
+            override fun onStopTrackingTouch(sb: SeekBar?) {}
+        })
+
+        b.seekMaster.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) { b.tvMasterLabel.text = "Mastering: $progress%" }
+            override fun onStartTrackingTouch(sb: SeekBar?) {}
+            override fun onStopTrackingTouch(sb: SeekBar?) {}
+        })
+
+        b.seekLimiter.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) { b.tvLimiterLabel.text = "Limiter: $progress%" }
+            override fun onStartTrackingTouch(sb: SeekBar?) {}
+            override fun onStopTrackingTouch(sb: SeekBar?) {}
+        })
+
+        // Stereo
+        b.seekPanning.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
+                val pan = progress - 100
+                b.tvPanningLabel.text = "Panning: ${if (pan == 0) "Tengah" else if (pan < 0) "Kiri ($pan)" else "Kanan ($pan)"}"
+            }
+            override fun onStartTrackingTouch(sb: SeekBar?) {}
+            override fun onStopTrackingTouch(sb: SeekBar?) {}
+        })
+
+        b.seekStereo.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) { b.tvStereoLabel.text = "Stereo Width: $progress%" }
+            override fun onStartTrackingTouch(sb: SeekBar?) {}
+            override fun onStopTrackingTouch(sb: SeekBar?) {}
+        })
+
+        b.seekEcho.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) { b.tvEchoLabel.text = "Echo: $progress%" }
+            override fun onStartTrackingTouch(sb: SeekBar?) {}
+            override fun onStopTrackingTouch(sb: SeekBar?) {}
+        })
+    }
+
+    private fun setupTimePickers() {
+        b.btnPickStartTime.setOnClickListener { showTimePicker("Waktu Mulai", startTime) { newTime -> 
+            startTime = newTime
+            b.btnPickStartTime.text = newTime
+        }}
+        
+        b.btnPickEndTime.setOnClickListener { showTimePicker("Waktu Selesai", endTime) { newTime -> 
+            endTime = newTime
+            b.btnPickEndTime.text = newTime
+        }}
+    }
+
+    private fun showTimePicker(title: String, currentTime: String, onSave: (String) -> Unit) {
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_time_picker, null)
+        val etHours = dialogView.findViewById<EditText>(R.id.etHours)
+        val etMinutes = dialogView.findViewById<EditText>(R.id.etMinutes)
+        val etSeconds = dialogView.findViewById<EditText>(R.id.etSeconds)
+        
+        // Split format "HH:MM:SS"
+        val parts = currentTime.split(":")
+        etHours.setText(parts[0])
+        etMinutes.setText(parts[1])
+        etSeconds.setText(parts[2])
+
+        // Logika matikan kolom jam jika durasi file < 1 jam
+        if (previewPlayer != null && previewPlayer!!.duration < 3600000) {
+            etHours.isEnabled = false
+            etHours.setText("00")
+            etHours.hint = "00"
+        } else {
+            etHours.isEnabled = true
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle(title)
+            .setView(dialogView)
+            .setPositiveButton("Simpan") { _, _ ->
+                val h = etHours.text.toString().padStart(2, '0').ifEmpty { "00" }
+                val m = etMinutes.text.toString().padStart(2, '0').ifEmpty { "00" }
+                val s = etSeconds.text.toString().padStart(2, '0').ifEmpty { "00" }
+                onSave("$h:$m:$s")
+            }
+            .setNegativeButton("Batal", null)
+            .show()
+    }
+
     private fun processAudio() {
         previewPlayer?.stop()
         previewPlayer?.release()
         previewPlayer = null
 
         val outputFormat = formats[b.spinnerFormat.selectedItemPosition]
-        val isRingtone = b.cbRingtone.isChecked
+        val isRingtone = b.spinnerSaveAs.selectedItemPosition != 0
         val outputFile = File(inputFile.parentFile, "EDIT_${System.currentTimeMillis()}.${outputFormat}")
 
         val cmd = StringBuilder()
         cmd.append("-y ")
 
-        val start = b.etStartTime.text.toString().ifEmpty { "00:00" }
-        val end = b.etEndTime.text.toString()
-        if (end.isNotEmpty()) cmd.append("-ss $start -to $end ")
+        // Trim (Waktu)
+        if (endTime != "00:00:00") {
+            cmd.append("-ss $startTime -to $endTime ")
+        }
 
         cmd.append("-i \"${inputFile.absolutePath}\" ")
 
         val audioFilters = mutableListOf<String>()
 
-        // 1. Watermark
+        // Watermark
         if (b.cbRemoveWatermark.isChecked) audioFilters.add("lowpass=f=16000")
 
-        // 2. Silence Remove
-        if (b.cbSilenceRemove.isChecked) audioFilters.add("silenceremove=start_periods=1:start_duration=1:start_threshold=-50dB:detection=peak")
-
-        // 3. Tempo & Pitch
+        // Tempo & Pitch
         val tempo = (b.seekTempo.progress + 50) / 100f
         val pitch = (b.seekPitch.progress - 50) / 10f
         
-        if (b.cbSpeedRamping.isChecked) {
-            // Speed Ramping Sederhana (Mulai pelan, makin cepat)
-            audioFilters.add("atempo=1.0,atempo=1.1,atempo=1.2") 
-        } else if (tempo != 1.0f) {
-            audioFilters.add("atempo=$tempo")
-        }
-
+        if (tempo != 1.0f) audioFilters.add("atempo=$tempo")
+        
         if (pitch != 0.0f) {
             val pitchMultiplier = Math.pow(2.0, pitch.toDouble() / 12.0)
-            // Ubah Sample Rate lalu kembalikan (teknik Pitch Shift FFmpeg)
             audioFilters.add("asetrate=44100*${pitchMultiplier},aresample=44100,atempo=${1.0/pitchMultiplier}")
         }
 
-        // 4. Volume
+        // Volume
         if (b.seekVolume.progress != 100) audioFilters.add("volume=${b.seekVolume.progress / 100.0}")
 
-        // 5. EQ
-        fun addEq(freq: Int, seekBar: SeekBar) {
-            val db = seekBar.progress - 10
-            if (db != 0) audioFilters.add("equalizer=f=$freq:width_type=o:width=2:g=$db")
+        // EQ 16 Band
+        for (i in eqFreqs.indices) {
+            val db = eqBars[i].progress - 10
+            if (db != 0) audioFilters.add("equalizer=f=${eqFreqs[i]}:width_type=o:width=2:g=$db")
         }
-        addEq(31, b.seek31); addEq(44, b.seek44); addEq(80, b.seek80); addEq(250, b.seek250)
-        addEq(500, b.seek500); addEq(1000, b.seek1k); addEq(2000, b.seek2k)
-        addEq(4000, b.seek4k); addEq(8000, b.seek8k); addEq(12000, b.seek12k)
 
-        // 6. Mastering & Efek
-        if (b.cbMastering.isChecked) audioFilters.add("loudnorm=I=-16:TP=-1.5:LRA=11")
-        if (b.cbStereoWiden.isChecked) audioFilters.add("stereowiden=delay=20:feedback=0.3:crossfeed=0.3:drymix=0.8")
-        if (b.cbEcho.isChecked) audioFilters.add("aecho=0.8:0.9:1000:0.3")
-        if (b.cbLimiter.isChecked) audioFilters.add("alimiter=limit=0.95")
+        // Mastering & Limiter (Slider)
+        if (b.seekMaster.progress > 0) {
+            val strength = b.seekMaster.progress
+            audioFilters.add("dynaudnorm=f=150:g=$strength")
+        }
+        if (b.seekLimiter.progress > 0) {
+            audioFilters.add("alimiter=limit=${b.seekLimiter.progress / 100.0}")
+        }
+
+        // Stereo
+        if (b.seekStereo.progress > 0) {
+            audioFilters.add("stereowiden=delay=20:feedback=0.3:crossfeed=0.3:drymix=0.8")
+        }
+        if (b.seekEcho.progress > 0) {
+            val mix = b.seekEcho.progress / 100.0
+            audioFilters.add("aecho=0.8:0.9:1000:$mix")
+        }
+        if (b.seekPanning.progress != 100) {
+            val panVal = (b.seekPanning.progress - 100) / 100.0
+            audioFilters.add("pan=stereo|c0=c0*${1-panVal}+c1*${panVal}|c1=c1*${1-panVal}+c0*${panVal}")
+        }
 
         if (audioFilters.isNotEmpty()) cmd.append("-af \"${audioFilters.joinToString(",")}\" ")
 
-        // 7. Kualitas (Bitrate & Sample Rate)
-        if (b.cbCompress.isChecked) {
-            cmd.append("-b:a 64k ")
-        } else {
-            cmd.append("-b:a ${b.spinnerBitrate.selectedItem} ")
-        }
+        // Format & Kualitas
+        cmd.append("-b:a ${b.spinnerBitrate.selectedItem} ")
         cmd.append("-ar ${b.spinnerSampleRate.selectedItem} ")
-
-        // 8. Hapus Metadata & Tambah Metadata
+        
         if (b.cbRemoveMetadata.isChecked) cmd.append("-map_metadata -1 ")
-
-        val title = b.etTitle.text.toString()
-        val artist = b.etArtist.text.toString()
-        val album = b.etAlbum.text.toString()
-        val genre = b.etGenre.text.toString()
-        val composer = b.etComposer.text.toString()
-        val year = b.etYear.text.toString()
-        val track = b.etTrack.text.toString()
-
-        if (title.isNotEmpty()) cmd.append("-metadata title=\"$title\" ")
-        if (artist.isNotEmpty()) cmd.append("-metadata artist=\"$artist\" ")
-        if (album.isNotEmpty()) cmd.append("-metadata album=\"$album\" ")
-        if (genre.isNotEmpty()) cmd.append("-metadata genre=\"$genre\" ")
-        if (composer.isNotEmpty()) cmd.append("-metadata composer=\"$composer\" ")
-        if (year.isNotEmpty()) cmd.append("-metadata date=\"$year\" ")
-        if (track.isNotEmpty()) cmd.append("-metadata track=\"$track\" ")
 
         cmd.append("\"${outputFile.absolutePath}\"")
 
@@ -213,26 +300,8 @@ class AudioEditorActivity : AppCompatActivity() {
                 b.btnProcess.isEnabled = true
                 if (ReturnCode.isSuccess(session.returnCode)) {
                     if (isRingtone) {
-                        val ringtoneDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_RINGTONES)
-                        val ringtoneFile = File(ringtoneDir, outputFile.name)
-                        outputFile.copyTo(ringtoneFile, overwrite = true)
-                        outputFile.delete() // Hapus file asli di folder edit
-                        
-                        val values = ContentValues().apply {
-                            put(MediaStore.Audio.Media.DISPLAY_NAME, ringtoneFile.name)
-                            put(MediaStore.Audio.Media.MIME_TYPE, "audio/*")
-                            put(MediaStore.Audio.Media.DATA, ringtoneFile.absolutePath)
-                        }
-                        contentResolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values)
                         b.tvProgress.text = "Berhasil disimpan sebagai Nada Dering!"
                     } else {
-                        // Daftarkan file audio ke Galeri
-                        val values = ContentValues().apply {
-                            put(MediaStore.Audio.Media.DISPLAY_NAME, outputFile.name)
-                            put(MediaStore.Audio.Media.MIME_TYPE, "audio/*")
-                            put(MediaStore.Audio.Media.DATA, outputFile.absolutePath)
-                        }
-                        contentResolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values)
                         b.tvProgress.text = "Berhasil disimpan di:\n${outputFile.name}"
                     }
                     Toast.makeText(this, "Audio berhasil diproses!", Toast.LENGTH_LONG).show()
