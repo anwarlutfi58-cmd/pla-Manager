@@ -1,6 +1,8 @@
 package com.pla.manajer.adapter
 
+import android.graphics.Color
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.pla.manajer.R
@@ -11,8 +13,7 @@ import java.io.File
 class FileAdapter(
     private val onOpen: (File) -> Unit,
     private val onLong: (File) -> Unit,
-    private val onSelectToggle: (File) -> Unit,
-    private val onMoreOptions: (File) -> Unit // Tambahan untuk titik 3
+    private val onSelectToggle: (File) -> Unit
 ) : RecyclerView.Adapter<FileAdapter.VH>() {
     private var items: List<File> = emptyList()
     
@@ -35,33 +36,27 @@ class FileAdapter(
         h.b.tvMeta.text = if (f.isDirectory) "Folder" else FileUtils.humanSize(f.length())
         h.b.ivIcon.setImageResource(if (f.isDirectory) R.drawable.ic_folder else R.drawable.ic_file)
         
-        // Logika CheckBox
-        h.b.cbSelect.setOnCheckedChangeListener(null)
-        h.b.cbSelect.isChecked = selectedFiles.contains(f)
-        
-        // Klik CheckBox
-        h.b.cbSelect.setOnClickListener {
-            onSelectToggle(f)
-        }
+        // Logika Tampilan Seleksi (Mirip Gambar 1)
+        val isSelected = selectedFiles.contains(f)
+        h.b.cbSelect.visibility = if (isSelectionMode) View.VISIBLE else View.GONE
+        h.b.cbSelect.isChecked = isSelected
 
-        // Klik Baris File
-        h.b.root.setOnClickListener { 
-            if (isSelectionMode) {
-                onSelectToggle(f)
-            } else {
-                onOpen(f) 
-            }
+        // Memberikan warna highlight jika terpilih (Warna tosca transparan)
+        if (isSelected) {
+            h.b.root.setBackgroundColor(Color.parseColor("#8090C0C0")) // Warna seleksi
+        } else {
+            h.b.root.setBackgroundColor(Color.TRANSPARENT)
         }
         
-        // Tahan Lama Baris File
+        h.b.cbSelect.setOnClickListener { onSelectToggle(f) }
+
+        h.b.root.setOnClickListener { 
+            if (isSelectionMode) onSelectToggle(f) else onOpen(f) 
+        }
+        
         h.b.root.setOnLongClickListener { 
             onLong(f)
             true 
-        }
-
-        // Klik Titik 3 (More Options)
-        h.b.btnMore.setOnClickListener {
-            onMoreOptions(f)
         }
     }
 
