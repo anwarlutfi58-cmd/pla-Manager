@@ -6,7 +6,6 @@
     android:background="?android:attr/colorBackground"
     android:orientation="vertical">
 
-    <!-- HEADER & TOMBOL PUTAR PREVIEW -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -31,114 +30,134 @@
             app:icon="@android:drawable/ic_media_play" />
     </LinearLayout>
 
+    <com.google.android.material.tabs.TabLayout
+        android:id="@+id/tabLayoutAudio"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:tabMode="scrollable"
+        app:tabIndicatorColor="?attr/colorPrimary">
+
+        <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Potong" />
+        <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Format" />
+        <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Kecepatan" />
+        <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="EQ &amp; Master" />
+        <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Stereo" />
+    </com.google.android.material.tabs.TabLayout>
+
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:paddingHorizontal="16dp">
+        android:paddingHorizontal="16dp"
+        android:paddingTop="16dp">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <!-- MENU TAB AUDIO -->
-            <com.google.android.material.tabs.TabLayout
-                android:id="@+id/tabLayoutAudio"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                app:tabMode="scrollable"
-                app:tabIndicatorColor="?attr/colorPrimary"
-                android:layout_marginBottom="16dp">
+            <!-- TAB 1: POTONG (Jam:Menit:Detik) -->
+            <LinearLayout android:id="@+id/layoutTabTrim" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="visible">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Waktu Mulai:" android:textStyle="bold"/>
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnPickStartTime"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:text="00:00:00"
+                    android:layout_marginBottom="16dp"/>
+                    
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Waktu Selesai:" android:textStyle="bold"/>
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnPickEndTime"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:text="00:00:00"/>
+            </LinearLayout>
 
-                <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Waktu" />
-                <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Kualitas" />
-                <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="EQ &amp; Master" />
-                <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Metadata" />
-            </com.google.android.material.tabs.TabLayout>
-
-            <!-- KONTEN 1: WAKTU (POTONG, TEMPO, PITCH, RAMPING, SILENCE) -->
-            <LinearLayout android:id="@+id/layoutTabWaktu" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="visible">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Potong Audio (MM:SS)" android:textStyle="bold"/>
-                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="8dp" android:layout_marginBottom="12dp">
-                    <EditText android:id="@+id/etStartTime" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:hint="Mulai" />
-                    <EditText android:id="@+id/etEndTime" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="8dp" android:hint="Selesai" />
+            <!-- TAB 2: FORMAT -->
+            <LinearLayout android:id="@+id/layoutTabFormat" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Format &amp; Kualitas:" android:textStyle="bold"/>
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="8dp">
+                    <Spinner android:id="@+id/spinnerFormat" android:layout_width="0dp" android:layout_height="40dp" android:layout_weight="1"/>
+                    <Spinner android:id="@+id/spinnerBitrate" android:layout_width="0dp" android:layout_height="40dp" android:layout_weight="1" android:layout_marginStart="8dp"/>
                 </LinearLayout>
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="8dp">
+                    <Spinner android:id="@+id/spinnerSampleRate" android:layout_width="0dp" android:layout_height="40dp" android:layout_weight="1"/>
+                    <Spinner android:id="@+id/spinnerQuality" android:layout_width="0dp" android:layout_height="40dp" android:layout_weight="1" android:layout_marginStart="8dp"/>
+                </LinearLayout>
+                <Spinner android:id="@+id/spinnerSaveAs" android:layout_width="match_parent" android:layout_height="40dp" android:layout_marginTop="8dp"/>
+                <CheckBox android:id="@+id/cbRemoveWatermark" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="Hapus Watermark Suno (Lowpass)"/>
+                <CheckBox android:id="@+id/cbRemoveMetadata" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Hapus Metadata Privasi"/>
+            </LinearLayout>
 
-                <TextView android:id="@+id/tvTempoLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Kecepatan (Tempo): Normal (1.0x)" android:textStyle="bold"/>
-                <SeekBar android:id="@+id/seekTempo" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="150" android:progress="50"/>
-
-                <TextView android:id="@+id/tvPitchLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Nada (Pitch): Normal" android:textStyle="bold" android:layout_marginTop="8dp"/>
+            <!-- TAB 3: KECEPATAN & NADA -->
+            <LinearLayout android:id="@+id/layoutTabSpeed" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+                <TextView android:id="@+id/tvTempoLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Kecepatan: 1.0x" android:textStyle="bold"/>
+                <SeekBar android:id="@+id/seekTempo" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="100" android:progress="50" android:layout_marginBottom="16dp"/>
+                
+                <TextView android:id="@+id/tvPitchLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Nada: 0" android:textStyle="bold"/>
                 <SeekBar android:id="@+id/seekPitch" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="100" android:progress="50"/>
-
-                <CheckBox android:id="@+id/cbSpeedRamping" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Speed Ramping (Percepatan Bertahap)" />
-                <CheckBox android:id="@+id/cbSilenceRemove" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Hapus Bagian Hening (Auto-Trim)"/>
             </LinearLayout>
 
-            <!-- KONTEN 2: KUALITAS (FORMAT, BITRATE, SAMPLE RATE, DLL) -->
-            <LinearLayout android:id="@+id/layoutTabKualitas" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Format &amp; Ekstrak Video ke Audio:" android:textStyle="bold"/>
-                <Spinner android:id="@+id/spinnerFormat" android:layout_width="match_parent" android:layout_height="40dp" android:layout_marginBottom="8dp"/>
-
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Bitrate &amp; Sample Rate:" android:textStyle="bold"/>
-                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="8dp">
-                    <Spinner android:id="@+id/spinnerBitrate" android:layout_width="0dp" android:layout_height="40dp" android:layout_weight="1"/>
-                    <Spinner android:id="@+id/spinnerSampleRate" android:layout_width="0dp" android:layout_height="40dp" android:layout_weight="1" android:layout_marginStart="8dp"/>
-                </LinearLayout>
-
-                <CheckBox android:id="@+id/cbCompress" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Kompres Ukuran File (Hemat Memori)"/>
-                <CheckBox android:id="@+id/cbRingtone" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Simpan sebagai Nada Dering (Ringtone)"/>
-                <CheckBox android:id="@+id/cbRemoveMetadata" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Hapus Metadata Privasi (Bersihkan Data)"/>
-                <CheckBox android:id="@+id/cbRemoveWatermark" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Hapus Watermark Suno"/>
-            </LinearLayout>
-
-            <!-- KONTEN 3: EQ & MASTERING -->
-            <LinearLayout android:id="@+id/layoutTabEfek" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+            <!-- TAB 4: EQ & MASTER (16 BAND + SLIDER) -->
+            <LinearLayout android:id="@+id/layoutTabEq" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
                 <TextView android:id="@+id/tvVolumeLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Volume: 100%" android:textStyle="bold"/>
-                <SeekBar android:id="@+id/seekVolume" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="200" android:progress="100" android:layout_marginBottom="12dp"/>
+                <SeekBar android:id="@+id/seekVolume" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="200" android:progress="100" android:layout_marginBottom="8dp"/>
+                
+                <!-- 16 Band EQ (Tanpa Label, biar ringkas, digeser saja) -->
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="31Hz" android:textSize="10sp"/><SeekBar android:id="@+id/eq31" android:layout_width="match_parent" android:layout_height="20dp" android:max="20" android:progress="10"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="44Hz" android:textSize="10sp"/><SeekBar android:id="@+id/eq44" android:layout_width="match_parent" android:layout_height="20dp" android:max="20" android:progress="10"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="60Hz" android:textSize="10sp"/><SeekBar android:id="@+id/eq60" android:layout_width="match_parent" android:layout_height="20dp" android:max="20" android:progress="10"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="80Hz" android:textSize="10sp"/><SeekBar android:id="@+id/eq80" android:layout_width="match_parent" android:layout_height="20dp" android:max="20" android:progress="10"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="150Hz" android:textSize="10sp"/><SeekBar android:id="@+id/eq150" android:layout_width="match_parent" android:layout_height="20dp" android:max="20" android:progress="10"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="250Hz" android:textSize="10sp"/><SeekBar android:id="@+id/eq250" android:layout_width="match_parent" android:layout_height="20dp" android:max="20" android:progress="10"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="360Hz" android:textSize="10sp"/><SeekBar android:id="@+id/eq360" android:layout_width="match_parent" android:layout_height="20dp" android:max="20" android:progress="10"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="460Hz" android:textSize="10sp"/><SeekBar android:id="@+id/eq460" android:layout_width="match_parent" android:layout_height="20dp" android:max="20" android:progress="10"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="700Hz" android:textSize="10sp"/><SeekBar android:id="@+id/eq700" android:layout_width="match_parent" android:layout_height="20dp" android:max="20" android:progress="10"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="900Hz" android:textSize="10sp"/><SeekBar android:id="@+id/eq900" android:layout_width="match_parent" android:layout_height="20dp" android:max="20" android:progress="10"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="1.5kHz" android:textSize="10sp"/><SeekBar android:id="@+id/eq1500" android:layout_width="match_parent" android:layout_height="20dp" android:max="20" android:progress="10"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="2.5kHz" android:textSize="10sp"/><SeekBar android:id="@+id/eq2500" android:layout_width="match_parent" android:layout_height="20dp" android:max="20" android:progress="10"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="4kHz" android:textSize="10sp"/><SeekBar android:id="@+id/eq4000" android:layout_width="match_parent" android:layout_height="20dp" android:max="20" android:progress="10"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="6kHz" android:textSize="10sp"/><SeekBar android:id="@+id/eq6000" android:layout_width="match_parent" android:layout_height="20dp" android:max="20" android:progress="10"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="8kHz" android:textSize="10sp"/><SeekBar android:id="@+id/eq8000" android:layout_width="match_parent" android:layout_height="20dp" android:max="20" android:progress="10"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="12kHz" android:textSize="10sp"/><SeekBar android:id="@+id/eq12000" android:layout_width="match_parent" android:layout_height="20dp" android:max="20" android:progress="10"/>
 
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="31 Hz" android:textSize="12sp"/>
-                <SeekBar android:id="@+id/seek31" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="20" android:progress="10"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="44 Hz" android:textSize="12sp"/>
-                <SeekBar android:id="@+id/seek44" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="20" android:progress="10"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="80 Hz" android:textSize="12sp"/>
-                <SeekBar android:id="@+id/seek80" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="20" android:progress="10"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="250 Hz" android:textSize="12sp"/>
-                <SeekBar android:id="@+id/seek250" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="20" android:progress="10"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="500 Hz" android:textSize="12sp"/>
-                <SeekBar android:id="@+id/seek500" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="20" android:progress="10"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="1 kHz" android:textSize="12sp"/>
-                <SeekBar android:id="@+id/seek1k" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="20" android:progress="10"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="2 kHz" android:textSize="12sp"/>
-                <SeekBar android:id="@+id/seek2k" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="20" android:progress="10"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="4 kHz" android:textSize="12sp"/>
-                <SeekBar android:id="@+id/seek4k" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="20" android:progress="10"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="8 kHz" android:textSize="12sp"/>
-                <SeekBar android:id="@+id/seek8k" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="20" android:progress="10"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="12 kHz" android:textSize="12sp"/>
-                <SeekBar android:id="@+id/seek12k" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="20" android:progress="10"/>
-
-                <CheckBox android:id="@+id/cbMastering" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Aktifkan Mastering (Normalisasi Volume)" android:layout_marginTop="16dp"/>
-                <CheckBox android:id="@+id/cbStereoWiden" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Stereo Widening (Suara Lebih Luas)"/>
-                <CheckBox android:id="@+id/cbEcho" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Efek Echo / Reverb"/>
-                <CheckBox android:id="@+id/cbLimiter" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Limiter (Cegah Suara Pecah)" />
+                <TextView android:id="@+id/tvMasterLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Mastering: 0%" android:textStyle="bold" android:layout_marginTop="8dp"/>
+                <SeekBar android:id="@+id/seekMaster" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="100" android:progress="0"/>
+                
+                <TextView android:id="@+id/tvLimiterLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Limiter: 0%" android:textStyle="bold"/>
+                <SeekBar android:id="@+id/seekLimiter" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="100" android:progress="0"/>
             </LinearLayout>
 
-            <!-- KONTEN 4: METADATA -->
-            <LinearLayout android:id="@+id/layoutTabMetadata" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
-                <EditText android:id="@+id/etTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Judul Lagu" />
-                <EditText android:id="@+id/etArtist" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Artis / Penyanyi" />
-                <EditText android:id="@+id/etAlbum" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Nama Album" />
-                <EditText android:id="@+id/etGenre" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Genre (Pop, Rock, dll)" />
-                <EditText android:id="@+id/etComposer" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Komposer / Pencipta" />
-                <EditText android:id="@+id/etYear" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Tahun Rilis" android:inputType="number" />
-                <EditText android:id="@+id/etTrack" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Nomor Lagu (Track)" android:inputType="number" />
+            <!-- TAB 5: STEREO & EFEK -->
+            <LinearLayout android:id="@+id/layoutTabStereo" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+                <TextView android:id="@+id/tvPanningLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Panning (Kiri/Kanan): 0" android:textStyle="bold"/>
+                <SeekBar android:id="@+id/seekPanning" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="200" android:progress="100" android:layout_marginBottom="16dp"/>
+                
+                <TextView android:id="@+id/tvStereoLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Stereo Width (Pelebaran): 0%" android:textStyle="bold"/>
+                <SeekBar android:id="@+id/seekStereo" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="200" android:progress="0" android:layout_marginBottom="16dp"/>
+                
+                <TextView android:id="@+id/tvEchoLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Echo / Reverb: 0%" android:textStyle="bold"/>
+                <SeekBar android:id="@+id/seekEcho" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="100" android:progress="0"/>
             </LinearLayout>
+
         </LinearLayout>
     </ScrollView>
 
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="16dp">
-        <com.google.android.material.button.MaterialButton android:id="@+id/btnProcess" android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="16dp" android:text="Proses &amp; Simpan Audio"/>
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnProcess"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="16dp"
+            android:text="Proses &amp; Simpan Audio"/>
     </LinearLayout>
-    <TextView android:id="@+id/tvProgress" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="16dp" android:gravity="center" android:textColor="#4CAF50"/>
+    
+    <TextView
+        android:id="@+id/tvProgress"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:gravity="center"
+        android:textColor="#4CAF50"/>
 </LinearLayout>
