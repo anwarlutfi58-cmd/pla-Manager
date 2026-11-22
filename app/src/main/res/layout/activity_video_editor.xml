@@ -131,7 +131,7 @@
                 </LinearLayout>
 
                 <LinearLayout android:id="@+id/toolDuration" android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center" android:paddingHorizontal="16dp">
-                    <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_refresh" app:tint="#FFFFFF"/>
+                    <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_sort" app:tint="#FFFFFF"/>
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Durasi" android:textColor="#FFFFFF" android:textSize="11sp" android:layout_marginTop="4dp"/>
                 </LinearLayout>
 
@@ -152,7 +152,7 @@
 
                 <!-- Tombol Putar Layar (Landscape/Portrait) -->
                 <LinearLayout android:id="@+id/toolRotateScreen" android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center" android:paddingHorizontal="16dp">
-                    <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_refresh" app:tint="#FFFFFF"/>
+                    <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_more" app:tint="#FFFFFF"/>
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Putar" android:textColor="#FFFFFF" android:textSize="11sp" android:layout_marginTop="4dp"/>
                 </LinearLayout>
 
