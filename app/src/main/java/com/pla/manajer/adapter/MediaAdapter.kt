@@ -24,10 +24,11 @@ data class MediaItem(
 class MediaAdapter(
     private val onOpen: (MediaItem) -> Unit,
     private val onLong: (MediaItem) -> Unit,
-    private val onSelectToggle: (MediaItem) -> Unit
+    private val onSelectToggle: (MediaItem) -> Unit,
+    private val onMoreOptions: (MediaItem) -> Unit = {}
 ) : RecyclerView.Adapter<MediaAdapter.VH>() {
     private var items: List<MediaItem> = emptyList()
-    
+
     var isSelectionMode = false
     val selectedFiles = mutableSetOf<MediaItem>()
 
@@ -44,12 +45,11 @@ class MediaAdapter(
     override fun onBindViewHolder(h: VH, position: Int) {
         val item = items[position]
         h.b.tvName.text = item.name
-        
-        // --- MENAMPILKAN UKURAN & TANGGAL JAM ---
+
         val sdf = SimpleDateFormat("dd MMM yyyy HH.mm", Locale.getDefault())
         val dateString = sdf.format(Date(item.dateModified))
         h.b.tvMeta.text = "${FileUtils.humanSize(item.size)} • $dateString"
-        
+
         val iconRes = when {
             item.mimeType.startsWith("audio") -> R.drawable.ic_music_note
             item.mimeType.startsWith("video") -> R.drawable.ic_video
@@ -57,25 +57,16 @@ class MediaAdapter(
             else -> R.drawable.ic_file
         }
         h.b.ivIcon.setImageResource(iconRes)
-        
+
         h.b.cbSelect.isChecked = selectedFiles.contains(item)
 
-        // --- PERBAIKAN KLIK CHECKBOX & LIST ---
-        // Jika yang diklik adalah kotak centang secara langsung
-        h.b.cbSelect.setOnClickListener {
-            onSelectToggle(item)
+        h.b.cbSelect.setOnClickListener { onSelectToggle(item) }
+        h.b.btnMore.setOnClickListener { onMoreOptions(item) }
+
+        h.b.root.setOnClickListener {
+            if (isSelectionMode) onSelectToggle(item) else onOpen(item)
         }
 
-        // Jika yang diklik adalah area baris (teks/ikon)
-        h.b.root.setOnClickListener { 
-            if (isSelectionMode) {
-                onSelectToggle(item) 
-            } else {
-                onOpen(item) 
-            }
-        }
-        
-        // Tekan lama untuk masuk mode pilih
         h.b.root.setOnLongClickListener {
             if (!isSelectionMode) onLong(item)
             true
