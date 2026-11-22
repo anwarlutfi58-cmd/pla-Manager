@@ -37,9 +37,20 @@ class FileManagerActivity : AppCompatActivity() {
     private lateinit var adapter: FileAdapter
     private lateinit var currentDir: File
     private lateinit var prefs: Prefs
-    private var clipboard: File? = null
-    private var isCut = false
     private var allFiles: List<File> = emptyList()
+
+    // Clipboard dibagi bersama supaya tidak hilang saat pindah activity / pindah folder SD
+    companion object {
+        private var sharedClipboard: File? = null
+        private var sharedIsCut = false
+    }
+
+    private var clipboard: File?
+        get() = sharedClipboard
+        set(v) { sharedClipboard = v }
+    private var isCut: Boolean
+        get() = sharedIsCut
+        set(v) { sharedIsCut = v }
 
     private val allFilesPerm = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -62,11 +73,11 @@ class FileManagerActivity : AppCompatActivity() {
         val initialPath = intent.getStringExtra("initial_path") ?: prefs.lastPath
         currentDir = File(initialPath)
 
-        // PERBAIKAN: onMoreOptions dihapus karena FileAdapter baru tidak punya parameter itu
         adapter = FileAdapter(
             onOpen = { f -> if (!adapter.isSelectionMode) open(f) },
             onLong = { f -> enableSelectionMode(f) },
-            onSelectToggle = { f -> toggleSelection(f) }
+            onSelectToggle = { f -> toggleSelection(f) },
+            onMoreOptions = { f -> showContextMenu(f) }
         )
 
         b.recycler.layoutManager = LinearLayoutManager(this)
@@ -151,14 +162,18 @@ class FileManagerActivity : AppCompatActivity() {
         ensurePermission()
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Pastikan tombol Tempel muncul kalau clipboard masih ada
+        if (clipboard != null) b.fabPaste.show() else b.fabPaste.hide()
+    }
+
     private fun showMultiSelectMenu() {
         val options = arrayOf("Bagikan File Terpilih")
         AlertDialog.Builder(this)
             .setTitle("Aksi Lainnya (${adapter.selectedFiles.size} file)")
             .setItems(options) { _, which ->
-                if (which == 0) {
-                    toast("Fitur bagikan banyak file akan segera hadir")
-                }
+                if (which == 0) toast("Fitur bagikan banyak file akan segera hadir")
             }.show()
     }
 
@@ -177,27 +192,15 @@ class FileManagerActivity : AppCompatActivity() {
         AlertDialog.Builder(this)
             .setTitle(f.name)
             .setItems(options.toTypedArray()) { _, which ->
-                val selected = options[which]
-                when (selected) {
-                    "Edit Audio" -> {
-                        val intent = Intent(this, AudioEditorActivity::class.java)
-                        intent.putExtra("file_path", f.absolutePath)
-                        startActivity(intent)
-                    }
-                    "Edit Gambar" -> {
-                        val intent = Intent(this, ImageEditorActivity::class.java)
-                        intent.putExtra("file_path", f.absolutePath)
-                        startActivity(intent)
-                    }
-                    "Edit Video" -> {
-                        val intent = Intent(this, VideoEditorActivity::class.java)
-                        startActivity(intent)
-                    }
+                when (val selected = options[which]) {
+                    "Edit Audio" -> startActivity(Intent(this, AudioEditorActivity::class.java).putExtra("file_path", f.absolutePath))
+                    "Edit Gambar" -> startActivity(Intent(this, ImageEditorActivity::class.java).putExtra("file_path", f.absolutePath))
+                    "Edit Video" -> startActivity(Intent(this, VideoEditorActivity::class.java))
                     "Buka" -> open(f)
                     "Bagikan" -> shareFile(f)
                     "Ganti Nama" -> renameDialog(f)
-                    "Salin" -> { clipboard = f; isCut = false; toast("Disalin: ${f.name}"); b.fabPaste.show() }
-                    "Pindah" -> { clipboard = f; isCut = true; toast("Siap pindah: ${f.name}"); b.fabPaste.show() }
+                    "Salin" -> { clipboard = f; isCut = false; b.fabPaste.show(); toast("Disalin: ${f.name}") }
+                    "Pindah" -> { clipboard = f; isCut = true; b.fabPaste.show(); toast("Siap pindah: ${f.name}") }
                     "Hapus" -> deleteMultipleFiles(listOf(f))
                     "Kompres (ZIP)" -> zipFile(f)
                     "Ekstrak (ZIP)" -> unzipFile(f)
@@ -251,11 +254,7 @@ class FileManagerActivity : AppCompatActivity() {
     }
 
     private fun updateSelectionUi() {
-        if (adapter.selectedFiles.isEmpty()) {
-            b.selectionToolbar.visibility = View.GONE
-        } else {
-            b.selectionToolbar.visibility = View.VISIBLE
-        }
+        b.selectionToolbar.visibility = if (adapter.selectedFiles.isEmpty()) View.GONE else View.VISIBLE
     }
 
     private fun deleteMultipleFiles(files: List<File>) {
@@ -313,10 +312,8 @@ class FileManagerActivity : AppCompatActivity() {
                 addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
             }
 
-            val resInfoList = packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
-            for (resolveInfo in resInfoList) {
-                val packageName = resolveInfo.activityInfo.packageName
-                grantUriPermission(packageName, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY).forEach {
+                grantUriPermission(it.activityInfo.packageName, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
 
             startActivity(Intent.createChooser(intent, "Buka dengan"))
@@ -340,17 +337,16 @@ class FileManagerActivity : AppCompatActivity() {
 
     private fun refreshList() {
         val query = b.etSearch.text?.toString()?.lowercase() ?: ""
-        val filtered: List<File> = if (query.isEmpty()) allFiles else allFiles.filter { it.name.lowercase().contains(query) }
+        val filtered = if (query.isEmpty()) allFiles else allFiles.filter { it.name.lowercase().contains(query) }
 
-        val mode = prefs.sortMode
-        val sortedList: List<File> = when (mode) {
-            0 -> filtered.sortedWith(compareBy<File>({ !it.isDirectory }, { it.name.lowercase() }))
+        val sortedList: List<File> = when (prefs.sortMode) {
+            0 -> filtered.sortedWith(compareBy({ !it.isDirectory }, { it.name.lowercase() }))
             1 -> filtered.sortedWith(compareBy<File>({ !it.isDirectory }, { it.name.lowercase() }).reversed())
             2 -> filtered.sortedBy { it.lastModified() }
             3 -> filtered.sortedByDescending { it.lastModified() }
             4 -> filtered.sortedBy { it.length() }
             5 -> filtered.sortedByDescending { it.length() }
-            else -> filtered.sortedWith(compareBy<File>({ !it.isDirectory }, { it.name.lowercase() }))
+            else -> filtered.sortedWith(compareBy({ !it.isDirectory }, { it.name.lowercase() }))
         }
         adapter.submit(sortedList)
     }
@@ -380,7 +376,6 @@ class FileManagerActivity : AppCompatActivity() {
         prefs.lastPath = dir.absolutePath
         b.tvPath.text = dir.absolutePath
 
-        // PERBAIKAN: Hitung persen memori terpakai
         try {
             val stat = StatFs(dir.absolutePath)
             val bytesAvailable = stat.blockSizeLong * stat.availableBlocksLong
@@ -447,15 +442,32 @@ class FileManagerActivity : AppCompatActivity() {
 
     private fun pasteHere() {
         val src = clipboard ?: run { toast("Clipboard kosong"); return }
-        lifecycleScope.launch {
-            withContext(Dispatchers.IO) {
-                val dst = File(currentDir, src.name)
-                if (isCut) FileUtils.move(src, dst) else FileUtils.copy(src, dst)
-            }
+        if (!src.exists()) {
             clipboard = null
+            isCut = false
             b.fabPaste.hide()
-            load(currentDir)
-            toast("Ditempel")
+            toast("File sumber sudah tidak ada")
+            return
+        }
+
+        lifecycleScope.launch {
+            try {
+                val dst = File(currentDir, src.name)
+                withContext(Dispatchers.IO) {
+                    if (isCut) FileUtils.move(src, dst) else FileUtils.copy(src, dst)
+                }
+                if (!dst.exists()) throw Exception("Gagal menulis ke ${currentDir.absolutePath}")
+
+                if (isCut) {
+                    clipboard = null
+                    isCut = false
+                    b.fabPaste.hide()
+                }
+                load(currentDir)
+                toast("Ditempel di: ${currentDir.name}")
+            } catch (e: Exception) {
+                toast("Gagal tempel: ${e.message ?: "Tidak bisa menulis ke folder ini"}")
+            }
         }
     }
 
