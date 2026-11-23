@@ -77,7 +77,7 @@ class FileManagerActivity : AppCompatActivity() {
         b.recycler.layoutManager = LinearLayoutManager(this)
         b.recycler.adapter = adapter
 
-        // Sembunyikan tombol-tombol yang tidak perlu secara default
+        // Sembunyikan tombol yang tidak perlu secara default
         b.btnSelectAllTop.visibility = View.GONE
         b.btnTopNew.visibility = View.GONE
         b.btnSort.visibility = View.GONE
@@ -86,15 +86,15 @@ class FileManagerActivity : AppCompatActivity() {
         b.btnTopUp.setOnClickListener { currentDir.parentFile?.let { load(it) } }
         b.fabPaste.setOnClickListener { pasteHere() }
 
-        b.btnDeleteSelected.setOnClickListener { 
+        b.btnDeleteSelected.setOnClickListener {
             val files = adapter.selectedFiles.toList()
             if (files.isNotEmpty()) showDeleteDialog(files)
         }
-        b.btnCopySelected.setOnClickListener { 
+        b.btnCopySelected.setOnClickListener {
             val f = adapter.selectedFiles.firstOrNull()
             if (f != null) showCopyMoveDialog(f, false); closeSelectionMode()
         }
-        b.btnMoveSelected.setOnClickListener { 
+        b.btnMoveSelected.setOnClickListener {
             val f = adapter.selectedFiles.firstOrNull()
             if (f != null) showCopyMoveDialog(f, true); closeSelectionMode()
         }
@@ -110,13 +110,23 @@ class FileManagerActivity : AppCompatActivity() {
         ensurePermission()
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (clipboard != null) b.fabPaste.show() else b.fabPaste.hide()
+    }
+
     private fun showDeleteDialog(files: List<File>) {
-        val cb = CheckBox(this).apply { text = "Pindahkan ke Sampah (uncheck = permanen)"; isChecked = true }
+        val cb = CheckBox(this).apply {
+            text = "Pindahkan ke Sampah (Hapus centang untuk hapus permanen)"
+            isChecked = true
+            setPadding(50, 20, 50, 20)
+        }
         AlertDialog.Builder(this)
             .setTitle("Hapus ${files.size} item?")
             .setView(cb)
             .setPositiveButton("Hapus") { _, _ ->
                 if (cb.isChecked) deleteToTrash(files) else deletePermanent(files)
+                closeSelectionMode()
             }.setNegativeButton("Batal", null).show()
     }
 
@@ -139,7 +149,9 @@ class FileManagerActivity : AppCompatActivity() {
     private fun deletePermanent(files: List<File>) {
         lifecycleScope.launch {
             notif.showFile("Menghapus", "Menghapus permanen...")
-            withContext(Dispatchers.IO) { files.forEach { if (it.isDirectory) it.deleteRecursively() else it.delete() } }
+            withContext(Dispatchers.IO) {
+                files.forEach { if (it.isDirectory) it.deleteRecursively() else it.delete() }
+            }
             load(currentDir); notif.showFile("Selesai", "Dihapus permanen")
         }
     }
@@ -162,8 +174,11 @@ class FileManagerActivity : AppCompatActivity() {
             notif.showFile(if (isMove) "Memindah" else "Menyalin", "${src.name} → ${dst.parentFile?.name}")
             try {
                 withContext(Dispatchers.IO) { if (isMove) FileUtils.move(src, dst) else FileUtils.copy(src, dst) }
+                if (!dst.exists()) throw Exception("Gagal menulis ke tujuan")
                 load(currentDir); notif.showFile("Selesai", "Berhasil")
-            } catch (e: Exception) { toast("Gagal: ${e.message}") }
+            } catch (e: Exception) {
+                toast("Gagal: ${e.message}")
+            }
         }
     }
 
@@ -190,22 +205,76 @@ class FileManagerActivity : AppCompatActivity() {
         }
     }
 
-    // ... (Sisa fungsi lain seperti open, share, refreshList, dll. di bawah ini)
-    // (Saya potong agar tidak kepanjangan, logika salin/pindah/hapus sudah diganti di atas)
-    
+    private fun showMultiSelectMenu() {
+        AlertDialog.Builder(this)
+            .setTitle("Aksi Lainnya (${adapter.selectedFiles.size} file)")
+            .setItems(arrayOf("Bagikan File Terpilih")) { _, which ->
+                if (which == 0) toast("Fitur bagikan banyak file akan segera hadir")
+            }.show()
+    }
+
+    private fun showContextMenu(f: File) {
+        val ext = f.extension.lowercase()
+        val options = mutableListOf("Buka", "Bagikan", "Ganti Nama", "Salin", "Pindah", "Hapus", "Kompres (ZIP)", "Ekstrak (ZIP)")
+        if (ext in listOf("mp3","wav","aac","m4a","ogg","flac","opus")) options.add(0, "Edit Audio")
+        else if (ext in listOf("jpg","jpeg","png","webp")) options.add(0, "Edit Gambar")
+        else if (ext in listOf("mp4","mkv","avi")) options.add(0, "Edit Video")
+
+        AlertDialog.Builder(this)
+            .setTitle(f.name)
+            .setItems(options.toTypedArray()) { _, which ->
+                when (val selected = options[which]) {
+                    "Edit Audio" -> startActivity(Intent(this, AudioEditorActivity::class.java).putExtra("file_path", f.absolutePath))
+                    "Edit Gambar" -> startActivity(Intent(this, ImageEditorActivity::class.java).putExtra("file_path", f.absolutePath))
+                    "Edit Video" -> startActivity(Intent(this, VideoEditorActivity::class.java))
+                    "Buka" -> open(f)
+                    "Bagikan" -> shareFile(f)
+                    "Ganti Nama" -> renameDialog(f)
+                    "Salin" -> { clipboard = f; isCut = false; b.fabPaste.show(); toast("Disalin: ${f.name}") }
+                    "Pindah" -> { clipboard = f; isCut = true; b.fabPaste.show(); toast("Siap pindah: ${f.name}") }
+                    "Hapus" -> showDeleteDialog(listOf(f))
+                    "Kompres (ZIP)" -> zipFile(f)
+                    "Ekstrak (ZIP)" -> unzipFile(f)
+                }
+                closeSelectionMode()
+            }.setNegativeButton("Tutup", null).show()
+    }
+
+    private fun shareFile(f: File) {
+        try {
+            val uri = FileProvider.getUriForFile(this, "$packageName.provider", f)
+            var mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(f.extension.lowercase()) ?: "*/*"
+            if (mime == "*/*" && f.extension.lowercase() == "apk") {
+                mime = "application/vnd.android.package-archive"
+            }
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = mime
+                putExtra(Intent.EXTRA_STREAM, uri)
+                clipData = ClipData.newRawUri("File", uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(Intent.createChooser(intent, "Bagikan File via"))
+        } catch (e: Exception) {
+            toast("Gagal membagikan: ${e.message}")
+        }
+    }
+
     private fun enableSelectionMode(f: File) {
         adapter.isSelectionMode = true; adapter.selectedFiles.add(f)
         adapter.notifyDataSetChanged(); updateSelectionUi()
     }
+
     private fun toggleSelection(f: File) {
         if (adapter.selectedFiles.contains(f)) adapter.selectedFiles.remove(f) else adapter.selectedFiles.add(f)
         adapter.isSelectionMode = adapter.selectedFiles.isNotEmpty()
         adapter.notifyDataSetChanged(); updateSelectionUi()
     }
+
     private fun closeSelectionMode() {
         adapter.isSelectionMode = false; adapter.selectedFiles.clear()
         adapter.notifyDataSetChanged(); updateSelectionUi()
     }
+
     private fun updateSelectionUi() {
         val active = adapter.selectedFiles.isNotEmpty()
         b.selectionToolbar.visibility = if (active) View.VISIBLE else View.GONE
@@ -214,14 +283,94 @@ class FileManagerActivity : AppCompatActivity() {
         b.btnSort.visibility = if (!active) View.VISIBLE else View.GONE
     }
 
+    private fun open(f: File) {
+        if (f.isDirectory) { closeSelectionMode(); load(f); return }
+        val ext = f.extension.lowercase()
+        val codeExts = listOf("kt","java","py","js","html","css","json","md","xml","gradle","kts","txt","properties","yml","yaml","cpp","c","h")
+        val audioExts = listOf("mp3","wav","aac","m4a","ogg","flac","opus")
+
+        when {
+            codeExts.contains(ext) -> startActivity(Intent(this, CodeEditorActivity::class.java).putExtra("path", f.absolutePath))
+            audioExts.contains(ext) -> {
+                val audioList = currentSortedFiles.filter { it.isFile && it.extension.lowercase() in audioExts }.map { it.absolutePath }
+                val intent = Intent(this, AudioPlayerActivity::class.java)
+                intent.putStringArrayListExtra("file_paths", ArrayList(audioList))
+                intent.putExtra("start_path", f.absolutePath)
+                intent.putExtra("index", 0)
+                startActivity(intent)
+            }
+            else -> openWith(f)
+        }
+    }
+
+    private fun openWith(f: File) {
+        try {
+            val uri = FileProvider.getUriForFile(this, "$packageName.provider", f)
+            var mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(f.extension.lowercase())
+            if (mime == null || mime == "*/*") {
+                mime = when (f.extension.lowercase()) {
+                    "mp4" -> "video/mp4"; "mkv" -> "video/x-matroska"
+                    "jpg","jpeg" -> "image/jpeg"; "png" -> "image/png"
+                    "apk" -> "application/vnd.android.package-archive"
+                    else -> "*/*"
+                }
+            }
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, mime)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+            }
+            packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY).forEach {
+                grantUriPermission(it.activityInfo.packageName, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(Intent.createChooser(intent, "Buka dengan"))
+        } catch (e: Exception) {
+            toast("Tidak ada aplikasi untuk membuka file ini")
+        }
+    }
+
+    private fun showSortDialog() {
+        val options = arrayOf("Nama (A-Z)","Nama (Z-A)","Tanggal (Terlama)","Tanggal (Terbaru)","Ukuran (Terkecil)","Ukuran (Terbesar)")
+        AlertDialog.Builder(this).setTitle("Sortir Berdasarkan")
+            .setSingleChoiceItems(options, prefs.sortMode) { dialog, which ->
+                prefs.sortMode = which; refreshList(); dialog.dismiss()
+            }.setNegativeButton("Batal", null).show()
+    }
+
     private fun refreshList() {
         val q = b.etSearch.text?.toString()?.lowercase() ?: ""
         val filtered = if (q.isEmpty()) allFiles else allFiles.filter { it.name.lowercase().contains(q) }
-        // KUNCI: Folder di atas (true), File di bawah (false). Lalu urutkan.
-        val sorted = filtered.sortedWith(compareBy<File> { !it.isDirectory }
-            .thenBy { it.name.lowercase() })
+        
+        // KUNCI: Folder selalu di atas (true), File di bawah (false). Lalu diurutkan sesuai sortMode.
+        val sorted = if (prefs.sortMode == 2 || prefs.sortMode == 4 || prefs.sortMode == 5) {
+            filtered.sortedWith(compareBy<File> { !it.isDirectory }.thenByDescending { if (prefs.sortMode == 2) it.lastModified() else it.length() })
+        } else if (prefs.sortMode == 3) {
+            filtered.sortedWith(compareBy<File> { !it.isDirectory }.thenBy { it.lastModified() })
+        } else {
+            filtered.sortedWith(compareBy<File> { !it.isDirectory }.thenBy { it.name.lowercase() })
+        }
+        
         currentSortedFiles = sorted
         adapter.submit(sorted)
+    }
+
+    private fun ensurePermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (!Environment.isExternalStorageManager()) {
+                try {
+                    val i = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
+                    i.data = Uri.parse("package:$packageName")
+                    allFilesPerm.launch(i)
+                } catch (_: Exception) {
+                    allFilesPerm.launch(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
+                }
+            } else load(currentDir)
+        } else {
+            val okRead = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
+            val okWrite = ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
+            if (okRead && okWrite) load(currentDir)
+            else legacyPerm.launch(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE))
+        }
     }
 
     private fun load(dir: File) {
@@ -240,13 +389,71 @@ class FileManagerActivity : AppCompatActivity() {
         }
     }
 
-    // Fungsi pendukung lain (toast, context menu, open, dll) tetap gunakan milik Anda
-    // (Bagian ini tidak saya ubah karena hanya fokus ke perbaikan di atas)
-    private fun open(f: File) { /* ... kode asli ... */ }
-    private fun showContextMenu(f: File) { /* ... kode asli ... */ }
-    private fun shareFile(f: File) { /* ... kode asli ... */ }
-    private fun showMultiSelectMenu() { /* ... kode asli ... */ }
-    private fun pasteHere() { /* ... kode asli ... */ }
-    private fun ensurePermission() { /* ... kode asli ... */ }
+    private fun showCreateDialog() {
+        val input = EditText(this).apply {
+            hint = "Nama folder / file.kt"
+            setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 14f)
+            val pad = (16 * resources.displayMetrics.density).toInt()
+            setPadding(pad, pad, pad, pad)
+        }
+        AlertDialog.Builder(this).setTitle("Buat Jalur / Berkas Baru").setView(input)
+            .setPositiveButton("Buat") { _, _ ->
+                val path = input.text.toString().trim()
+                if (path.isEmpty()) return@setPositiveButton
+                lifecycleScope.launch {
+                    withContext(Dispatchers.IO) { FileUtils.createSmartPath(currentDir, path) }
+                    load(currentDir); toast("Dibuat: $path")
+                }
+            }.setNegativeButton("Batal", null).show()
+    }
+
+    private fun renameDialog(f: File) {
+        val input = EditText(this).apply { setText(f.name) }
+        AlertDialog.Builder(this).setTitle("Ganti Nama").setView(input)
+            .setPositiveButton("OK") { _, _ ->
+                val newFile = File(f.parentFile, input.text.toString())
+                if (f.renameTo(newFile)) load(currentDir) else toast("Gagal rename")
+            }.setNegativeButton("Batal", null).show()
+    }
+
+    private fun zipFile(f: File) {
+        lifecycleScope.launch {
+            notif.showFile("Kompres ZIP", "Mengompres ${f.name}...")
+            val out = File(f.parentFile, f.name + ".zip")
+            withContext(Dispatchers.IO) { FileUtils.zip(f, out) }
+            load(currentDir); notif.showFile("Kompres selesai", "Berhasil: ${out.name}")
+        }
+    }
+
+    private fun unzipFile(f: File) {
+        if (!f.name.endsWith(".zip")) { toast("Bukan file ZIP"); return }
+        lifecycleScope.launch {
+            notif.showFile("Ekstrak ZIP", "Mengekstrak ${f.name}...")
+            val out = File(f.parentFile, f.nameWithoutExtension)
+            withContext(Dispatchers.IO) { FileUtils.unzip(f, out) }
+            load(currentDir); notif.showFile("Ekstrak selesai", "Berhasil ke folder: ${out.name}")
+        }
+    }
+
+    private fun pasteHere() {
+        val src = clipboard ?: run { toast("Clipboard kosong"); return }
+        if (!src.exists()) { clipboard = null; isCut = false; b.fabPaste.hide(); toast("File sumber sudah tidak ada"); return }
+        lifecycleScope.launch {
+            try {
+                val dst = File(currentDir, src.name)
+                notif.showFile(if (isCut) "Memindah" else "Menyalin", "${src.name} → ${currentDir.name}")
+                withContext(Dispatchers.IO) { if (isCut) FileUtils.move(src, dst) else FileUtils.copy(src, dst) }
+                if (!dst.exists()) throw Exception("Gagal menulis ke folder tujuan")
+                if (isCut) { clipboard = null; isCut = false; b.fabPaste.hide() }
+                load(currentDir)
+                notif.showFile(if (isCut) "Selesai dipindah" else "Selesai disalin", "${dst.name} → ${currentDir.name}")
+                toast("Ditempel di: ${currentDir.name}")
+            } catch (e: Exception) {
+                notif.showFile("Gagal", e.message ?: "Tidak bisa menulis ke folder ini")
+                toast("Gagal tempel: ${e.message ?: "Tidak bisa menulis ke folder ini"}")
+            }
+        }
+    }
+
     private fun toast(s: String) = Toast.makeText(this, s, Toast.LENGTH_SHORT).show()
 }
