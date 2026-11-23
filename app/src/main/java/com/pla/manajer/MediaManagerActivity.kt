@@ -3,27 +3,22 @@ package com.pla.manajer
 import android.app.AlertDialog
 import android.content.ClipData
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
-import android.provider.MediaStore
+import android.os.Environment
 import android.view.View
 import android.webkit.MimeTypeMap
-import android.widget.EditText
+import android.widget.CheckBox
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
-import androidx.core.content.pm.ShortcutInfoCompat
-import androidx.core.content.pm.ShortcutManagerCompat
-import androidx.core.graphics.drawable.IconCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.pla.manajer.adapter.MediaAdapter
-import com.pla.manajer.adapter.MediaFolder
-import com.pla.manajer.adapter.MediaFolderAdapter
-import com.pla.manajer.adapter.MediaItem
+import com.pla.manajer.adapter.FileAdapter
 import com.pla.manajer.databinding.ActivityMediaManagerBinding
-import com.pla.manajer.util.PlaMediaPlayer
+import com.pla.manajer.util.FileUtils
+import com.pla.manajer.util.NotificationHelper
+import com.pla.manajer.util.Prefs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -31,390 +26,271 @@ import java.io.File
 
 class MediaManagerActivity : AppCompatActivity() {
     private lateinit var b: ActivityMediaManagerBinding
+    private lateinit var adapter: FileAdapter
+    private lateinit var prefs: Prefs
+    private lateinit var notif: NotificationHelper
     private var mediaType: String = "AUDIO"
+    private var currentDir: File? = null
+    private var allFiles: List<File> = emptyList()
 
-    private lateinit var folderAdapter: MediaFolderAdapter
-    private lateinit var fileAdapter: MediaAdapter
-
-    private var currentFolderId: String? = null
-    private var currentFolders: List<MediaFolder> = emptyList()
-    private var currentFiles: List<MediaItem> = emptyList()
-    private var currentSortedFiles: List<MediaItem> = emptyList()
-    private var sortMode: Int = 2
+    private val audioExts = listOf("mp3", "wav", "aac", "m4a", "ogg", "flac", "opus")
+    private val videoExts = listOf("mp4", "mkv", "avi", "mov", "webm")
+    private val imageExts = listOf("jpg", "jpeg", "png", "webp", "gif", "bmp")
 
     override fun onCreate(s: Bundle?) {
         super.onCreate(s)
         b = ActivityMediaManagerBinding.inflate(layoutInflater)
         setContentView(b.root)
+        prefs = Prefs(this)
+        notif = NotificationHelper(this)
 
         mediaType = intent.getStringExtra("media_type") ?: "AUDIO"
-        currentFolderId = null
 
-        b.btnTopBack.setOnClickListener {
-            if (currentFolderId != null) {
-                currentFolderId = null
-                loadFolders()
-            } else finish()
-        }
-
-        b.btnSort.setOnClickListener { showSortDialog() }
-
-        folderAdapter = MediaFolderAdapter { folder ->
-            currentFolderId = folder.id
-            loadFiles(folder.id)
-        }
-
-        fileAdapter = MediaAdapter(
-            onOpen = { item ->
-                if (mediaType == "AUDIO") {
-                    val list = if (currentSortedFiles.isNotEmpty()) currentSortedFiles else currentFiles
-                    val intent = Intent(this, AudioPlayerActivity::class.java)
-                    intent.putStringArrayListExtra("file_paths", ArrayList(list.map { it.path }))
-                    intent.putExtra("start_path", item.path)
-                    intent.putExtra("index", 0)
-                    startActivity(intent)
-                    setupMiniPlayer(item)
-                } else {
-                    openMediaFile(item)
-                }
-            },
-            onLong = { item -> enableSelectionMode(item) },
-            onSelectToggle = { item -> toggleSelection(item) },
-            onMoreOptions = { item -> showMoreMenu(item) }
-        )
-
-        b.btnDeleteSelected.setOnClickListener { deleteSelectedFiles() }
-        b.btnCopySelected.setOnClickListener { Toast.makeText(this, "Disalin", Toast.LENGTH_SHORT).show(); closeSelectionMode() }
-        b.btnMoveSelected.setOnClickListener { Toast.makeText(this, "Dipindah", Toast.LENGTH_SHORT).show(); closeSelectionMode() }
-        b.btnRenameSelected.setOnClickListener {
-            val item = fileAdapter.selectedFiles.firstOrNull()
-            if (item != null) renameMediaFile(item)
-            closeSelectionMode()
-        }
-        b.btnMoreSelected.setOnClickListener {
-            val item = fileAdapter.selectedFiles.firstOrNull()
-            if (item != null) showMoreMenu(item)
-            closeSelectionMode()
+        adapter = FileAdapter(
+            onOpen = { f -> open(f) },
+            onLong = { f -> enableSelectionMode(f) },
+            onSelectToggle = { f -> toggleSelection(f) },
+            onMoreOptions = { f -> showMoreMenu(f) }
+        ).apply {
+            setDateTimeMode(prefs.getBoolean("showDateTime", false))
+            displayNames = mapOf(
+                Environment.getExternalStorageDirectory().absolutePath to "Memori Internal",
+                (getSdCard()?.absolutePath ?: "") to "Kartu SD"
+            )
         }
 
         b.recyclerMedia.layoutManager = LinearLayoutManager(this)
-        loadFolders()
+        b.recyclerMedia.adapter = adapter
+
+        b.btnTopBack.setOnClickListener { handleBack() }
+        b.selectionToolbar.visibility = View.GONE
+        b.miniPlayerLayout.visibility = View.GONE
+
+        b.btnDeleteSelected.setOnClickListener { deleteSelectedFiles() }
+        b.btnCopySelected.setOnClickListener {
+            val f = adapter.selectedFiles.firstOrNull()
+            if (f != null) showCopyMoveDialog(f, false)
+            closeSelectionMode()
+        }
+        b.btnMoveSelected.setOnClickListener {
+            val f = adapter.selectedFiles.firstOrNull()
+            if (f != null) showCopyMoveDialog(f, true)
+            closeSelectionMode()
+        }
+        b.btnRenameSelected.setOnClickListener {
+            adapter.selectedFiles.firstOrNull()?.let { renameDialog(it) }
+            closeSelectionMode()
+        }
+        b.btnMoreSelected.setOnClickListener {
+            adapter.selectedFiles.firstOrNull()?.let { showMoreMenu(it) }
+            closeSelectionMode()
+        }
+
+        loadRoots()
     }
 
-    private fun setupMiniPlayer(item: MediaItem) {
-        b.miniPlayerLayout.visibility = View.VISIBLE
-        b.tvMiniPlayerTitle.text = item.name
-        b.btnMiniPlay.setImageResource(R.drawable.ic_pause)
+    private fun loadRoots() {
+        currentDir = null
+        b.tvTitle.text = when(mediaType) {
+            "AUDIO" -> "Audio"; "VIDEO" -> "Video"; "IMAGE" -> "Gambar"; else -> "Media"
+        }
+        val roots = mutableListOf<File>()
+        roots.add(Environment.getExternalStorageDirectory())
+        getSdCard()?.let { roots.add(it) }
+        allFiles = roots
+        adapter.submit(roots)
+    }
 
-        b.btnMiniPlay.setOnClickListener {
-            if (PlaMediaPlayer.isPlaying) {
-                PlaMediaPlayer.pause()
-                b.btnMiniPlay.setImageResource(R.drawable.ic_play)
+    private fun loadDir(dir: File) {
+        currentDir = dir
+        b.tvTitle.text = dir.name
+        b.tvPath.text = getSimplePath(dir.absolutePath)
+
+        lifecycleScope.launch {
+            allFiles = withContext(Dispatchers.IO) {
+                val files = dir.listFiles() ?: return@withContext emptyList<File>()
+                val exts = when(mediaType) {
+                    "AUDIO" -> audioExts; "VIDEO" -> videoExts; "IMAGE" -> imageExts; else -> emptyList()
+                }
+                files.filter { it.isDirectory || (it.isFile && it.extension.lowercase() in exts) }
+                    .sortedWith(compareBy<File> { !it.isDirectory }.thenBy { it.name.lowercase() })
+            }
+            adapter.submit(allFiles)
+        }
+    }
+
+    private fun open(f: File) {
+        if (f.isDirectory) {
+            loadDir(f)
+        } else {
+            val ext = f.extension.lowercase()
+            if (ext in audioExts) {
+                val audioList = allFiles.filter { it.isFile && it.extension.lowercase() in audioExts }.map { it.absolutePath }
+                val intent = Intent(this, AudioPlayerActivity::class.java)
+                intent.putStringArrayListExtra("file_paths", ArrayList(audioList))
+                intent.putExtra("start_path", f.absolutePath)
+                startActivity(intent)
             } else {
-                PlaMediaPlayer.resume()
-                b.btnMiniPlay.setImageResource(R.drawable.ic_pause)
+                try {
+                    val uri = FileProvider.getUriForFile(this, "$packageName.provider", f)
+                    val mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext) ?: "*/*"
+                    val intent = Intent(Intent.ACTION_VIEW).apply {
+                        setDataAndType(uri, mime)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    startActivity(Intent.createChooser(intent, "Buka dengan"))
+                } catch (e: Exception) {
+                    Toast.makeText(this, "Gagal membuka file", Toast.LENGTH_SHORT).show()
+                }
             }
         }
-        b.btnMiniStop.setOnClickListener {
-            PlaMediaPlayer.stop()
-            b.miniPlayerLayout.visibility = View.GONE
+    }
+
+    private fun deleteSelectedFiles() {
+        val files = adapter.selectedFiles.toList()
+        if (files.isEmpty()) return
+        val cb = CheckBox(this).apply { text = "Pindah ke Sampah (Hapus centang = permanen)"; isChecked = true }
+        AlertDialog.Builder(this)
+            .setTitle("Hapus ${files.size} item?")
+            .setView(cb)
+            .setPositiveButton("Hapus") { _, _ ->
+                if (cb.isChecked) deleteToTrash(files) else deletePermanent(files)
+                closeSelectionMode()
+            }.setNegativeButton("Batal", null).show()
+    }
+
+    private fun deleteToTrash(files: List<File>) {
+        lifecycleScope.launch {
+            notif.showFile("Menghapus", "Memindah ke Sampah...")
+            val dao = (application as PlaApp).database.trashDao()
+            withContext(Dispatchers.IO) {
+                val trashDir = File(prefs.trashFolder).apply { mkdirs() }
+                files.forEach { f ->
+                    val target = File(trashDir, "${System.currentTimeMillis()}_${f.name}")
+                    FileUtils.move(f, target)
+                    dao.add(com.pla.manajer.data.TrashItem(originalPath = f.absolutePath, trashPath = target.absolutePath, name = f.name, isDir = f.isDirectory))
+                }
+            }
+            currentDir?.let { loadDir(it) } ?: loadRoots()
+            notif.showFile("Selesai", "Dipindah ke Sampah")
         }
     }
 
-    private fun showMoreMenu(item: MediaItem) {
-        val options = mutableListOf("Bagikan", "Tambahkan ke Layar Beranda", "Kompresikan")
+    private fun deletePermanent(files: List<File>) {
+        lifecycleScope.launch {
+            notif.showFile("Menghapus", "Menghapus permanen...")
+            withContext(Dispatchers.IO) { files.forEach { if (it.isDirectory) it.deleteRecursively() else it.delete() } }
+            currentDir?.let { loadDir(it) } ?: loadRoots()
+            notif.showFile("Selesai", "Dihapus permanen")
+        }
+    }
+
+    private fun showCopyMoveDialog(f: File, isMove: Boolean) {
+        val options = arrayOf("Memori Internal", "Kartu SD")
+        AlertDialog.Builder(this)
+            .setTitle(if (isMove) "Pindah ke..." else "Salin ke...")
+            .setItems(options) { _, which ->
+                val destRoot = if (which == 0) Environment.getExternalStorageDirectory() else getSdCard()
+                if (destRoot != null) performCopyMove(f, File(destRoot, f.name), isMove) else Toast.makeText(this, "Kartu SD tidak ditemukan", Toast.LENGTH_SHORT).show()
+            }.show()
+    }
+
+    private fun performCopyMove(src: File, dst: File, isMove: Boolean) {
+        lifecycleScope.launch {
+            notif.showFile(if (isMove) "Memindah" else "Menyalin", "${src.name} → ${dst.parentFile?.name}")
+            try {
+                withContext(Dispatchers.IO) { if (isMove) FileUtils.move(src, dst) else FileUtils.copy(src, dst) }
+                currentDir?.let { loadDir(it) } ?: loadRoots()
+                notif.showFile("Selesai", "Berhasil")
+            } catch (e: Exception) { Toast.makeText(this@MediaManagerActivity, "Gagal: ${e.message}", Toast.LENGTH_SHORT).show() }
+        }
+    }
+
+    private fun enableSelectionMode(f: File) {
+        adapter.isSelectionMode = true; adapter.selectedFiles.add(f)
+        adapter.notifyDataSetChanged(); b.selectionToolbar.visibility = View.VISIBLE
+    }
+
+    private fun toggleSelection(f: File) {
+        if (adapter.selectedFiles.contains(f)) adapter.selectedFiles.remove(f) else adapter.selectedFiles.add(f)
+        adapter.isSelectionMode = adapter.selectedFiles.isNotEmpty()
+        if (adapter.selectedFiles.isEmpty()) closeSelectionMode() else adapter.notifyDataSetChanged()
+    }
+
+    private fun closeSelectionMode() {
+        adapter.isSelectionMode = false; adapter.selectedFiles.clear()
+        adapter.notifyDataSetChanged(); b.selectionToolbar.visibility = View.GONE
+    }
+
+    private fun showMoreMenu(f: File) {
+        val options = mutableListOf("Bagikan", "Ganti Nama")
         if (mediaType == "AUDIO") options.add(0, "Edit Audio")
         if (mediaType == "IMAGE") options.add(0, "Edit Gambar")
 
         AlertDialog.Builder(this)
-            .setTitle(item.name)
+            .setTitle(f.name)
             .setItems(options.toTypedArray()) { _, which ->
                 when (options[which]) {
-                    "Edit Audio" -> startActivity(Intent(this, AudioEditorActivity::class.java).putExtra("file_path", item.path))
-                    "Edit Gambar" -> startActivity(Intent(this, ImageEditorActivity::class.java).putExtra("file_path", item.path))
-                    "Bagikan" -> shareFile(item)
-                    "Tambahkan ke Layar Beranda" -> addToHomeScreen(item)
+                    "Edit Audio" -> startActivity(Intent(this, AudioEditorActivity::class.java).putExtra("file_path", f.absolutePath))
+                    "Edit Gambar" -> startActivity(Intent(this, ImageEditorActivity::class.java).putExtra("file_path", f.absolutePath))
+                    "Bagikan" -> shareFile(f)
+                    "Ganti Nama" -> renameDialog(f)
                 }
             }.show()
     }
 
-    private fun shareFile(item: MediaItem) {
+    private fun shareFile(f: File) {
         try {
-            val file = File(item.path)
-            if (!file.exists()) { Toast.makeText(this, "File tidak ditemukan", Toast.LENGTH_SHORT).show(); return }
-            val uri = FileProvider.getUriForFile(this, "$packageName.provider", file)
-            var mime = item.mimeType
-            if (mime.isBlank() || mime == "*/*") {
-                mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(file.extension.lowercase()) ?: "*/*"
-            }
-            if (mime == "*/*") {
-                mime = when (file.extension.lowercase()) {
-                    "mp3" -> "audio/mpeg"; "wav" -> "audio/x-wav"; "ogg" -> "audio/ogg"
-                    "m4a" -> "audio/mp4"; "flac" -> "audio/flac"; "opus" -> "audio/opus"
-                    "mp4" -> "video/mp4"; "mkv" -> "video/x-matroska"
-                    "jpg","jpeg" -> "image/jpeg"; "png" -> "image/png"; "webp" -> "image/webp"
-                    "apk" -> "application/vnd.android.package-archive"
-                    "pdf" -> "application/pdf"; "zip" -> "application/zip"
-                    else -> "*/*"
-                }
-            }
+            val uri = FileProvider.getUriForFile(this, "$packageName.provider", f)
             val intent = Intent(Intent.ACTION_SEND).apply {
-                type = mime
+                type = MimeTypeMap.getSingleton().getMimeTypeFromExtension(f.extension) ?: "*/*"
                 putExtra(Intent.EXTRA_STREAM, uri)
-                clipData = ClipData.newRawUri("File", uri)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY).forEach {
-                grantUriPermission(it.activityInfo.packageName, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
             startActivity(Intent.createChooser(intent, "Bagikan via"))
-        } catch (e: Exception) {
-            Toast.makeText(this, "Gagal bagikan: ${e.message}", Toast.LENGTH_LONG).show()
-        }
+        } catch (e: Exception) { Toast.makeText(this, "Gagal", Toast.LENGTH_SHORT).show() }
     }
 
-    private fun addToHomeScreen(item: MediaItem) {
-        try {
-            val shortcut = ShortcutInfoCompat.Builder(this, item.path)
-                .setShortLabel(item.name).setLongLabel(item.name)
-                .setIcon(IconCompat.createWithResource(this, R.drawable.ic_file))
-                .setIntent(Intent(Intent.ACTION_VIEW).setData(Uri.parse("file://${item.path}")))
-                .build()
-            ShortcutManagerCompat.pushDynamicShortcut(this, shortcut)
-            Toast.makeText(this, "Shortcut ditambahkan", Toast.LENGTH_SHORT).show()
-        } catch (e: Exception) {
-            Toast.makeText(this, "Gagal membuat shortcut", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    private fun getContentUri(): Uri = when (mediaType) {
-        "AUDIO" -> MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
-        "VIDEO" -> MediaStore.Video.Media.EXTERNAL_CONTENT_URI
-        "IMAGE" -> MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-        else -> MediaStore.Files.getContentUri("external")
-    }
-
-    private fun loadFolders() {
-        b.recyclerMedia.adapter = folderAdapter
-        b.selectionToolbar.visibility = View.GONE
-        b.tvTitle.text = when(mediaType) {
-            "AUDIO" -> "Audio"; "VIDEO" -> "Video"; "IMAGE" -> "Gambar"; else -> "Media"
-        }
-
-        lifecycleScope.launch {
-            currentFolders = withContext(Dispatchers.IO) {
-                val result = mutableMapOf<String, MediaFolder>()
-                val contentUri = getContentUri()
-                val projection = arrayOf(
-                    MediaStore.MediaColumns.BUCKET_ID,
-                    MediaStore.MediaColumns.BUCKET_DISPLAY_NAME,
-                    MediaStore.MediaColumns._ID,
-                    MediaStore.MediaColumns.DATE_MODIFIED,
-                    MediaStore.MediaColumns.SIZE
-                )
-                val cursor = contentResolver.query(contentUri, projection, null, null, null)
-                cursor?.use {
-                    val bucketIdCol = it.getColumnIndexOrThrow(MediaStore.MediaColumns.BUCKET_ID)
-                    val bucketNameCol = it.getColumnIndexOrThrow(MediaStore.MediaColumns.BUCKET_DISPLAY_NAME)
-                    val idCol = it.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
-                    val dateCol = it.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_MODIFIED)
-                    val sizeCol = it.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)
-                    while (it.moveToNext()) {
-                        val bucketId = it.getString(bucketIdCol) ?: "unknown"
-                        val bucketName = it.getString(bucketNameCol) ?: "Lainnya"
-                        val id = it.getLong(idCol)
-                        val date = it.getLong(dateCol) * 1000
-                        val size = it.getLong(sizeCol)
-                        val uriString = Uri.withAppendedPath(contentUri, id.toString()).toString()
-                        if (result.containsKey(bucketId)) {
-                            val existing = result[bucketId]!!
-                            result[bucketId] = existing.copy(
-                                count = existing.count + 1,
-                                latestDate = maxOf(existing.latestDate, date),
-                                totalSize = existing.totalSize + size
-                            )
-                        } else {
-                            result[bucketId] = MediaFolder(bucketId, bucketName, uriString, 1, date, size)
-                        }
-                    }
-                }
-                result.values.toList()
-            }
-            applySort()
-        }
-    }
-
-    private fun loadFiles(bucketId: String) {
-        b.recyclerMedia.adapter = fileAdapter
-        b.tvTitle.text = "Memuat file..."
-
-        lifecycleScope.launch {
-            currentFiles = withContext(Dispatchers.IO) {
-                val result = mutableListOf<MediaItem>()
-                val contentUri = getContentUri()
-                val selection = "${MediaStore.MediaColumns.BUCKET_ID} = ?"
-                val selectionArgs = arrayOf(bucketId)
-                val projection = arrayOf(
-                    MediaStore.MediaColumns._ID,
-                    MediaStore.MediaColumns.DISPLAY_NAME,
-                    MediaStore.MediaColumns.DATA,
-                    MediaStore.MediaColumns.SIZE,
-                    MediaStore.MediaColumns.DATE_MODIFIED,
-                    MediaStore.MediaColumns.MIME_TYPE
-                )
-                val cursor = contentResolver.query(contentUri, projection, selection, selectionArgs, null)
-                cursor?.use {
-                    val idCol = it.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
-                    val nameCol = it.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME)
-                    val pathCol = it.getColumnIndexOrThrow(MediaStore.MediaColumns.DATA)
-                    val sizeCol = it.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)
-                    val dateCol = it.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_MODIFIED)
-                    val mimeCol = it.getColumnIndexOrThrow(MediaStore.MediaColumns.MIME_TYPE)
-                    while (it.moveToNext()) {
-                        val id = it.getLong(idCol)
-                        val name = it.getString(nameCol) ?: "Unknown"
-                        val path = it.getString(pathCol) ?: ""
-                        val size = it.getLong(sizeCol)
-                        val date = it.getLong(dateCol) * 1000
-                        val uriString = Uri.withAppendedPath(contentUri, id.toString()).toString()
-                        val mime = it.getString(mimeCol) ?: "*/*"
-                        if (path.isNotEmpty()) result.add(MediaItem(id, name, path, size, date, uriString, mime))
-                    }
-                }
-                result
-            }
-            if (currentFiles.isNotEmpty()) b.tvTitle.text = File(currentFiles[0].path).parentFile?.name ?: "File"
-            applySort()
-        }
-    }
-
-    private fun showSortDialog() {
-        val options = arrayOf("Nama (A-Z)", "Nama (Z-A)", "Tanggal (Terbaru)", "Tanggal (Terlama)", "Ukuran (Terbesar)", "Ukuran (Terkecil)")
-        AlertDialog.Builder(this)
-            .setTitle("Sortir Berdasarkan")
-            .setSingleChoiceItems(options, sortMode) { dialog, which ->
-                sortMode = which
-                applySort()
-                dialog.dismiss()
-            }.setNegativeButton("Batal", null).show()
-    }
-
-    private fun applySort() {
-        if (currentFolderId == null) {
-            val sortedFolders = when (sortMode) {
-                0 -> currentFolders.sortedBy { it.name.lowercase() }
-                1 -> currentFolders.sortedByDescending { it.name.lowercase() }
-                2 -> currentFolders.sortedByDescending { it.latestDate }
-                3 -> currentFolders.sortedBy { it.latestDate }
-                4 -> currentFolders.sortedByDescending { it.totalSize }
-                5 -> currentFolders.sortedBy { it.totalSize }
-                else -> currentFolders
-            }
-            folderAdapter.submit(sortedFolders)
-        } else {
-            val sortedFiles = when (sortMode) {
-                0 -> currentFiles.sortedBy { it.name.lowercase() }
-                1 -> currentFiles.sortedByDescending { it.name.lowercase() }
-                2 -> currentFiles.sortedByDescending { it.dateModified }
-                3 -> currentFiles.sortedBy { it.dateModified }
-                4 -> currentFiles.sortedByDescending { it.size }
-                5 -> currentFiles.sortedBy { it.size }
-                else -> currentFiles
-            }
-            currentSortedFiles = sortedFiles
-            fileAdapter.submit(sortedFiles)
-        }
-    }
-
-    private fun enableSelectionMode(item: MediaItem) {
-        fileAdapter.isSelectionMode = true
-        fileAdapter.selectedFiles.add(item)
-        fileAdapter.notifyDataSetChanged()
-        b.selectionToolbar.visibility = View.VISIBLE
-    }
-
-    private fun toggleSelection(item: MediaItem) {
-        if (fileAdapter.selectedFiles.contains(item)) fileAdapter.selectedFiles.remove(item)
-        else fileAdapter.selectedFiles.add(item)
-        fileAdapter.isSelectionMode = fileAdapter.selectedFiles.isNotEmpty()
-        if (fileAdapter.selectedFiles.isEmpty()) closeSelectionMode() else fileAdapter.notifyDataSetChanged()
-    }
-
-    private fun closeSelectionMode() {
-        fileAdapter.isSelectionMode = false
-        fileAdapter.selectedFiles.clear()
-        fileAdapter.notifyDataSetChanged()
-        b.selectionToolbar.visibility = View.GONE
-    }
-
-    private fun deleteSelectedFiles() {
-        val filesToDelete = fileAdapter.selectedFiles.toList()
-        if (filesToDelete.isEmpty()) return
-        AlertDialog.Builder(this)
-            .setTitle("Hapus ${filesToDelete.size} file?")
-            .setPositiveButton("Hapus") { _, _ ->
-                lifecycleScope.launch {
-                    withContext(Dispatchers.IO) {
-                        filesToDelete.forEach { item -> val file = File(item.path); if (file.exists()) file.delete() }
-                    }
-                    Toast.makeText(this@MediaManagerActivity, "Dihapus", Toast.LENGTH_SHORT).show()
-                    closeSelectionMode()
-                    loadFiles(currentFolderId ?: "")
-                }
-            }.setNegativeButton("Batal", null).show()
-    }
-
-    private fun renameMediaFile(item: MediaItem) {
-        val input = EditText(this).apply { setText(item.name) }
-        AlertDialog.Builder(this)
-            .setTitle("Ganti Nama").setView(input)
+    private fun renameDialog(f: File) {
+        val input = android.widget.EditText(this).apply { setText(f.name) }
+        AlertDialog.Builder(this).setTitle("Ganti Nama").setView(input)
             .setPositiveButton("OK") { _, _ ->
-                val newName = input.text.toString().trim()
-                val oldFile = File(item.path)
-                val newFile = File(oldFile.parentFile, newName)
-                if (oldFile.renameTo(newFile)) {
-                    Toast.makeText(this, "Berhasil diganti", Toast.LENGTH_SHORT).show()
-                    loadFiles(currentFolderId ?: "")
-                } else Toast.makeText(this, "Gagal ganti nama", Toast.LENGTH_SHORT).show()
+                val newFile = File(f.parentFile, input.text.toString())
+                if (f.renameTo(newFile)) currentDir?.let { loadDir(it) } else Toast.makeText(this, "Gagal rename", Toast.LENGTH_SHORT).show()
             }.setNegativeButton("Batal", null).show()
     }
 
-    private fun openMediaFile(mediaItem: MediaItem) {
-        try {
-            val uri = Uri.parse(mediaItem.uriString)
-            var mime = mediaItem.mimeType
-            if (mime == "*/*" || mime.isEmpty()) {
-                mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(File(mediaItem.path).extension.lowercase()) ?: "*/*"
-            }
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, mime)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-            }
-            val list = packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
-            for (ri in list) grantUriPermission(ri.activityInfo.packageName, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            startActivity(Intent.createChooser(intent, "Buka dengan"))
-        } catch (e: Exception) {
-            try {
-                val file = File(mediaItem.path)
-                val uri = FileProvider.getUriForFile(this, "$packageName.provider", file)
-                var mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(file.extension.lowercase()) ?: "*/*"
-                val intent = Intent(Intent.ACTION_VIEW).apply {
-                    setDataAndType(uri, mime)
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                }
-                val list = packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
-                for (ri in list) grantUriPermission(ri.activityInfo.packageName, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                startActivity(Intent.createChooser(intent, "Buka dengan"))
-            } catch (ex: Exception) {
-                Toast.makeText(this, "Gagal membuka file: ${ex.message}", Toast.LENGTH_SHORT).show()
-            }
+    private fun handleBack() {
+        if (currentDir != null) {
+            val parent = currentDir?.parentFile
+            val roots = listOfNotNull(Environment.getExternalStorageDirectory(), getSdCard())
+            if (parent != null && roots.contains(parent)) loadDir(parent) else loadRoots()
+        } else finish()
+    }
+
+    private fun getSdCard(): File? {
+        val dirs = getExternalFilesDirs(null)
+        if (dirs.size > 1 && dirs[1] != null) {
+            var sd = dirs[1]!!.absolutePath
+            val idx = sd.indexOf("/Android")
+            if (idx != -1) sd = sd.substring(0, idx)
+            return File(sd)
+        }
+        return null
+    }
+
+    private fun getSimplePath(path: String): String {
+        val internal = Environment.getExternalStorageDirectory().absolutePath
+        val sd = getSdCard()?.absolutePath
+        return when {
+            path == internal -> "Memori Internal"
+            sd != null && path == sd -> "Kartu SD"
+            path.startsWith(internal) -> "Memori Internal" + path.replaceFirst(internal, "")
+            sd != null && path.startsWith(sd) -> "Kartu SD" + path.replaceFirst(sd, "")
+            else -> path
         }
     }
 
     @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
-        if (currentFolderId != null) { currentFolderId = null; loadFolders() }
-        else super.onBackPressed()
-    }
+    override fun onBackPressed() { handleBack() }
 }
