@@ -2,33 +2,23 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- IZIN DASAR -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" tools:ignore="ScopedStorage" />
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" tools:ignore="ScopedStorage" />
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="QueryAllPackagesPermission" />
-    
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
-    
-    <!-- IZIN INTERNET -->
     <uses-permission android:name="android.permission.INTERNET" />
-
-    <!-- IZIN NOTIFIKASI (Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-
-    <!-- IZIN BLUETOOTH HEADSET (Android 12+ pakai CONNECT/SCAN, di bawahnya pakai BLUETOOTH biasa) -->
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" tools:targetApi="s" />
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
 
     <queries>
-        <intent>
-            <action android:name="android.intent.action.MAIN" />
-        </intent>
+        <intent><action android:name="android.intent.action.MAIN" /></intent>
     </queries>
 
     <application
@@ -59,19 +49,14 @@
         <activity android:name=".AppManagerActivity" />
         <activity android:name=".MediaManagerActivity" />
         <activity android:name=".CloudActivity" />
-
         <activity android:name=".AudioPlayerActivity" android:launchMode="singleTop" />
         <activity android:name=".AudioEditorActivity" />
         <activity android:name=".AudioMergeActivity" />
         <activity android:name=".AudioMixerActivity" />
-
         <activity android:name=".ImageEditorActivity" />
         <activity android:name=".CollageActivity" />
-
-        <activity 
-            android:name=".VideoEditorActivity" 
-            android:configChanges="orientation|screenSize|keyboardHidden" />
-
+        <activity android:name=".VideoEditorActivity" android:configChanges="orientation|screenSize|keyboardHidden" />
+        <activity android:name=".VideoAdvancedActivity" />
         <activity android:name=".GithubBuilderActivity" />
 
         <provider
