@@ -13,6 +13,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.tabs.TabLayout
 import com.pla.manajer.databinding.ActivityImageEditorBinding
+import com.pla.manajer.util.NotificationHelper
 import java.io.File
 import java.io.FileOutputStream
 
@@ -21,6 +22,7 @@ class ImageEditorActivity : AppCompatActivity() {
     private lateinit var originalBitmap: Bitmap
     private lateinit var mutableBitmap: Bitmap
     private lateinit var canvas: Canvas
+    private lateinit var notif: NotificationHelper
 
     private var isEraserMode = false
     private var lastX = 0f
@@ -30,6 +32,7 @@ class ImageEditorActivity : AppCompatActivity() {
         super.onCreate(s)
         b = ActivityImageEditorBinding.inflate(layoutInflater)
         setContentView(b.root)
+        notif = NotificationHelper(this)
 
         val path = intent.getStringExtra("file_path") ?: run { finish(); return }
         val file = File(path)
@@ -45,7 +48,6 @@ class ImageEditorActivity : AppCompatActivity() {
             return
         }
 
-        // --- 1. SETUP LOGIKA TAB ---
         b.tabLayoutImage.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab?) {
                 b.layoutTabUkuran.visibility = View.GONE
@@ -63,12 +65,11 @@ class ImageEditorActivity : AppCompatActivity() {
             override fun onTabReselected(tab: TabLayout.Tab?) {}
         })
 
-        // --- 2. SETUP SPINNER (UKURAN & PRESET) ---
         val sizes = arrayOf("14", "100", "500", "720", "1080", "1400", "2000", "4000", "6000")
         val sizeAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, sizes)
         b.spinnerWidth.adapter = sizeAdapter
         b.spinnerHeight.adapter = sizeAdapter
-        b.spinnerWidth.setSelection(5) // Default 1400
+        b.spinnerWidth.setSelection(5)
         b.spinnerHeight.setSelection(5)
 
         val presets = arrayOf("Bebas", "1:1 (Persegi)", "3:4 (Pas Foto)", "4:6 (Pas Foto)", "16:9 (Video)")
@@ -77,12 +78,10 @@ class ImageEditorActivity : AppCompatActivity() {
         val formats = arrayOf("JPG", "PNG", "WEBP")
         b.spinnerFormat.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, formats)
 
-        // --- 3. LOGIKA TOMBOL PUTAR & BALIK ---
         b.btnRotateLeft.setOnClickListener { rotateImage(-90f) }
         b.btnRotateRight.setOnClickListener { rotateImage(90f) }
         b.btnFlip.setOnClickListener { flipImage() }
 
-        // --- 4. LOGIKA TOMBOL TAMBAH TEKS & ERASER ---
         b.btnAddText.setOnClickListener {
             val text = b.etText.text.toString()
             if (text.isNotEmpty()) {
@@ -126,12 +125,7 @@ class ImageEditorActivity : AppCompatActivity() {
             true
         }
 
-        // --- 5. LOGIKA TERAPKAN EFEK (WARNA & UKURAN) ---
-        b.btnApplyEffects.setOnClickListener {
-            applyColorAndSizeEffects()
-        }
-
-        // --- 6. LOGIKA SIMPAN ---
+        b.btnApplyEffects.setOnClickListener { applyColorAndSizeEffects() }
         b.btnSaveImage.setOnClickListener { saveImageToGallery() }
     }
 
@@ -152,64 +146,66 @@ class ImageEditorActivity : AppCompatActivity() {
     }
 
     private fun applyColorAndSizeEffects() {
-        // 1. Terapkan Efek Warna (Brightness, Contrast, Saturation)
-        val brightness = b.seekBrightness.progress / 100f
-        val contrast = b.seekContrast.progress / 100f
-        val saturation = b.seekSaturation.progress / 100f
+        notif.showEdit("Menerapkan Efek", "Memproses gambar...")
 
-        val colorMatrix = ColorMatrix()
-        colorMatrix.setSaturation(saturation)
+        try {
+            val brightness = b.seekBrightness.progress / 100f
+            val contrast = b.seekContrast.progress / 100f
+            val saturation = b.seekSaturation.progress / 100f
 
-        val scale = brightness * contrast
-        val translate = (-0.5f * scale + 0.5f) * 255f
-        val brightnessMatrix = ColorMatrix(floatArrayOf(
-            scale, 0f, 0f, 0f, translate,
-            0f, scale, 0f, 0f, translate,
-            0f, 0f, scale, 0f, translate,
-            0f, 0f, 0f, 1f, 0f
-        ))
-        colorMatrix.postConcat(brightnessMatrix)
+            val colorMatrix = ColorMatrix()
+            colorMatrix.setSaturation(saturation)
 
-        val filteredBitmap = Bitmap.createBitmap(mutableBitmap.width, mutableBitmap.height, Bitmap.Config.ARGB_8888)
-        val filterCanvas = Canvas(filteredBitmap)
-        val paint = Paint()
-        paint.colorFilter = ColorMatrixColorFilter(colorMatrix)
-        filterCanvas.drawBitmap(mutableBitmap, 0f, 0f, paint)
+            val scale = brightness * contrast
+            val translate = (-0.5f * scale + 0.5f) * 255f
+            val brightnessMatrix = ColorMatrix(floatArrayOf(
+                scale, 0f, 0f, 0f, translate,
+                0f, scale, 0f, 0f, translate,
+                0f, 0f, scale, 0f, translate,
+                0f, 0f, 0f, 1f, 0f
+            ))
+            colorMatrix.postConcat(brightnessMatrix)
 
-        mutableBitmap = filteredBitmap
+            val filteredBitmap = Bitmap.createBitmap(mutableBitmap.width, mutableBitmap.height, Bitmap.Config.ARGB_8888)
+            val filterCanvas = Canvas(filteredBitmap)
+            val paint = Paint()
+            paint.colorFilter = ColorMatrixColorFilter(colorMatrix)
+            filterCanvas.drawBitmap(mutableBitmap, 0f, 0f, paint)
 
-        // 2. Terapkan Ukuran (Resize & Preset)
-        val w = b.spinnerWidth.selectedItem.toString().toInt()
-        val h = b.spinnerHeight.selectedItem.toString().toInt()
+            mutableBitmap = filteredBitmap
 
-        var finalW = w
-        var finalH = h
-        when(b.spinnerPreset.selectedItemPosition) {
-            1 -> finalH = finalW // 1:1
-            2 -> finalH = (finalW * 4) / 3 // 3:4
-            3 -> finalH = (finalW * 6) / 4 // 4:6
-            4 -> finalH = (finalW * 9) / 16 // 16:9
+            val w = b.spinnerWidth.selectedItem.toString().toInt()
+            val h = b.spinnerHeight.selectedItem.toString().toInt()
+
+            var finalW = w
+            var finalH = h
+            when(b.spinnerPreset.selectedItemPosition) {
+                1 -> finalH = finalW
+                2 -> finalH = (finalW * 4) / 3
+                3 -> finalH = (finalW * 6) / 4
+                4 -> finalH = (finalW * 9) / 16
+            }
+
+            mutableBitmap = Bitmap.createScaledBitmap(mutableBitmap, finalW, finalH, true)
+            canvas = Canvas(mutableBitmap)
+            b.ivImage.setImageBitmap(mutableBitmap)
+            Toast.makeText(this, "Efek dan Ukuran Diterapkan!", Toast.LENGTH_SHORT).show()
+        } finally {
+            notif.hideEdit()
         }
-
-        mutableBitmap = Bitmap.createScaledBitmap(mutableBitmap, finalW, finalH, true)
-        canvas = Canvas(mutableBitmap)
-        b.ivImage.setImageBitmap(mutableBitmap)
-        Toast.makeText(this, "Efek dan Ukuran Diterapkan!", Toast.LENGTH_SHORT).show()
     }
 
     private fun saveImageToGallery() {
+        notif.showEdit("Menyimpan Gambar", "Menulis ke PlaProjects/Edit_Gambar...")
         try {
             val format = b.spinnerFormat.selectedItem.toString()
             val fileName = "EDIT_${System.currentTimeMillis()}.${format.lowercase()}"
 
-            // PERBAIKAN: Simpan ke folder PlaProjects/Edit_Gambar di memori internal
             val dir = File(Environment.getExternalStorageDirectory(), "PlaProjects/Edit_Gambar")
             if (!dir.exists()) dir.mkdirs()
             val file = File(dir, fileName)
 
             val outputStream = FileOutputStream(file)
-
-            // Kompresi (Kualitas 100 atau 50 jika dicentang)
             val quality = if (b.cbCompress.isChecked) 50 else 100
 
             val compressFormat = when(format) {
@@ -222,7 +218,6 @@ class ImageEditorActivity : AppCompatActivity() {
             outputStream.flush()
             outputStream.close()
 
-            // PERBAIKAN: Daftarkan ke MediaStore agar muncul di galeri & File Manager
             val values = ContentValues().apply {
                 put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
                 put(MediaStore.Images.Media.MIME_TYPE, "image/${format.lowercase()}")
@@ -238,6 +233,13 @@ class ImageEditorActivity : AppCompatActivity() {
             finish()
         } catch (e: Exception) {
             Toast.makeText(this, "Gagal menyimpan: ${e.message}", Toast.LENGTH_LONG).show()
+        } finally {
+            notif.hideEdit()
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        notif.hideEdit()
     }
 }
