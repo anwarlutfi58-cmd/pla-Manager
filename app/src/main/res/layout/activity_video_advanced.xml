@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?android:attr/colorBackground"
+    android:orientation="vertical">
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:gravity="center_vertical" android:padding="12dp">
+        <ImageButton android:id="@+id/btnBack" android:layout_width="40dp" android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless" android:src="@drawable/ic_back"/>
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+            android:layout_marginStart="8dp" android:text="Video Advanced"
+            android:textSize="18sp" android:textStyle="bold"/>
+    </LinearLayout>
+
+    <com.google.android.material.tabs.TabLayout android:id="@+id/tabLayout"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        app:tabMode="scrollable">
+        <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Transisi"/>
+        <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Teks"/>
+        <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Audio"/>
+        <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Export"/>
+    </com.google.android.material.tabs.TabLayout>
+
+    <ScrollView android:layout_width="match_parent" android:layout_height="0dp"
+        android:layout_weight="1" android:padding="16dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- ============ PANEL TRANSISI ============ -->
+            <LinearLayout android:id="@+id/panelTransisi" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:orientation="vertical" android:visibility="visible">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Jenis Transisi:" android:textStyle="bold"/>
+                <Spinner android:id="@+id/spinnerTransisi" android:layout_width="match_parent" android:layout_height="40dp"/>
+                <TextView android:id="@+id/tvTransisiDurasi" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Durasi Transisi: 0.5 detik" android:layout_marginTop="8dp"/>
+                <SeekBar android:id="@+id/seekTransisiDurasi" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="30" android:progress="5"/>
+                <CheckBox android:id="@+id/cbKenBurns" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="Ken Burns Effect (zoom halus)"/>
+                <TextView android:id="@+id/tvKenBurns" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Intensitas Ken Burns: 30%"/>
+                <SeekBar android:id="@+id/seekKenBurns" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="100" android:progress="30"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="Durasi per gambar (detik):" android:textStyle="bold"/>
+                <EditText android:id="@+id/etDurasiGambar" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="numberDecimal" android:text="3"/>
+                <CheckBox android:id="@+id/cbUseBpm" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="Gunakan BPM untuk durasi (2 ketukan/gambar)"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="BPM (input manual, tidak deteksi otomatis):"/>
+                <EditText android:id="@+id/etBpm" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="number" android:text="120"/>
+            </LinearLayout>
+
+            <!-- ============ PANEL TEKS ============ -->
+            <LinearLayout android:id="@+id/panelTeks" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+                <CheckBox android:id="@+id/cbTeksJudul" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Tambah Judul"/>
+                <EditText android:id="@+id/etTeksJudul" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Judul video"/>
+                <CheckBox android:id="@+id/cbTeksAnimasi" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Animasi teks masuk/keluar"/>
+                <CheckBox android:id="@+id/cbSubtitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="Subtitle (1 baris per gambar)"/>
+                <EditText android:id="@+id/etSubtitle" android:layout_width="match_parent" android:layout_height="100dp" android:gravity="top" android:hint="Baris 1&#10;Baris 2&#10;Baris 3" android:inputType="textMultiLine"/>
+                <CheckBox android:id="@+id/cbSticker" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="Sticker / Emoji"/>
+                <EditText android:id="@+id/etSticker" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="🎬 ✨ 🔥"/>
+                <CheckBox android:id="@+id/cbWatermark" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="Watermark (teks kecil)"/>
+                <EditText android:id="@+id/etWatermark" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="© Nama Saya"/>
+                <CheckBox android:id="@+id/cbMarquee" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="Marquee (teks berjalan)"/>
+                <EditText android:id="@+id/etMarquee" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Teks berjalan di bawah"/>
+            </LinearLayout>
+
+            <!-- ============ PANEL AUDIO ============ -->
+            <LinearLayout android:id="@+id/panelAudio" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+                <com.google.android.material.button.MaterialButton android:id="@+id/btnPickAudio" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Pilih Musik Latar"/>
+                <TextView android:id="@+id/tvAudioSelected" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="Belum dipilih"/>
+                <CheckBox android:id="@+id/cbDucking" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="Ducking (musik turun volume)"/>
+                <TextView android:id="@+id/tvDucking" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Intensitas Ducking: 30%"/>
+                <SeekBar android:id="@+id/seekDucking" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="100" android:progress="30"/>
+                <CheckBox android:id="@+id/cbNormalize" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="Normalisasi Volume (-14 LUFS)"/>
+            </LinearLayout>
+
+            <!-- ============ PANEL EXPORT ============ -->
+            <LinearLayout android:id="@+id/panelExport" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Preset Platform:" android:textStyle="bold"/>
+                <Spinner android:id="@+id/spinnerPreset" android:layout_width="match_parent" android:layout_height="40dp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="Resolusi:" android:textStyle="bold"/>
+                <Spinner android:id="@+id/spinnerResolusi" android:layout_width="match_parent" android:layout_height="40dp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="Bitrate Video:" android:textStyle="bold"/>
+                <Spinner android:id="@+id/spinnerBitrate" android:layout_width="match_parent" android:layout_height="40dp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="Codec:" android:textStyle="bold"/>
+                <Spinner android:id="@+id/spinnerCodec" android:layout_width="match_parent" android:layout_height="40dp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="FPS:" android:textStyle="bold"/>
+                <Spinner android:id="@+id/spinnerFps" android:layout_width="match_parent" android:layout_height="40dp"/>
+                <CheckBox android:id="@+id/cbExportSrt" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="Export subtitle .srt"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="Thumbnail waktu (mm:ss):" android:textStyle="bold"/>
+                <EditText android:id="@+id/etThumbnailWaktu" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="00:03" android:inputType="text"/>
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+
+    <TextView android:id="@+id/tvProgress" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:gravity="center" android:textColor="#4CAF50" android:padding="8dp"/>
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:padding="12dp">
+        <com.google.android.material.button.MaterialButton android:id="@+id/btnPickImages"
+            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Pilih Gambar"/>
+        <com.google.android.material.button.MaterialButton android:id="@+id/btnProses"
+            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="8dp" android:text="PROSES"/>
+    </LinearLayout>
+</LinearLayout>
