@@ -40,17 +40,15 @@ class AudioPlayerActivity : AppCompatActivity() {
     private var mediaSession: MediaSession? = null
 
     private val autoHideRunnable = Runnable {
-        if (!PlaMediaPlayer.isPlaying) {
-            notif.hidePlayer()
-        }
+        if (!PlaMediaPlayer.isPlaying) notif.hidePlayer()
     }
 
     private val actionReceiver = object : BroadcastReceiver() {
         override fun onReceive(ctx: Context?, intent: Intent?) {
             when (intent?.action) {
-                NotificationHelper.ACTION_PREV -> { playPrevSong() }
-                NotificationHelper.ACTION_PLAY_PAUSE -> { togglePlayPause() }
-                NotificationHelper.ACTION_NEXT -> { playNextSong() }
+                NotificationHelper.ACTION_PREV -> playPrevSong()
+                NotificationHelper.ACTION_PLAY_PAUSE -> togglePlayPause()
+                NotificationHelper.ACTION_NEXT -> playNextSong()
                 NotificationHelper.ACTION_CLOSE -> {
                     notif.hidePlayer()
                     PlaMediaPlayer.pause()
@@ -69,14 +67,20 @@ class AudioPlayerActivity : AppCompatActivity() {
         notif = NotificationHelper(this)
 
         filePaths = intent.getStringArrayListExtra("file_paths") ?: emptyList()
-        currentIndex = intent.getIntExtra("index", 0)
+
+        // ROTASI: lagu yang ditekan jadi nomor 1, sisanya menyusul
+        val startPath = intent.getStringExtra("start_path")
+        if (startPath != null && filePaths.isNotEmpty()) {
+            val i = filePaths.indexOf(startPath)
+            if (i > 0) filePaths = filePaths.drop(i) + filePaths.take(i)
+        }
+        currentIndex = 0
 
         requestNotifPermissionIfNeeded()
         registerActionReceiver()
         setupMediaSession()
 
         b.btnBack.setOnClickListener { finish() }
-
         b.btnPlayPause.setOnClickListener { togglePlayPause() }
         b.btnNext.setOnClickListener { playNextSong() }
         b.btnPrev.setOnClickListener { playPrevSong() }
@@ -116,14 +120,11 @@ class AudioPlayerActivity : AppCompatActivity() {
     private fun requestNotifPermissionIfNeeded() {
         if (Build.VERSION.SDK_INT >= 33 &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 100)
-        }
+        ) ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 100)
+
         if (Build.VERSION.SDK_INT >= 31 &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED
-        ) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.BLUETOOTH_CONNECT), 101)
-        }
+        ) ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.BLUETOOTH_CONNECT), 101)
     }
 
     private fun registerActionReceiver() {
@@ -164,32 +165,17 @@ class AudioPlayerActivity : AppCompatActivity() {
 
     private fun togglePlayPause() {
         if (PlaMediaPlayer.isPlaying) {
-            PlaMediaPlayer.pause()
-            updateTombolPutar(false)
-            updateSessionState(false)
-            notif.showPlayer(currentTitle(), false)
-            scheduleAutoHide()
+            PlaMediaPlayer.pause(); updateTombolPutar(false); updateSessionState(false)
+            notif.showPlayer(currentTitle(), false); scheduleAutoHide()
         } else {
-            PlaMediaPlayer.resume()
-            updateTombolPutar(true)
-            updateSessionState(true)
-            notif.showPlayer(currentTitle(), true)
-            cancelAutoHide()
+            PlaMediaPlayer.resume(); updateTombolPutar(true); updateSessionState(true)
+            notif.showPlayer(currentTitle(), true); cancelAutoHide()
         }
     }
 
-    private fun scheduleAutoHide() {
-        notif.scheduleHidePlayer(5 * 60 * 1000L, autoHideRunnable)
-    }
-
-    private fun cancelAutoHide() {
-        notif.cancelScheduledHide(autoHideRunnable)
-    }
-
-    private fun currentTitle(): String {
-        val f = PlaMediaPlayer.currentFile
-        return f?.name ?: "Musik"
-    }
+    private fun scheduleAutoHide() = notif.scheduleHidePlayer(5 * 60 * 1000L, autoHideRunnable)
+    private fun cancelAutoHide() = notif.cancelScheduledHide(autoHideRunnable)
+    private fun currentTitle(): String = PlaMediaPlayer.currentFile?.name ?: "Musik"
 
     private fun updateTombolPutar(isPlaying: Boolean) {
         if (isPlaying) {
@@ -227,6 +213,12 @@ class AudioPlayerActivity : AppCompatActivity() {
         playSong(currentIndex)
     }
 
+    private fun playNextSong() {
+        if (isShuffle) currentIndex = filePaths.indices.random()
+        else currentIndex = if (currentIndex < filePaths.size - 1) currentIndex + 1 else 0
+        playSong(currentIndex)
+    }
+
     private fun playSong(index: Int) {
         if (index !in filePaths.indices) return
         val file = File(filePaths[index])
@@ -235,29 +227,22 @@ class AudioPlayerActivity : AppCompatActivity() {
         b.tvCounter.text = "${index + 1} dari ${filePaths.size}"
 
         PlaMediaPlayer.play(file) {
-            updateTombolPutar(false)
-            updateSessionState(false)
-            notif.showPlayer(file.name, false)
-            scheduleAutoHide()
+            updateTombolPutar(false); updateSessionState(false)
+            notif.showPlayer(file.name, false); scheduleAutoHide()
 
             when (repeatMode) {
                 2 -> playSong(currentIndex)
                 1 -> playNextSong()
                 0 -> {
                     if (currentIndex < filePaths.size - 1) {
-                        currentIndex++
-                        playSong(currentIndex)
+                        currentIndex++; playSong(currentIndex)
                     }
                 }
             }
         }
 
-        updateTombolPutar(true)
-        updateSessionState(true)
-        updateSeekBar()
-
-        notif.showPlayer(file.name, true)
-        cancelAutoHide()
+        updateTombolPutar(true); updateSessionState(true); updateSeekBar()
+        notif.showPlayer(file.name, true); cancelAutoHide()
 
         val sessionId = PlaMediaPlayer.audioSessionId
         equalizer?.release()
@@ -265,12 +250,6 @@ class AudioPlayerActivity : AppCompatActivity() {
             enabled = true
             savedBandLevels.forEach { (band, level) -> setBandLevel(band, level) }
         }
-    }
-
-    private fun playNextSong() {
-        if (isShuffle) currentIndex = filePaths.indices.random()
-        else currentIndex = if (currentIndex < filePaths.size - 1) currentIndex + 1 else 0
-        playSong(currentIndex)
     }
 
     private fun shareCurrentSong() {
@@ -290,8 +269,7 @@ class AudioPlayerActivity : AppCompatActivity() {
 
     private fun showEqualizerDialog() {
         if (equalizer == null) {
-            Toast.makeText(this, "Tidak ada audio yang diputar", Toast.LENGTH_SHORT).show()
-            return
+            Toast.makeText(this, "Tidak ada audio yang diputar", Toast.LENGTH_SHORT).show(); return
         }
         val builder = AlertDialog.Builder(this)
         builder.setTitle("Efek Suara (Equalizer)")
