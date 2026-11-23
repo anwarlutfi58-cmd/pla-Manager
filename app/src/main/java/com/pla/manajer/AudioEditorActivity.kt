@@ -20,6 +20,7 @@ import com.arthenica.ffmpegkit.FFprobeKit
 import com.arthenica.ffmpegkit.ReturnCode
 import com.google.android.material.tabs.TabLayout
 import com.pla.manajer.databinding.ActivityAudioEditorBinding
+import com.pla.manajer.util.NotificationHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -28,8 +29,8 @@ import java.io.File
 class AudioEditorActivity : AppCompatActivity() {
     private lateinit var b: ActivityAudioEditorBinding
     private lateinit var inputFile: File
+    private lateinit var notif: NotificationHelper
 
-    // Format labels → internal
     private val formatLabels = arrayOf("MP3", "WAV", "AAC", "M4A", "FLAC (Lossless)", "AIFF (Lossless)", "WAV 24-bit", "MP3 VBR")
     private val formatIds = arrayOf("mp3", "wav", "aac", "m4a", "flac", "aiff", "wav24", "mp3vbr")
 
@@ -49,6 +50,7 @@ class AudioEditorActivity : AppCompatActivity() {
         super.onCreate(s)
         b = ActivityAudioEditorBinding.inflate(layoutInflater)
         setContentView(b.root)
+        notif = NotificationHelper(this)
 
         val path = intent.getStringExtra("file_path") ?: run { finish(); return }
         inputFile = File(path)
@@ -69,13 +71,9 @@ class AudioEditorActivity : AppCompatActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val session = FFprobeKit.getMediaInformation(inputFile.absolutePath)
-                val sr = session?.mediaInformation?.streams
-                    ?.firstOrNull { it.type == "audio" }
-                    ?.sampleRate
+                val sr = session?.mediaInformation?.streams?.firstOrNull { it.type == "audio" }?.sampleRate
                 if (!sr.isNullOrBlank()) sourceSampleRate = sr.toIntOrNull() ?: 44100
-            } catch (_: Exception) {
-                sourceSampleRate = 44100
-            }
+            } catch (_: Exception) { sourceSampleRate = 44100 }
         }
     }
 
@@ -93,12 +91,7 @@ class AudioEditorActivity : AppCompatActivity() {
     private fun setupTabs() {
         b.tabLayoutAudio.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab?) {
-                val layouts = listOf(
-                    b.layoutTabTrim, b.layoutTabFormat, b.layoutTabSpeed,
-                    b.layoutTabEq, b.layoutTabStereo,
-                    b.layoutTabLoudness, b.layoutTabDinamika,
-                    b.layoutTabResample, b.layoutTabStereoPro
-                )
+                val layouts = listOf(b.layoutTabTrim, b.layoutTabFormat, b.layoutTabSpeed, b.layoutTabEq, b.layoutTabStereo, b.layoutTabLoudness, b.layoutTabDinamika, b.layoutTabResample, b.layoutTabStereoPro)
                 layouts.forEach { it.visibility = View.GONE }
                 val i = tab?.position ?: 0
                 if (i in layouts.indices) layouts[i].visibility = View.VISIBLE
@@ -111,8 +104,7 @@ class AudioEditorActivity : AppCompatActivity() {
     private fun setupSliders() {
         b.seekTempo.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
-                b.tvTempoLabel.text = "Kecepatan: ${String.format("%.2f", (progress + 50) / 100f)}x"
-                dirtyPreview()
+                b.tvTempoLabel.text = "Kecepatan: ${String.format("%.2f", (progress + 50) / 100f)}x"; dirtyPreview()
             }
             override fun onStartTrackingTouch(sb: SeekBar?) {}
             override fun onStopTrackingTouch(sb: SeekBar?) {}
@@ -120,8 +112,7 @@ class AudioEditorActivity : AppCompatActivity() {
         b.seekPitch.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
                 val semis = (progress - 50) / 10f
-                b.tvPitchLabel.text = "Nada: ${if (semis > 0) "+" else ""}${String.format("%.1f", semis)} ${if (semis > 0) "(naik)" else if (semis < 0) "(turun)" else "(tetap)"}"
-                dirtyPreview()
+                b.tvPitchLabel.text = "Nada: ${if (semis > 0) "+" else ""}${String.format("%.1f", semis)} ${if (semis > 0) "(naik)" else if (semis < 0) "(turun)" else "(tetap)"}"; dirtyPreview()
             }
             override fun onStartTrackingTouch(sb: SeekBar?) {}
             override fun onStopTrackingTouch(sb: SeekBar?) {}
@@ -144,99 +135,67 @@ class AudioEditorActivity : AppCompatActivity() {
         b.seekPanning.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
                 val pan = progress - 100
-                b.tvPanningLabel.text = "Panning: ${if (pan == 0) "Tengah" else if (pan < 0) "Kiri ($pan)" else "Kanan ($pan)"}"
-                dirtyPreview()
+                b.tvPanningLabel.text = "Panning: ${if (pan == 0) "Tengah" else if (pan < 0) "Kiri ($pan)" else "Kanan ($pan)"}"; dirtyPreview()
             }
             override fun onStartTrackingTouch(sb: SeekBar?) {}
             override fun onStopTrackingTouch(sb: SeekBar?) {}
         })
         b.seekStereo.setOnSeekBarChangeListener(slider(b.tvStereoLabel, "Stereo Width: ", "%"))
 
-        // Tab Dinamika
         b.seekCompThreshold.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
-                val db = -60.0 + (progress / 100.0) * 60.0
-                b.tvCompThresholdLabel.text = "Threshold: ${String.format("%.0f", db)} dB"
-                dirtyPreview()
+                b.tvCompThresholdLabel.text = "Threshold: ${String.format("%.0f", -60.0 + (progress / 100.0) * 60.0)} dB"; dirtyPreview()
             }
             override fun onStartTrackingTouch(sb: SeekBar?) {}
             override fun onStopTrackingTouch(sb: SeekBar?) {}
         })
         b.seekCompRatio.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
-                b.tvCompRatioLabel.text = "Ratio: ${String.format("%.1f", 1 + progress / 100.0 * 9)}:1"
-                dirtyPreview()
+                b.tvCompRatioLabel.text = "Ratio: ${String.format("%.1f", 1 + progress / 100.0 * 9)}:1"; dirtyPreview()
             }
             override fun onStartTrackingTouch(sb: SeekBar?) {}
             override fun onStopTrackingTouch(sb: SeekBar?) {}
         })
         b.seekCompAttack.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
-                b.tvCompAttackLabel.text = "Attack: ${String.format("%.0f", 0.01 + progress / 100.0 * 199.99)} ms"
-                dirtyPreview()
+                b.tvCompAttackLabel.text = "Attack: ${String.format("%.0f", 0.01 + progress / 100.0 * 199.99)} ms"; dirtyPreview()
             }
             override fun onStartTrackingTouch(sb: SeekBar?) {}
             override fun onStopTrackingTouch(sb: SeekBar?) {}
         })
         b.seekCompRelease.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
-                b.tvCompReleaseLabel.text = "Release: ${String.format("%.0f", 10 + progress / 100.0 * 990)} ms"
-                dirtyPreview()
+                b.tvCompReleaseLabel.text = "Release: ${String.format("%.0f", 10 + progress / 100.0 * 990)} ms"; dirtyPreview()
             }
             override fun onStartTrackingTouch(sb: SeekBar?) {}
             override fun onStopTrackingTouch(sb: SeekBar?) {}
         })
         b.seekMbIntensity.setOnSeekBarChangeListener(slider(b.tvMbIntensityLabel, "Intensitas: ", "%"))
-
-        // Tab Stereo Pro
         b.seekEnhancerIntensity.setOnSeekBarChangeListener(slider(b.tvEnhancerIntensityLabel, "Intensitas Enhancer: ", "%"))
         b.seekWidenerMid.setOnSeekBarChangeListener(slider(b.tvWidenerMidLabel, "Mid Level: ", "%"))
         b.seekWidenerSide.setOnSeekBarChangeListener(slider(b.tvWidenerSideLabel, "Side Level: ", "%"))
 
-        // Checkbox listeners → invalidasi preview
         val cbL = View.OnClickListener { dirtyPreview() }
-        b.cbTabTrim.setOnClickListener(cbL)
-        b.cbTabFormat.setOnClickListener(cbL)
-        b.cbTabSpeed.setOnClickListener(cbL)
-        b.cbTabEq.setOnClickListener(cbL)
-        b.cbTabStereo.setOnClickListener(cbL)
-        b.cbTabLoudness.setOnClickListener(cbL)
-        b.cbTabDinamika.setOnClickListener(cbL)
-        b.cbTabResample.setOnClickListener(cbL)
-        b.cbTabStereoPro.setOnClickListener(cbL)
-        b.cbRemoveWatermark.setOnClickListener(cbL)
-        b.cbRemoveMetadata.setOnClickListener(cbL)
-        b.cbNormalizeLufs.setOnClickListener(cbL)
-        b.cbNormalizePeak.setOnClickListener(cbL)
-        b.cbAgc.setOnClickListener(cbL)
-        b.cbCompressor.setOnClickListener(cbL)
-        b.cbMultiband.setOnClickListener(cbL)
-        b.cbSoxResample.setOnClickListener(cbL)
-        b.cbStereoEnhancer.setOnClickListener(cbL)
-        b.cbStereoWidener.setOnClickListener(cbL)
+        b.cbTabTrim.setOnClickListener(cbL); b.cbTabFormat.setOnClickListener(cbL); b.cbTabSpeed.setOnClickListener(cbL)
+        b.cbTabEq.setOnClickListener(cbL); b.cbTabStereo.setOnClickListener(cbL); b.cbTabLoudness.setOnClickListener(cbL)
+        b.cbTabDinamika.setOnClickListener(cbL); b.cbTabResample.setOnClickListener(cbL); b.cbTabStereoPro.setOnClickListener(cbL)
+        b.cbRemoveWatermark.setOnClickListener(cbL); b.cbRemoveMetadata.setOnClickListener(cbL)
+        b.cbNormalizeLufs.setOnClickListener(cbL); b.cbNormalizePeak.setOnClickListener(cbL); b.cbAgc.setOnClickListener(cbL)
+        b.cbCompressor.setOnClickListener(cbL); b.cbMultiband.setOnClickListener(cbL); b.cbSoxResample.setOnClickListener(cbL)
+        b.cbStereoEnhancer.setOnClickListener(cbL); b.cbStereoWidener.setOnClickListener(cbL)
     }
 
-    private fun slider(label: android.widget.TextView, prefix: String, suffix: String): SeekBar.OnSeekBarChangeListener =
-        object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
-                label.text = "$prefix$progress$suffix"
-                dirtyPreview()
-            }
-            override fun onStartTrackingTouch(sb: SeekBar?) {}
-            override fun onStopTrackingTouch(sb: SeekBar?) {}
+    private fun slider(label: android.widget.TextView, prefix: String, suffix: String) = object : SeekBar.OnSeekBarChangeListener {
+        override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
+            label.text = "$prefix$progress$suffix"; dirtyPreview()
         }
+        override fun onStartTrackingTouch(sb: SeekBar?) {}
+        override fun onStopTrackingTouch(sb: SeekBar?) {}
+    }
 
     private fun setupTimePickers() {
-        b.btnPickStartTime.setOnClickListener {
-            showTimePicker("Waktu Mulai", startTime) {
-                startTime = it; b.btnPickStartTime.text = it; dirtyPreview()
-            }
-        }
-        b.btnPickEndTime.setOnClickListener {
-            showTimePicker("Waktu Selesai", endTime) {
-                endTime = it; b.btnPickEndTime.text = it; dirtyPreview()
-            }
-        }
+        b.btnPickStartTime.setOnClickListener { showTimePicker("Waktu Mulai", startTime) { startTime = it; b.btnPickStartTime.text = it; dirtyPreview() } }
+        b.btnPickEndTime.setOnClickListener { showTimePicker("Waktu Selesai", endTime) { endTime = it; b.btnPickEndTime.text = it; dirtyPreview() } }
     }
 
     private fun showTimePicker(title: String, currentTime: String, onSave: (String) -> Unit) {
@@ -257,8 +216,6 @@ class AudioEditorActivity : AppCompatActivity() {
                 onSave("$h:$m:$s")
             }.setNegativeButton("Batal", null).show()
     }
-
-    // ---------- FILTER ENGINE ----------
 
     private fun buildSimpleFilters(): List<String> {
         val f = mutableListOf<String>()
@@ -303,9 +260,7 @@ class AudioEditorActivity : AppCompatActivity() {
             }
         }
 
-        if (b.cbTabFormat.isChecked && b.cbRemoveWatermark.isChecked) {
-            f.add("lowpass=f=16000")
-        }
+        if (b.cbTabFormat.isChecked && b.cbRemoveWatermark.isChecked) f.add("lowpass=f=16000")
 
         if (b.cbTabLoudness.isChecked) {
             if (b.cbNormalizeLufs.isChecked) f.add("loudnorm=I=-14:TP=-1:LRA=11")
@@ -313,21 +268,18 @@ class AudioEditorActivity : AppCompatActivity() {
             if (b.cbAgc.isChecked) f.add("dynaudnorm=p=0.9:s=5:m=10")
         }
 
-        if (b.cbTabDinamika.isChecked) {
-            if (b.cbCompressor.isChecked) {
-                val db = -60.0 + (b.seekCompThreshold.progress / 100.0) * 60.0
-                val threshold = Math.pow(10.0, db / 20.0)
-                val ratio = 1.0 + (b.seekCompRatio.progress / 100.0) * 9.0
-                val attack = 0.01 + (b.seekCompAttack.progress / 100.0) * 199.99
-                val release = 10.0 + (b.seekCompRelease.progress / 100.0) * 990.0
-                f.add("acompressor=threshold=$threshold:ratio=$ratio:attack=$attack:release=$release")
-            }
+        if (b.cbTabDinamika.isChecked && b.cbCompressor.isChecked) {
+            val db = -60.0 + (b.seekCompThreshold.progress / 100.0) * 60.0
+            val threshold = Math.pow(10.0, db / 20.0)
+            val ratio = 1.0 + (b.seekCompRatio.progress / 100.0) * 9.0
+            val attack = 0.01 + (b.seekCompAttack.progress / 100.0) * 199.99
+            val release = 10.0 + (b.seekCompRelease.progress / 100.0) * 990.0
+            f.add("acompressor=threshold=$threshold:ratio=$ratio:attack=$attack:release=$release")
         }
 
         if (b.cbTabResample.isChecked) {
             val sr = b.spinnerResampleRate.selectedItem.toString()
-            if (b.cbSoxResample.isChecked) f.add("aresample=resampler=soxr:osr=$sr")
-            else f.add("aresample=osr=$sr")
+            if (b.cbSoxResample.isChecked) f.add("aresample=resampler=soxr:osr=$sr") else f.add("aresample=osr=$sr")
         }
 
         if (b.cbTabStereoPro.isChecked) {
@@ -341,12 +293,10 @@ class AudioEditorActivity : AppCompatActivity() {
                 f.add("stereotools=mlev=$mid:slev=$side")
             }
         }
-
         return f
     }
 
-    private fun needMultiband(): Boolean =
-        b.cbTabDinamika.isChecked && b.cbMultiband.isChecked
+    private fun needMultiband() = b.cbTabDinamika.isChecked && b.cbMultiband.isChecked
 
     private fun buildMultibandFilterGraph(simple: List<String>): String {
         val intensity = b.seekMbIntensity.progress
@@ -360,76 +310,45 @@ class AudioEditorActivity : AppCompatActivity() {
             "[mb_lo2][mb_mi2][mb_hi2]amix=inputs=3[mb_out]"
     }
 
-    private fun hasAnyFilter(): Boolean = buildSimpleFilters().isNotEmpty() || needMultiband()
+    private fun hasAnyFilter() = buildSimpleFilters().isNotEmpty() || needMultiband()
 
-    // ---------- PREVIEW ----------
-
-    private fun dirtyPreview() {
-        previewFile?.delete()
-        previewFile = null
-    }
+    private fun dirtyPreview() { previewFile?.delete(); previewFile = null }
 
     private fun setPlayBtn(playing: Boolean) {
-        if (playing) {
-            b.btnPreviewAudio.text = "Jeda"
-            b.btnPreviewAudio.setIconResource(android.R.drawable.ic_media_pause)
-        } else {
-            b.btnPreviewAudio.text = "Putar"
-            b.btnPreviewAudio.setIconResource(android.R.drawable.ic_media_play)
-        }
+        if (playing) { b.btnPreviewAudio.text = "Jeda"; b.btnPreviewAudio.setIconResource(android.R.drawable.ic_media_pause) }
+        else { b.btnPreviewAudio.text = "Putar"; b.btnPreviewAudio.setIconResource(android.R.drawable.ic_media_play) }
         b.btnPreviewAudio.isEnabled = true
     }
 
     private fun onPreviewClick() {
-        if (isPlayingPreview) {
-            previewPlayer?.pause()
-            isPlayingPreview = false
-            setPlayBtn(false)
-            return
-        }
+        if (isPlayingPreview) { previewPlayer?.pause(); isPlayingPreview = false; setPlayBtn(false); return }
         if (isPreparingPreview) return
-
-        if (!hasAnyFilter()) {
-            previewFile?.delete(); previewFile = null
-            playFile(inputFile)
-        } else if (previewFile == null || !previewFile!!.exists()) {
-            buildPreview()
-        } else {
-            playFile(previewFile!!)
-        }
+        if (!hasAnyFilter()) { previewFile?.delete(); previewFile = null; playFile(inputFile) }
+        else if (previewFile == null || !previewFile!!.exists()) buildPreview()
+        else playFile(previewFile!!)
     }
 
     private fun buildPreview() {
         isPreparingPreview = true
         b.btnPreviewAudio.text = "Menyiapkan..."
         b.btnPreviewAudio.isEnabled = false
+        notif.showEdit("Menyiapkan Preview", inputFile.name)
 
         val outFile = File(cacheDir, "preview_${System.currentTimeMillis()}.m4a")
-        val simple = buildSimpleFilters()
-        val hasMb = needMultiband()
-
+        val simple = buildSimpleFilters(); val hasMb = needMultiband()
         val cmd = StringBuilder("-y ")
         if (b.cbTabTrim.isChecked && endTime != "00:00:00") cmd.append("-ss $startTime -to $endTime ")
         cmd.append("-i \"${inputFile.absolutePath}\" ")
-
-        if (hasMb) {
-            cmd.append("-filter_complex \"${buildMultibandFilterGraph(simple)}\" -map \"[mb_out]\" ")
-        } else if (simple.isNotEmpty()) {
-            cmd.append("-filter_complex \"[0:a]${simple.joinToString(",")}[out]\" -map \"[out]\" ")
-        }
-
+        if (hasMb) cmd.append("-filter_complex \"${buildMultibandFilterGraph(simple)}\" -map \"[mb_out]\" ")
+        else if (simple.isNotEmpty()) cmd.append("-filter_complex \"[0:a]${simple.joinToString(",")}[out]\" -map \"[out]\" ")
         cmd.append("-b:a 192k \"${outFile.absolutePath}\"")
 
         FFmpegKit.executeAsync(cmd.toString(), { session ->
             runOnUiThread {
                 isPreparingPreview = false
-                if (ReturnCode.isSuccess(session.returnCode)) {
-                    previewFile = outFile
-                    playFile(outFile)
-                } else {
-                    setPlayBtn(false)
-                    Toast.makeText(this, "Gagal menyiapkan preview", Toast.LENGTH_SHORT).show()
-                }
+                notif.hideEdit()
+                if (ReturnCode.isSuccess(session.returnCode)) { previewFile = outFile; playFile(outFile) }
+                else { setPlayBtn(false); Toast.makeText(this, "Gagal menyiapkan preview", Toast.LENGTH_SHORT).show() }
             }
         }, { }, { })
     }
@@ -438,21 +357,16 @@ class AudioEditorActivity : AppCompatActivity() {
         try {
             previewPlayer?.release()
             previewPlayer = MediaPlayer().apply {
-                setDataSource(f.absolutePath)
-                prepare()
+                setDataSource(f.absolutePath); prepare()
                 setOnCompletionListener { isPlayingPreview = false; setPlayBtn(false) }
                 start()
             }
-            isPlayingPreview = true
-            setPlayBtn(true)
+            isPlayingPreview = true; setPlayBtn(true)
         } catch (e: Exception) {
-            isPlayingPreview = false
-            setPlayBtn(false)
+            isPlayingPreview = false; setPlayBtn(false)
             Toast.makeText(this, "Gagal memutar: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
-
-    // ---------- MEASURE LOUDNESS ----------
 
     private fun measureLoudness() {
         b.tvLoudnessResult.text = "Mengukur..."
@@ -463,88 +377,61 @@ class AudioEditorActivity : AppCompatActivity() {
                 val i = Regex("I:\\s*(-?[\\d.]+)\\s*LUFS").findAll(logs).lastOrNull()?.groupValues?.get(1) ?: "?"
                 val lra = Regex("LRA:\\s*(-?[\\d.]+)\\s*LU").findAll(logs).lastOrNull()?.groupValues?.get(1) ?: "?"
                 val peak = Regex("Peak:\\s*(-?[\\d.]+)\\s*dBFS").findAll(logs).lastOrNull()?.groupValues?.get(1) ?: "?"
-                withContext(Dispatchers.Main) {
-                    b.tvLoudnessResult.text = "Loudness: $i LUFS\nLRA: $lra LU\nTrue Peak: $peak dBFS"
-                }
+                withContext(Dispatchers.Main) { b.tvLoudnessResult.text = "Loudness: $i LUFS\nLRA: $lra LU\nTrue Peak: $peak dBFS" }
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    b.tvLoudnessResult.text = "Gagal mengukur: ${e.message}"
-                }
+                withContext(Dispatchers.Main) { b.tvLoudnessResult.text = "Gagal mengukur: ${e.message}" }
             }
         }
     }
 
-    // ---------- PROCESS ----------
-
     private fun processAudio() {
-        previewPlayer?.release()
-        previewPlayer = null
-        isPlayingPreview = false
-        previewFile?.delete()
-        previewFile = null
+        previewPlayer?.release(); previewPlayer = null; isPlayingPreview = false
+        previewFile?.delete(); previewFile = null
 
         val idx = b.spinnerFormat.selectedItemPosition
         val fmt = formatIds[idx.coerceIn(0, formatIds.size - 1)]
         val ext = when (fmt) { "wav24" -> "wav"; "mp3vbr" -> "mp3"; else -> fmt }
-        val isRingtone = b.spinnerSaveAs.selectedItemPosition != 0
 
         val outDir = File(Environment.getExternalStorageDirectory(), "PlaProjects/Edit_Audio")
         if (!outDir.exists()) outDir.mkdirs()
         val outFile = File(outDir, "EDIT_${System.currentTimeMillis()}.${ext}")
 
-        val simple = buildSimpleFilters()
-        val hasMb = needMultiband()
-
+        val simple = buildSimpleFilters(); val hasMb = needMultiband()
         val cmd = StringBuilder("-y ")
         if (b.cbTabTrim.isChecked && endTime != "00:00:00") cmd.append("-ss $startTime -to $endTime ")
         cmd.append("-i \"${inputFile.absolutePath}\" ")
+        if (hasMb) cmd.append("-filter_complex \"${buildMultibandFilterGraph(simple)}\" -map \"[mb_out]\" ")
+        else if (simple.isNotEmpty()) cmd.append("-filter_complex \"[0:a]${simple.joinToString(",")}[out]\" -map \"[out]\" ")
 
-        if (hasMb) {
-            cmd.append("-filter_complex \"${buildMultibandFilterGraph(simple)}\" -map \"[mb_out]\" ")
-        } else if (simple.isNotEmpty()) {
-            cmd.append("-filter_complex \"[0:a]${simple.joinToString(",")}[out]\" -map \"[out]\" ")
-        }
-
-        // Codec & bit depth
         val bitDepth = b.spinnerBitDepth.selectedItem.toString()
         when (fmt) {
-            "flac" -> cmd.append("-c:a flac -compression_level 8 " +
-                if (bitDepth == "16-bit") "-sample_fmt s16 " else "-sample_fmt s32 ")
+            "flac" -> cmd.append("-c:a flac -compression_level 8 " + if (bitDepth == "16-bit") "-sample_fmt s16 " else "-sample_fmt s32 ")
             "wav" -> cmd.append("-c:a pcm_s16le ")
             "wav24" -> cmd.append("-c:a pcm_s24le ")
-            "aiff" -> cmd.append(
-                when (bitDepth) {
-                    "16-bit" -> "-c:a pcm_s16be "
-                    "32-bit" -> "-c:a pcm_s32be "
-                    else -> "-c:a pcm_s24be "
-                }
-            )
+            "aiff" -> cmd.append(when (bitDepth) { "16-bit" -> "-c:a pcm_s16be "; "32-bit" -> "-c:a pcm_s32be "; else -> "-c:a pcm_s24be " })
             "mp3vbr" -> cmd.append("-c:a libmp3lame -q:a 2 ")
             "mp3" -> cmd.append("-c:a libmp3lame -b:a ${b.spinnerBitrate.selectedItem} ")
             "aac" -> cmd.append("-c:a aac -b:a ${b.spinnerBitrate.selectedItem} ")
             "m4a" -> cmd.append("-c:a aac -b:a ${b.spinnerBitrate.selectedItem} ")
             else -> cmd.append("-b:a ${b.spinnerBitrate.selectedItem} ")
         }
-
         if (b.cbTabFormat.isChecked) {
-            if (fmt in listOf("mp3", "aac", "m4a", "mp3vbr")) {
-                cmd.append("-ar ${b.spinnerSampleRate.selectedItem} ")
-            }
+            if (fmt in listOf("mp3", "aac", "m4a", "mp3vbr")) cmd.append("-ar ${b.spinnerSampleRate.selectedItem} ")
             if (b.cbRemoveMetadata.isChecked) cmd.append("-map_metadata -1 ")
         }
-
         cmd.append("\"${outFile.absolutePath}\"")
 
         b.btnProcess.isEnabled = false
         b.tvProgress.text = "Sedang memproses... Mohon tunggu."
+        notif.showEdit("Memproses Audio", inputFile.name)
 
         FFmpegKit.executeAsync(cmd.toString(), { session ->
             runOnUiThread {
                 b.btnProcess.isEnabled = true
+                notif.hideEdit()
                 if (ReturnCode.isSuccess(session.returnCode)) {
                     registerAudio(outFile, ext)
-                    b.tvProgress.text = if (isRingtone) "Berhasil disimpan sebagai Nada Dering!"
-                    else "Berhasil disimpan di:\nPlaProjects/Edit_Audio/${outFile.name}"
+                    b.tvProgress.text = "Berhasil disimpan di:\nPlaProjects/Edit_Audio/${outFile.name}"
                     Toast.makeText(this, "Audio berhasil diproses!", Toast.LENGTH_LONG).show()
                 } else {
                     b.tvProgress.text = "Gagal memproses audio."
@@ -559,11 +446,8 @@ class AudioEditorActivity : AppCompatActivity() {
             val values = ContentValues().apply {
                 put(MediaStore.Audio.Media.DISPLAY_NAME, file.name)
                 put(MediaStore.Audio.Media.MIME_TYPE, if (ext == "aiff") "audio/aiff" else "audio/$ext")
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    put(MediaStore.Audio.Media.RELATIVE_PATH, "PlaProjects/Edit_Audio")
-                } else {
-                    put(MediaStore.Audio.Media.DATA, file.absolutePath)
-                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) put(MediaStore.Audio.Media.RELATIVE_PATH, "PlaProjects/Edit_Audio")
+                else put(MediaStore.Audio.Media.DATA, file.absolutePath)
             }
             contentResolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values)
         } catch (_: Exception) {}
@@ -573,5 +457,6 @@ class AudioEditorActivity : AppCompatActivity() {
         super.onDestroy()
         previewPlayer?.release()
         previewFile?.delete()
+        notif.hideEdit()
     }
 }
