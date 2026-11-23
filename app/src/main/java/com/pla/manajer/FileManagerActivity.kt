@@ -26,6 +26,7 @@ import com.pla.manajer.adapter.FileAdapter
 import com.pla.manajer.data.TrashItem
 import com.pla.manajer.databinding.ActivityFileManagerBinding
 import com.pla.manajer.util.FileUtils
+import com.pla.manajer.util.NotificationHelper
 import com.pla.manajer.util.Prefs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -37,6 +38,7 @@ class FileManagerActivity : AppCompatActivity() {
     private lateinit var adapter: FileAdapter
     private lateinit var currentDir: File
     private lateinit var prefs: Prefs
+    private lateinit var notif: NotificationHelper
     private var allFiles: List<File> = emptyList()
 
     companion object {
@@ -68,6 +70,7 @@ class FileManagerActivity : AppCompatActivity() {
         b = ActivityFileManagerBinding.inflate(layoutInflater)
         setContentView(b.root)
         prefs = Prefs(this)
+        notif = NotificationHelper(this)
 
         val initialPath = intent.getStringExtra("initial_path") ?: prefs.lastPath
         currentDir = File(initialPath)
@@ -89,18 +92,14 @@ class FileManagerActivity : AppCompatActivity() {
         b.fabPaste.setOnClickListener   { pasteHere() }
 
         b.btnSelectAllTop.setOnClickListener {
-            val query = b.etSearch.text?.toString()?.lowercase() ?: ""
-            val filtered = if (query.isEmpty()) allFiles else allFiles.filter { it.name.lowercase().contains(query) }
+            val q = b.etSearch.text?.toString()?.lowercase() ?: ""
+            val filtered = if (q.isEmpty()) allFiles else allFiles.filter { it.name.lowercase().contains(q) }
             if (adapter.selectedFiles.size == filtered.size) {
-                adapter.selectedFiles.clear()
-                adapter.isSelectionMode = false
+                adapter.selectedFiles.clear(); adapter.isSelectionMode = false
             } else {
-                adapter.selectedFiles.clear()
-                adapter.selectedFiles.addAll(filtered)
-                adapter.isSelectionMode = true
+                adapter.selectedFiles.clear(); adapter.selectedFiles.addAll(filtered); adapter.isSelectionMode = true
             }
-            adapter.notifyDataSetChanged()
-            updateSelectionUi()
+            adapter.notifyDataSetChanged(); updateSelectionUi()
         }
 
         b.btnDeleteSelected.setOnClickListener {
@@ -108,38 +107,28 @@ class FileManagerActivity : AppCompatActivity() {
             if (filesToDelete.isNotEmpty()) {
                 AlertDialog.Builder(this)
                     .setTitle("Hapus ${filesToDelete.size} item?")
-                    .setPositiveButton("Hapus") { _, _ ->
-                        deleteMultipleFiles(filesToDelete)
-                        closeSelectionMode()
-                    }.setNegativeButton("Batal", null).show()
+                    .setPositiveButton("Hapus") { _, _ -> deleteMultipleFiles(filesToDelete); closeSelectionMode() }
+                    .setNegativeButton("Batal", null).show()
             }
         }
 
         b.btnCopySelected.setOnClickListener {
             if (adapter.selectedFiles.size == 1) {
-                clipboard = adapter.selectedFiles.first()
-                isCut = false
-                b.fabPaste.show()
-                toast("Disalin: ${clipboard?.name}")
-                closeSelectionMode()
+                clipboard = adapter.selectedFiles.first(); isCut = false
+                b.fabPaste.show(); toast("Disalin: ${clipboard?.name}"); closeSelectionMode()
             } else toast("Pilih hanya 1 file untuk menyalin")
         }
 
         b.btnMoveSelected.setOnClickListener {
             if (adapter.selectedFiles.size == 1) {
-                clipboard = adapter.selectedFiles.first()
-                isCut = true
-                b.fabPaste.show()
-                toast("Siap pindah: ${clipboard?.name}")
-                closeSelectionMode()
+                clipboard = adapter.selectedFiles.first(); isCut = true
+                b.fabPaste.show(); toast("Siap pindah: ${clipboard?.name}"); closeSelectionMode()
             } else toast("Pilih hanya 1 file untuk memindah")
         }
 
         b.btnRenameSelected.setOnClickListener {
-            if (adapter.selectedFiles.size == 1) {
-                renameDialog(adapter.selectedFiles.first())
-                closeSelectionMode()
-            } else toast("Pilih hanya 1 file untuk ganti nama")
+            if (adapter.selectedFiles.size == 1) { renameDialog(adapter.selectedFiles.first()); closeSelectionMode() }
+            else toast("Pilih hanya 1 file untuk ganti nama")
         }
 
         b.btnMoreActions.setOnClickListener {
@@ -167,9 +156,9 @@ class FileManagerActivity : AppCompatActivity() {
     private fun showContextMenu(f: File) {
         val ext = f.extension.lowercase()
         val options = mutableListOf("Buka", "Bagikan", "Ganti Nama", "Salin", "Pindah", "Hapus", "Kompres (ZIP)", "Ekstrak (ZIP)")
-        if (ext in listOf("mp3", "wav", "aac", "m4a", "ogg", "flac", "opus")) options.add(0, "Edit Audio")
-        else if (ext in listOf("jpg", "jpeg", "png", "webp")) options.add(0, "Edit Gambar")
-        else if (ext in listOf("mp4", "mkv", "avi")) options.add(0, "Edit Video")
+        if (ext in listOf("mp3","wav","aac","m4a","ogg","flac","opus")) options.add(0, "Edit Audio")
+        else if (ext in listOf("jpg","jpeg","png","webp")) options.add(0, "Edit Gambar")
+        else if (ext in listOf("mp4","mkv","avi")) options.add(0, "Edit Video")
 
         AlertDialog.Builder(this)
             .setTitle(f.name)
@@ -208,22 +197,17 @@ class FileManagerActivity : AppCompatActivity() {
     private fun toggleSelection(f: File) {
         if (adapter.selectedFiles.contains(f)) adapter.selectedFiles.remove(f) else adapter.selectedFiles.add(f)
         adapter.isSelectionMode = adapter.selectedFiles.isNotEmpty()
-        adapter.notifyDataSetChanged()
-        updateSelectionUi()
+        adapter.notifyDataSetChanged(); updateSelectionUi()
     }
 
     private fun enableSelectionMode(f: File) {
-        adapter.isSelectionMode = true
-        adapter.selectedFiles.add(f)
-        adapter.notifyDataSetChanged()
-        updateSelectionUi()
+        adapter.isSelectionMode = true; adapter.selectedFiles.add(f)
+        adapter.notifyDataSetChanged(); updateSelectionUi()
     }
 
     private fun closeSelectionMode() {
-        adapter.isSelectionMode = false
-        adapter.selectedFiles.clear()
-        adapter.notifyDataSetChanged()
-        b.selectionToolbar.visibility = View.GONE
+        adapter.isSelectionMode = false; adapter.selectedFiles.clear()
+        adapter.notifyDataSetChanged(); b.selectionToolbar.visibility = View.GONE
     }
 
     private fun updateSelectionUi() {
@@ -232,6 +216,7 @@ class FileManagerActivity : AppCompatActivity() {
 
     private fun deleteMultipleFiles(files: List<File>) {
         lifecycleScope.launch {
+            notif.showFile("Menghapus", "${files.size} item sedang dipindah ke Sampah...")
             val dao = (application as PlaApp).database.trashDao()
             withContext(Dispatchers.IO) {
                 val trashDir = File(prefs.trashFolder).apply { mkdirs() }
@@ -242,30 +227,21 @@ class FileManagerActivity : AppCompatActivity() {
                 }
             }
             load(currentDir)
+            notif.showFile("Selesai", "${files.size} item dipindah ke Sampah")
             toast("${files.size} item dipindah ke Sampah")
         }
     }
 
-    // PERBAIKAN: audio diputar pakai AudioPlayerActivity bawaan, bukan buka aplikasi luar
     private fun open(f: File) {
-        if (f.isDirectory) {
-            closeSelectionMode()
-            load(f)
-            return
-        }
-
+        if (f.isDirectory) { closeSelectionMode(); load(f); return }
         val ext = f.extension.lowercase()
-        val codeExts = listOf("kt", "java", "py", "js", "html", "css", "json", "md", "xml", "gradle", "kts", "txt", "properties", "yml", "yaml", "cpp", "c", "h")
-        val audioExts = listOf("mp3", "wav", "aac", "m4a", "ogg", "flac", "opus")
+        val codeExts = listOf("kt","java","py","js","html","css","json","md","xml","gradle","kts","txt","properties","yml","yaml","cpp","c","h")
+        val audioExts = listOf("mp3","wav","aac","m4a","ogg","flac","opus")
 
         when {
-            codeExts.contains(ext) -> {
-                startActivity(Intent(this, CodeEditorActivity::class.java).putExtra("path", f.absolutePath))
-            }
+            codeExts.contains(ext) -> startActivity(Intent(this, CodeEditorActivity::class.java).putExtra("path", f.absolutePath))
             audioExts.contains(ext) -> {
-                val audioList = allFiles
-                    .filter { it.isFile && it.extension.lowercase() in audioExts }
-                    .map { it.absolutePath }
+                val audioList = allFiles.filter { it.isFile && it.extension.lowercase() in audioExts }.map { it.absolutePath }
                 val idx = audioList.indexOf(f.absolutePath).coerceAtLeast(0)
                 val intent = Intent(this, AudioPlayerActivity::class.java)
                 intent.putStringArrayListExtra("file_paths", ArrayList(audioList))
@@ -283,7 +259,7 @@ class FileManagerActivity : AppCompatActivity() {
             if (mime == null || mime == "*/*") {
                 mime = when (f.extension.lowercase()) {
                     "mp4" -> "video/mp4"; "mkv" -> "video/x-matroska"
-                    "jpg", "jpeg" -> "image/jpeg"; "png" -> "image/png"
+                    "jpg","jpeg" -> "image/jpeg"; "png" -> "image/png"
                     else -> "*/*"
                 }
             }
@@ -300,7 +276,7 @@ class FileManagerActivity : AppCompatActivity() {
     }
 
     private fun showSortDialog() {
-        val options = arrayOf("Nama (A-Z)", "Nama (Z-A)", "Tanggal (Terlama)", "Tanggal (Terbaru)", "Ukuran (Terkecil)", "Ukuran (Terbesar)")
+        val options = arrayOf("Nama (A-Z)","Nama (Z-A)","Tanggal (Terlama)","Tanggal (Terbaru)","Ukuran (Terkecil)","Ukuran (Terbesar)")
         AlertDialog.Builder(this).setTitle("Sortir Berdasarkan")
             .setSingleChoiceItems(options, prefs.sortMode) { dialog, which ->
                 prefs.sortMode = which; refreshList(); dialog.dismiss()
@@ -308,9 +284,9 @@ class FileManagerActivity : AppCompatActivity() {
     }
 
     private fun refreshList() {
-        val query = b.etSearch.text?.toString()?.lowercase() ?: ""
-        val filtered = if (query.isEmpty()) allFiles else allFiles.filter { it.name.lowercase().contains(query) }
-        val sortedList: List<File> = when (prefs.sortMode) {
+        val q = b.etSearch.text?.toString()?.lowercase() ?: ""
+        val filtered = if (q.isEmpty()) allFiles else allFiles.filter { it.name.lowercase().contains(q) }
+        val sorted: List<File> = when (prefs.sortMode) {
             0 -> filtered.sortedWith(compareBy({ !it.isDirectory }, { it.name.lowercase() }))
             1 -> filtered.sortedWith(compareBy<File>({ !it.isDirectory }, { it.name.lowercase() }).reversed())
             2 -> filtered.sortedBy { it.lastModified() }
@@ -319,7 +295,7 @@ class FileManagerActivity : AppCompatActivity() {
             5 -> filtered.sortedByDescending { it.length() }
             else -> filtered.sortedWith(compareBy({ !it.isDirectory }, { it.name.lowercase() }))
         }
-        adapter.submit(sortedList)
+        adapter.submit(sorted)
     }
 
     private fun ensurePermission() {
@@ -348,11 +324,10 @@ class FileManagerActivity : AppCompatActivity() {
         b.tvPath.text = dir.absolutePath
         try {
             val stat = StatFs(dir.absolutePath)
-            val bytesAvailable = stat.blockSizeLong * stat.availableBlocksLong
-            val bytesTotal = stat.blockSizeLong * stat.blockCountLong
-            val usedBytes = bytesTotal - bytesAvailable
-            val percentUsed = (usedBytes.toDouble() / bytesTotal.toDouble() * 100).toInt()
-            b.tvStorageInfo.text = "$percentUsed% DIGUNAKAN"
+            val avail = stat.blockSizeLong * stat.availableBlocksLong
+            val total = stat.blockSizeLong * stat.blockCountLong
+            val used = total - avail
+            b.tvStorageInfo.text = "${(used.toDouble() / total.toDouble() * 100).toInt()}% DIGUNAKAN"
         } catch (e: Exception) { b.tvStorageInfo.text = "0% DIGUNAKAN" }
         lifecycleScope.launch {
             allFiles = withContext(Dispatchers.IO) { FileUtils.listFiles(dir) }
@@ -389,18 +364,24 @@ class FileManagerActivity : AppCompatActivity() {
 
     private fun zipFile(f: File) {
         lifecycleScope.launch {
+            notif.showFile("Kompres ZIP", "Mengompres ${f.name}...")
             val out = File(f.parentFile, f.name + ".zip")
             withContext(Dispatchers.IO) { FileUtils.zip(f, out) }
-            load(currentDir); toast("Diarsipkan: ${out.name}")
+            load(currentDir)
+            notif.showFile("Kompres selesai", "Berhasil: ${out.name}")
+            toast("Diarsipkan: ${out.name}")
         }
     }
 
     private fun unzipFile(f: File) {
         if (!f.name.endsWith(".zip")) { toast("Bukan file ZIP"); return }
         lifecycleScope.launch {
+            notif.showFile("Ekstrak ZIP", "Mengekstrak ${f.name}...")
             val out = File(f.parentFile, f.nameWithoutExtension)
             withContext(Dispatchers.IO) { FileUtils.unzip(f, out) }
-            load(currentDir); toast("Diekstrak ke: ${out.name}")
+            load(currentDir)
+            notif.showFile("Ekstrak selesai", "Berhasil ke folder: ${out.name}")
+            toast("Diekstrak ke: ${out.name}")
         }
     }
 
@@ -410,12 +391,17 @@ class FileManagerActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val dst = File(currentDir, src.name)
+                notif.showFile(if (isCut) "Memindah" else "Menyalin", "${src.name} → ${currentDir.name}")
                 withContext(Dispatchers.IO) { if (isCut) FileUtils.move(src, dst) else FileUtils.copy(src, dst) }
                 if (!dst.exists()) throw Exception("Gagal menulis ke ${currentDir.absolutePath}")
                 if (isCut) { clipboard = null; isCut = false; b.fabPaste.hide() }
                 load(currentDir)
+                notif.showFile(if (isCut) "Selesai dipindah" else "Selesai disalin", "${dst.name} → ${currentDir.name}")
                 toast("Ditempel di: ${currentDir.name}")
-            } catch (e: Exception) { toast("Gagal tempel: ${e.message ?: "Tidak bisa menulis ke folder ini"}") }
+            } catch (e: Exception) {
+                notif.showFile("Gagal", e.message ?: "Tidak bisa menulis ke folder ini")
+                toast("Gagal tempel: ${e.message ?: "Tidak bisa menulis ke folder ini"}")
+            }
         }
     }
 
