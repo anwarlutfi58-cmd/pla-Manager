@@ -40,6 +40,7 @@ class FileManagerActivity : AppCompatActivity() {
     private lateinit var prefs: Prefs
     private lateinit var notif: NotificationHelper
     private var allFiles: List<File> = emptyList()
+    private var currentSortedFiles: List<File> = emptyList()
 
     companion object {
         private var sharedClipboard: File? = null
@@ -241,11 +242,13 @@ class FileManagerActivity : AppCompatActivity() {
         when {
             codeExts.contains(ext) -> startActivity(Intent(this, CodeEditorActivity::class.java).putExtra("path", f.absolutePath))
             audioExts.contains(ext) -> {
-                val audioList = allFiles.filter { it.isFile && it.extension.lowercase() in audioExts }.map { it.absolutePath }
-                val idx = audioList.indexOf(f.absolutePath).coerceAtLeast(0)
+                val audioList = currentSortedFiles
+                    .filter { it.isFile && it.extension.lowercase() in audioExts }
+                    .map { it.absolutePath }
                 val intent = Intent(this, AudioPlayerActivity::class.java)
                 intent.putStringArrayListExtra("file_paths", ArrayList(audioList))
-                intent.putExtra("index", idx)
+                intent.putExtra("start_path", f.absolutePath)
+                intent.putExtra("index", 0)
                 startActivity(intent)
             }
             else -> openWith(f)
@@ -295,6 +298,7 @@ class FileManagerActivity : AppCompatActivity() {
             5 -> filtered.sortedByDescending { it.length() }
             else -> filtered.sortedWith(compareBy({ !it.isDirectory }, { it.name.lowercase() }))
         }
+        currentSortedFiles = sorted
         adapter.submit(sorted)
     }
 
