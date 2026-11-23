@@ -102,6 +102,35 @@
                 android:background="@drawable/bg_card"
                 android:textSize="12sp"
                 android:fontFamily="monospace" />
+
+            <!-- ========================================== -->
+            <!-- TAMBAHAN DARI AI: Tampilkan Jam & Menit -->
+            <!-- ========================================== -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="32dp"
+                android:text="Rincian File"
+                android:textStyle="bold"
+                android:textSize="16sp" />
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/switchDateTime"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Tampilkan Jam &amp; Menit di Rincian File"
+                android:textSize="14sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Jika dimatikan, rincian hanya menampilkan Tanggal, Bulan, Tahun."
+                android:textSize="12sp"
+                android:textColor="?android:attr/textColorSecondary" />
+            <!-- ========================================== -->
+
         </LinearLayout>
     </ScrollView>
 
