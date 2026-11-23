@@ -62,7 +62,6 @@ class NotificationHelper(private val context: Context) {
         }
     }
 
-    // ---- PEMUTAR MUSIK ----
     fun showPlayer(title: String, isPlaying: Boolean) {
         val prevPi  = PendingIntent.getBroadcast(context, 10, Intent(ACTION_PREV), PendingIntent.FLAG_IMMUTABLE)
         val playPi  = PendingIntent.getBroadcast(context, 11, Intent(ACTION_PLAY_PAUSE), PendingIntent.FLAG_IMMUTABLE)
@@ -83,13 +82,13 @@ class NotificationHelper(private val context: Context) {
             .setOnlyAlertOnce(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .addAction(R.drawable.ic_skip_previous, "Sebelumnya", prevPi)
+            .addAction(android.R.drawable.ic_media_previous, "Sebelumnya", prevPi)
             .addAction(
-                if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play,
+                if (isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play,
                 if (isPlaying) "Jeda" else "Putar", playPi
             )
-            .addAction(R.drawable.ic_skip_next, "Berikutnya", nextPi)
-            .addAction(R.drawable.ic_close, "Tutup", closePi)
+            .addAction(android.R.drawable.ic_media_next, "Berikutnya", nextPi)
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Tutup", closePi)
             .build()
 
         manager.notify(ID_PLAYER, notif)
@@ -97,7 +96,6 @@ class NotificationHelper(private val context: Context) {
 
     fun hidePlayer() { manager.cancel(ID_PLAYER) }
 
-    /** Sembunyikan notifikasi pemutar setelah X detik. Kalau musik diputar lagi, timer batal. */
     fun scheduleHidePlayer(delayMs: Long = 5 * 60 * 1000L, hideRunnable: Runnable) {
         handler.removeCallbacks(hideRunnable)
         handler.postDelayed(hideRunnable, delayMs)
@@ -107,7 +105,6 @@ class NotificationHelper(private val context: Context) {
         handler.removeCallbacks(hideRunnable)
     }
 
-    // ---- EDIT ----
     fun showEdit(title: String, message: String) {
         val notif = NotificationCompat.Builder(context, CHANNEL_EDIT)
             .setSmallIcon(R.drawable.ic_music_note)
@@ -122,7 +119,6 @@ class NotificationHelper(private val context: Context) {
 
     fun hideEdit() { manager.cancel(ID_EDIT) }
 
-    // ---- OPERASI FILE ----
     fun showFile(title: String, message: String, autoHideMs: Long = 3000L) {
         val notif = NotificationCompat.Builder(context, CHANNEL_FILE)
             .setSmallIcon(R.drawable.ic_file)
