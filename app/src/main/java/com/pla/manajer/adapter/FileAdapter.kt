@@ -20,6 +20,7 @@ class FileAdapter(
 ) : RecyclerView.Adapter<FileAdapter.VH>() {
     private var items: List<File> = emptyList()
     private var showDateTime = false
+    var displayNames: Map<String, String> = emptyMap()
 
     var isSelectionMode = false
     val selectedFiles = mutableSetOf<File>()
@@ -34,7 +35,7 @@ class FileAdapter(
 
     override fun onBindViewHolder(h: VH, position: Int) {
         val f = items[position]
-        h.b.tvName.text = f.name
+        h.b.tvName.text = displayNames[f.absolutePath] ?: f.name
 
         val pattern = if (showDateTime) "dd MMM yyyy HH:mm" else "dd MMM yyyy"
         val dateStr = SimpleDateFormat(pattern, Locale.getDefault()).format(Date(f.lastModified()))
