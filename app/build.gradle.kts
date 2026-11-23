@@ -50,8 +50,8 @@ dependencies {
     implementation("androidx.room:room-ktx:2.6.1")
     ksp("androidx.room:room-compiler:2.6.1")
     
-    // MESIN FFMPEG
-    implementation("dev.ffmpegkit-maintained:ffmpeg-kit-audio:8.1.9")
+    // MESIN FFMPEG (VERSI VIDEO - SUDAH TERMASUK AUDIO)
+    implementation("dev.ffmpegkit-maintained:ffmpeg-kit-video:8.1.9")
     
     // UNTUK FITUR GITHUB
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
