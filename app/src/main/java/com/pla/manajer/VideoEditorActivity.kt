@@ -16,16 +16,17 @@ import androidx.appcompat.app.AppCompatActivity
 import com.arthenica.ffmpegkit.FFmpegKit
 import com.arthenica.ffmpegkit.ReturnCode
 import com.pla.manajer.databinding.ActivityVideoEditorBinding
+import com.pla.manajer.util.NotificationHelper
 import java.io.File
 import java.io.FileOutputStream
 
 class VideoEditorActivity : AppCompatActivity() {
     private lateinit var b: ActivityVideoEditorBinding
+    private lateinit var notif: NotificationHelper
     private val imageUris = mutableListOf<Uri>()
     private var audioUri: Uri? = null
     private var isLandscape = false
 
-    // Picker Gambar (Multi-Select)
     private val pickImagesLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == RESULT_OK) {
             val data = result.data
@@ -41,7 +42,6 @@ class VideoEditorActivity : AppCompatActivity() {
         }
     }
 
-    // Picker Audio
     private val pickAudioLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri != null) {
             audioUri = uri
@@ -53,10 +53,10 @@ class VideoEditorActivity : AppCompatActivity() {
         super.onCreate(s)
         b = ActivityVideoEditorBinding.inflate(layoutInflater)
         setContentView(b.root)
+        notif = NotificationHelper(this)
 
         b.btnBack.setOnClickListener { finish() }
 
-        // Logika Tombol Alat Bawah
         b.toolAddImage.setOnClickListener {
             val intent = Intent(Intent.ACTION_GET_CONTENT)
             intent.type = "image/*"
@@ -80,10 +80,8 @@ class VideoEditorActivity : AppCompatActivity() {
 
         b.btnPickAudio.setOnClickListener { pickAudioLauncher.launch("audio/*") }
 
-        // Setup Spinner Rasio
         b.spinnerRatio.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, arrayOf("16:9 (Lanskap)", "9:16 (Potret/TikTok)", "1:1 (Persegi)"))
 
-        // Tombol Ekspor
         b.btnExport.setOnClickListener {
             if (imageUris.isEmpty()) {
                 Toast.makeText(this, "Pilih gambar terlebih dahulu!", Toast.LENGTH_SHORT).show()
@@ -122,7 +120,7 @@ class VideoEditorActivity : AppCompatActivity() {
             .setView(dialogView)
             .setPositiveButton("Mulai Ekspor") { _, _ ->
                 val resolution = when(spinnerRes.selectedItemPosition) {
-                    0 -> "640:360" // 400p approx
+                    0 -> "640:360"
                     1 -> "1280:720"
                     else -> "1920:1080"
                 }
@@ -137,12 +135,11 @@ class VideoEditorActivity : AppCompatActivity() {
         b.btnExport.isEnabled = false
         b.btnExport.text = "Memproses..."
         Toast.makeText(this, "Sedang membuat video... Mohon tunggu.", Toast.LENGTH_LONG).show()
+        notif.showEdit("Membuat Video", "Mengekspor ${imageUris.size} gambar ke MP4...")
 
-        // Siapkan file sementara untuk list gambar (format FFmpeg concat)
         val duration = b.etDuration.text.toString().toIntOrNull() ?: 3
         val concatFile = File(cacheDir, "concat_list.txt")
 
-        // PERBAIKAN: Simpan ke folder PlaProjects/Edit_Video di memori internal
         val outputDir = File(Environment.getExternalStorageDirectory(), "PlaProjects/Edit_Video")
         if (!outputDir.exists()) outputDir.mkdirs()
         val outputFile = File(outputDir, "EDIT_${System.currentTimeMillis()}.mp4")
@@ -157,7 +154,6 @@ class VideoEditorActivity : AppCompatActivity() {
                 writer.write("file '${tempImg.absolutePath}'\n")
                 writer.write("duration $duration\n")
             }
-            // FFmpeg butuh gambar terakhir diulang agar durasinya pas
             val lastImg = File(cacheDir, "img_${System.currentTimeMillis()}.jpg")
             contentResolver.openInputStream(imageUris.last())?.use { input ->
                 FileOutputStream(lastImg).use { output -> input.copyTo(output) }
@@ -165,7 +161,6 @@ class VideoEditorActivity : AppCompatActivity() {
             writer.write("file '${lastImg.absolutePath}'\n")
             writer.close()
 
-            // Bangun perintah FFmpeg
             val cmd = StringBuilder()
             cmd.append("-y -f concat -safe 0 -i \"${concatFile.absolutePath}\" ")
 
@@ -184,13 +179,12 @@ class VideoEditorActivity : AppCompatActivity() {
 
             cmd.append("\"${outputFile.absolutePath}\"")
 
-            // Eksekusi FFmpeg
             FFmpegKit.executeAsync(cmd.toString(), { session ->
                 runOnUiThread {
                     b.btnExport.isEnabled = true
                     b.btnExport.text = "Ekspor"
+                    notif.hideEdit()
                     if (ReturnCode.isSuccess(session.returnCode)) {
-                        // PERBAIKAN: Daftarkan video ke MediaStore agar muncul di galeri & File Manager
                         registerVideoToMediaStore(outputFile)
                         Toast.makeText(this, "Berhasil disimpan di PlaProjects/Edit_Video", Toast.LENGTH_LONG).show()
                         finish()
@@ -203,11 +197,11 @@ class VideoEditorActivity : AppCompatActivity() {
         } catch (e: Exception) {
             b.btnExport.isEnabled = true
             b.btnExport.text = "Ekspor"
+            notif.hideEdit()
             Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
-    // PERBAIKAN: Fungsi baru untuk mendaftarkan video ke MediaStore
     private fun registerVideoToMediaStore(file: File) {
         try {
             val values = ContentValues().apply {
@@ -221,7 +215,6 @@ class VideoEditorActivity : AppCompatActivity() {
             }
             contentResolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values)
         } catch (e: Exception) {
-            // Diamkan saja, file tetap tersimpan di folder
         }
     }
 
@@ -232,5 +225,10 @@ class VideoEditorActivity : AppCompatActivity() {
             if (cursor.moveToFirst()) name = cursor.getString(nameIndex)
         }
         return name
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        notif.hideEdit()
     }
 }
