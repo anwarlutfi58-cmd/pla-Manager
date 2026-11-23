@@ -16,6 +16,15 @@
     <!-- IZIN INTERNET -->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- IZIN NOTIFIKASI (Android 13+) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- IZIN BLUETOOTH HEADSET (Android 12+ pakai CONNECT/SCAN, di bawahnya pakai BLUETOOTH biasa) -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" tools:targetApi="s" />
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+
     <queries>
         <intent>
             <action android:name="android.intent.action.MAIN" />
@@ -34,7 +43,6 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.PlaManajer">
 
-        <!-- MENU UTAMA -->
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -42,7 +50,6 @@
             </intent-filter>
         </activity>
 
-        <!-- FITUR FILE MANAGER & APLIKASI -->
         <activity android:name=".FileManagerActivity" />
         <activity android:name=".ProjectManagerActivity" />
         <activity android:name=".CodeEditorActivity" />
@@ -53,27 +60,20 @@
         <activity android:name=".MediaManagerActivity" />
         <activity android:name=".CloudActivity" />
 
-        <!-- FITUR AUDIO -->
-        <activity android:name=".AudioPlayerActivity" />
+        <activity android:name=".AudioPlayerActivity" android:launchMode="singleTop" />
         <activity android:name=".AudioEditorActivity" />
         <activity android:name=".AudioMergeActivity" />
-        
-        <!-- FITUR MIXER AUDIO BARU -->
         <activity android:name=".AudioMixerActivity" />
 
-        <!-- FITUR GAMBAR -->
         <activity android:name=".ImageEditorActivity" />
         <activity android:name=".CollageActivity" />
 
-        <!-- FITUR VIDEO -->
         <activity 
             android:name=".VideoEditorActivity" 
             android:configChanges="orientation|screenSize|keyboardHidden" />
 
-        <!-- FITUR GITHUB -->
         <activity android:name=".GithubBuilderActivity" />
 
-        <!-- PROVIDER UNTUK SHARE FILE -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.provider"
