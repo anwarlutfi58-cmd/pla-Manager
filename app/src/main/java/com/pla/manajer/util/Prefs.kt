@@ -1,48 +1,41 @@
 package com.pla.manajer.util
 
 import android.content.Context
-import android.os.Environment
+import android.content.SharedPreferences
 
-class Prefs(ctx: Context) {
-    private val sp = ctx.getSharedPreferences("pla_prefs", Context.MODE_PRIVATE)
-    private val appCtx = ctx.applicationContext
+class Prefs(context: Context) {
+    private val prefs: SharedPreferences = context.getSharedPreferences("pla_prefs", Context.MODE_PRIVATE)
 
     var lastPath: String
-        get() = sp.getString("lastPath", Environment.getExternalStorageDirectory().absolutePath) ?: ""
-        set(v) = sp.edit().putString("lastPath", v).apply()
-
-    var editorFontSize: Int
-        get() = sp.getInt("fontSize", 14)
-        set(v) = sp.edit().putInt("fontSize", v).apply()
+        get() = prefs.getString("last_path", context.getExternalFilesDir(null)?.absolutePath ?: "/") ?: "/"
+        set(value) = prefs.edit().putString("last_path", value).apply()
 
     var trashFolder: String
-        get() = sp.getString("trashFolder", appCtx.filesDir.absolutePath + "/trash") ?: ""
-        set(v) = sp.edit().putString("trashFolder", v).apply()
-
-    var screenReaderHints: Boolean
-        get() = sp.getBoolean("srHints", true)
-        set(v) = sp.edit().putBoolean("srHints", v).apply()
+        get() = prefs.getString("trash_folder", "${context.filesDir.absolutePath}/.trash") ?: "${context.filesDir.absolutePath}/.trash"
+        set(value) = prefs.edit().putString("trash_folder", value).apply()
 
     var sortMode: Int
-        get() = sp.getInt("sortMode", 1)
-        set(v) = sp.edit().putInt("sortMode", v).apply()
+        get() = prefs.getInt("sort_mode", 0)
+        set(value) = prefs.edit().putInt("sort_mode", value).apply()
 
-    // ==========================================
-    // TAMBAHAN BARU: FITUR TOMBOL AJAIB
-    // ==========================================
     var showImageEditor: Boolean
-        get() = sp.getBoolean("showImageEditor", false)
-        set(v) = sp.edit().putBoolean("showImageEditor", v).apply()
+        get() = prefs.getBoolean("show_image_editor", true)
+        set(value) = prefs.edit().putBoolean("show_image_editor", value).apply()
 
     var showAudioEditor: Boolean
-        get() = sp.getBoolean("showAudioEditor", false)
-        set(v) = sp.edit().putBoolean("showAudioEditor", v).apply()
+        get() = prefs.getBoolean("show_audio_editor", true)
+        set(value) = prefs.edit().putBoolean("show_audio_editor", value).apply()
 
     var showVideoEditor: Boolean
-        get() = sp.getBoolean("showVideoEditor", false)
-        set(v) = sp.edit().putBoolean("showVideoEditor", v).apply()
+        get() = prefs.getBoolean("show_video_editor", true)
+        set(value) = prefs.edit().putBoolean("show_video_editor", value).apply()
 
     var showGithubBuilder: Boolean
-        get() = sp.getBoolean("showGithubBuilder", false)
-        set(v) = sp.edit().putBoolean("showGithubBuilder", v).apply()
+        get() = prefs.getBoolean("show_github_builder", true)
+        set(value) = prefs.edit().putBoolean("show_github_builder", value).apply()
+
+    // TAMBAHAN BARU: Pengaturan Tampilkan Jam
+    var showDateTime: Boolean
+        get() = prefs.getBoolean("show_date_time", false)
+        set(value) = prefs.edit().putBoolean("show_date_time", value).apply()
 }
