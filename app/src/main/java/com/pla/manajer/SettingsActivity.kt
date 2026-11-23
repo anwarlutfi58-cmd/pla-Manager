@@ -47,5 +47,13 @@ class SettingsActivity : AppCompatActivity() {
         b.swShowAudioEditor.setOnCheckedChangeListener { _, isChecked -> prefs.showAudioEditor = isChecked }
         b.swShowVideoEditor.setOnCheckedChangeListener { _, isChecked -> prefs.showVideoEditor = isChecked }
         b.swShowGithubBuilder.setOnCheckedChangeListener { _, isChecked -> prefs.showGithubBuilder = isChecked }
+
+        // ==========================================
+        // TAMBAHAN DARI AI: Tampilkan Jam & Menit
+        // ==========================================
+        b.switchDateTime.isChecked = prefs.showDateTime
+        b.switchDateTime.setOnCheckedChangeListener { _, isChecked ->
+            prefs.showDateTime = isChecked
+        }
     }
 }
