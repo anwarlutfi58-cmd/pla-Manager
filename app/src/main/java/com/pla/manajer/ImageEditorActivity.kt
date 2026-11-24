@@ -1,5 +1,6 @@
 package com.pla.manajer
 
+import android.app.AlertDialog
 import android.content.ContentValues
 import android.graphics.*
 import android.os.Build
@@ -9,10 +10,13 @@ import android.provider.MediaStore
 import android.view.MotionEvent
 import android.view.View
 import android.widget.ArrayAdapter
+import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.tabs.TabLayout
 import com.pla.manajer.databinding.ActivityImageEditorBinding
+import com.pla.manajer.util.ImageFilterHelper
 import com.pla.manajer.util.NotificationHelper
 import java.io.File
 import java.io.FileOutputStream
@@ -82,19 +86,8 @@ class ImageEditorActivity : AppCompatActivity() {
         b.btnRotateRight.setOnClickListener { rotateImage(90f) }
         b.btnFlip.setOnClickListener { flipImage() }
 
-        b.btnAddText.setOnClickListener {
-            val text = b.etText.text.toString()
-            if (text.isNotEmpty()) {
-                val textPaint = Paint().apply {
-                    color = Color.RED
-                    textSize = mutableBitmap.width / 15f
-                    isAntiAlias = true
-                }
-                canvas.drawText(text, 50f, mutableBitmap.height / 2f, textPaint)
-                b.ivImage.setImageBitmap(mutableBitmap)
-                b.etText.setText("")
-            }
-        }
+        // --- TOMBOL TEKS DENGAN 20 WARNA ---
+        b.btnAddText.setOnClickListener { showTextColorDialog() }
 
         b.btnMagicEraser.setOnClickListener {
             isEraserMode = !isEraserMode
@@ -125,8 +118,73 @@ class ImageEditorActivity : AppCompatActivity() {
             true
         }
 
+        // --- MENU EFEK TAMBAHAN (3D, FILTER, DLL) ---
+        // Kita buat tombol ini muncul otomatis di layar Tab Lainnya
+        val extraBtn = android.widget.Button(this).apply {
+            text = "Buka Alat EFEK & FILTER Lanjutan"
+            setOnClickListener { showExtraEffectsMenu() }
+        }
+        (b.layoutTabLainnya as? LinearLayout)?.addView(extraBtn)
+
         b.btnApplyEffects.setOnClickListener { applyColorAndSizeEffects() }
         b.btnSaveImage.setOnClickListener { saveImageToGallery() }
+    }
+
+    // --- FUNGSI UNTUK 20 WARNA TEKS ---
+    private fun showTextColorDialog() {
+        val input = EditText(this).apply { hint = "Ketik teks di sini..." }
+        val colors = ImageFilterHelper.get20Colors()
+        val colorNames = colors.map { it.first }.toTypedArray()
+
+        AlertDialog.Builder(this)
+            .setTitle("Tulis Teks & Pilih Warna")
+            .setView(input)
+            .setPositiveButton("Lanjut Pilih Warna") { _, _ ->
+                val text = input.text.toString()
+                if (text.isNotEmpty()) {
+                    AlertDialog.Builder(this)
+                        .setTitle("Pilih Warna Teks")
+                        .setItems(colorNames) { _, which ->
+                            val selectedColor = colors[which].second
+                            val textPaint = Paint().apply {
+                                color = selectedColor
+                                textSize = mutableBitmap.width / 15f
+                                isAntiAlias = true
+                                setShadowLayer(5f, 5f, 5f, Color.BLACK)
+                            }
+                            canvas.drawText(text, 50f, mutableBitmap.height / 2f, textPaint)
+                            b.ivImage.setImageBitmap(mutableBitmap)
+                        }.show()
+                }
+            }
+            .setNegativeButton("Batal", null).show()
+    }
+
+    // --- FUNGSI UNTUK EFEK TAMBAHAN (3D, Vignette, Blur, dll) ---
+    private fun showExtraEffectsMenu() {
+        val options = arrayOf(
+            "Efek 3D (Emboss)",
+            "Filter Hitam Putih (Grayscale)",
+            "Filter Sepia (Jadul)",
+            "Filter Negatif (Invert)",
+            "Efek Vignette (Pinggir Gelap)",
+            "Efek Blur"
+        )
+
+        AlertDialog.Builder(this)
+            .setTitle("Pilih Efek Tambahan")
+            .setItems(options) { _, which ->
+                when(which) {
+                    0 -> mutableBitmap = ImageFilterHelper.apply3D(mutableBitmap)
+                    1 -> mutableBitmap = ImageFilterHelper.applyGrayscale(mutableBitmap)
+                    2 -> mutableBitmap = ImageFilterHelper.applySepia(mutableBitmap)
+                    3 -> mutableBitmap = ImageFilterHelper.applyInvert(mutableBitmap)
+                    4 -> mutableBitmap = ImageFilterHelper.applyVignette(mutableBitmap)
+                    5 -> mutableBitmap = ImageFilterHelper.applyBlur(mutableBitmap)
+                }
+                b.ivImage.setImageBitmap(mutableBitmap)
+                Toast.makeText(this, "Efek diterapkan!", Toast.LENGTH_SHORT).show()
+            }.show()
     }
 
     private fun rotateImage(degrees: Float) {
@@ -147,7 +205,6 @@ class ImageEditorActivity : AppCompatActivity() {
 
     private fun applyColorAndSizeEffects() {
         notif.showEdit("Menerapkan Efek", "Memproses gambar...")
-
         try {
             val brightness = b.seekBrightness.progress / 100f
             val contrast = b.seekContrast.progress / 100f
