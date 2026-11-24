@@ -108,7 +108,7 @@
             <!-- Panel Filter/Cahaya -->
             <LinearLayout android:id="@+id/panelFilter" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Kecerahan Gambar" android:textColor="#FFFFFF"/>
-                <SeekBar android:id="@+id/seekBrightness" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="200" android:progress="100" android:progressTint="#4CAF50"/>
+                <SeekBar android:id="@+id/seekBrightness" android:layout_width="match_parent" android:layout_height="48dp" android:max="200" android:progress="100" android:progressTint="#4CAF50" android:splitTrack="false" android:paddingHorizontal="16dp"/>
             </LinearLayout>
         </LinearLayout>
 
