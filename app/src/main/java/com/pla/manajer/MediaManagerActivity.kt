@@ -38,7 +38,6 @@ class MediaManagerActivity : AppCompatActivity() {
     private val videoExts = listOf("mp4", "mkv", "avi", "mov", "webm")
     private val imageExts = listOf("jpg", "jpeg", "png", "webp", "gif", "bmp")
 
-    // CACHE UNTUK MENGHINDARI SCAN ULANG (Loading Cepat)
     companion object {
         private val cachedFolders = mutableMapOf<String, List<File>>()
         private val cachedCounts = mutableMapOf<String, Map<String, Int>>()
@@ -141,7 +140,6 @@ class MediaManagerActivity : AppCompatActivity() {
             "AUDIO" -> "Folder Audio"; "VIDEO" -> "Folder Video"; "IMAGE" -> "Folder Gambar"; else -> "Folder Media"
         }
         
-        // Cek apakah data sudah ada di cache
         if (cachedFolders.containsKey(mediaType) && cachedCounts.containsKey(mediaType)) {
             allItems = cachedFolders[mediaType] ?: emptyList()
             adapter.fileCounts = cachedCounts[mediaType] ?: emptyMap()
@@ -149,7 +147,6 @@ class MediaManagerActivity : AppCompatActivity() {
             return
         }
 
-        // Jika belum ada di cache, lakukan scan
         lifecycleScope.launch {
             val result = withContext(Dispatchers.IO) {
                 val exts = getMediaExts()
@@ -177,10 +174,12 @@ class MediaManagerActivity : AppCompatActivity() {
                     val files = dir.listFiles() ?: return
                     
                     if (!dir.name.startsWith(".")) {
-                        val count = countMediaInDir(dir)
-                        if (count > 0) {
+                        // PERBAIKAN: Hanya masukkan folder jika ada file media LANGSUNG di dalamnya.
+                        // Tidak peduli subfoldernya punya media atau tidak.
+                        val hasDirectMedia = files.any { it.isFile && it.extension.lowercase() in exts }
+                        if (hasDirectMedia) {
                             foundFolders.add(dir)
-                            folderCounts[dir.absolutePath] = count
+                            folderCounts[dir.absolutePath] = countMediaInDir(dir)
                         }
                     }
                     
@@ -195,7 +194,6 @@ class MediaManagerActivity : AppCompatActivity() {
             allItems = result.first
             adapter.fileCounts = result.second
             
-            // Simpan ke cache
             cachedFolders[mediaType] = allItems
             cachedCounts[mediaType] = result.second
 
@@ -293,11 +291,12 @@ class MediaManagerActivity : AppCompatActivity() {
         }
     }
 
+    // PERBAIKAN: Tombol kembali sekarang mengarah ke beranda media yang benar
     private fun handleBack() {
         if (currentDir != null) {
-            loadRoots()
+            loadRoots() // Kembali ke halaman awal Audio/Video/Gambar, BUKAN ke File Manager
         } else {
-            finish()
+            finish() // Keluar dari aplikasi jika sudah di halaman awal
         }
     }
 
