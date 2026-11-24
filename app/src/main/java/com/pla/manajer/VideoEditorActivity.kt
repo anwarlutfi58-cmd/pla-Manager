@@ -16,8 +16,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.arthenica.ffmpegkit.FFmpegKit
 import com.arthenica.ffmpegkit.ReturnCode
 import com.pla.manajer.databinding.ActivityVideoEditorBinding
-import com.pla.manajer.util.NotificationHelper
-import com.pla.manajer.util.VideoPlayerHelper // <-- Import Helper
+import com.pla.manajer.util.*
 import java.io.File
 import java.io.FileOutputStream
 
@@ -28,8 +27,11 @@ class VideoEditorActivity : AppCompatActivity() {
     private var audioUri: Uri? = null
     private var isLandscape = false
     
-    // Menyimpan file video terakhir yang diekspor agar bisa diputar
     private var lastExportedFile: File? = null
+
+    // Menyimpan filter string tambahan yang dipilih user
+    private var extraVideoFilter = ""
+    private var extraAudioFilter = ""
 
     private val pickImagesLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == RESULT_OK) {
@@ -86,7 +88,7 @@ class VideoEditorActivity : AppCompatActivity() {
 
         b.spinnerRatio.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, arrayOf("16:9 (Lanskap)", "9:16 (Potret/TikTok)", "1:1 (Persegi)"))
 
-        // Tambahkan tombol Putar otomatis di atas tombol Ekspor jika belum ada
+        // --- TOMBOL PUTAR HASIL VIDEO ---
         val btnPlay = Button(this).apply {
             text = "Putar Hasil Video"
             setOnClickListener {
@@ -94,7 +96,6 @@ class VideoEditorActivity : AppCompatActivity() {
                 if (file != null && file.exists()) {
                     VideoPlayerHelper.playVideo(this@VideoEditorActivity, file)
                 } else {
-                    // Jika belum diedit, coba cari video terakhir di folder
                     val dir = File(Environment.getExternalStorageDirectory(), "PlaProjects/Edit_Video")
                     val lastVideo = dir.listFiles()?.filter { it.extension == "mp4" }?.maxByOrNull { it.lastModified() }
                     if (lastVideo != null) {
@@ -106,11 +107,17 @@ class VideoEditorActivity : AppCompatActivity() {
             }
         }
         
-        // Masukkan tombol play ke layout (di atas tombol export)
+        // --- TOMBOL MENU TAMBAHAN (Fitur Lanjutan) ---
+        val btnAdvanced = Button(this).apply {
+            text = "Buka Alat Video Lanjutan (Crop, Speed, Filter, dll)"
+            setOnClickListener { showAdvancedToolsDialog() }
+        }
+
         val parent = b.btnExport.parent as? LinearLayout
         if (parent != null) {
             val index = parent.indexOfChild(b.btnExport)
             parent.addView(btnPlay, index)
+            parent.addView(btnAdvanced, index + 1)
         }
 
         b.btnExport.setOnClickListener {
@@ -120,6 +127,81 @@ class VideoEditorActivity : AppCompatActivity() {
                 showExportDialog()
             }
         }
+    }
+
+    // --- LOGIKA MENU TAMBAHAN ---
+    private fun showAdvancedToolsDialog() {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_video_tools, null)
+        val dialog = AlertDialog.Builder(this).setView(dialogView).create()
+
+        dialogView.findViewById<Button>(R.id.btnSpeed).setOnClickListener {
+            dialog.dismiss()
+            showChoiceDialog("Pilih Kecepatan", arrayOf("Normal", "Cepat 2x", "Lambat 2x", "Sangat Cepat 4x")) { index ->
+                extraVideoFilter += if (index > 0) VideoTransformHelper.getSpeedCommand(index - 1) + "," else ""
+            }
+        }
+
+        dialogView.findViewById<Button>(R.id.btnFilter).setOnClickListener {
+            dialog.dismiss()
+            showChoiceDialog("Pilih Filter", arrayOf("Normal", "Hitam Putih", "Sepia", "Negatif", "Vintage", "Cerah", "Gelap", "Warna Tajam", "Blur", "Sketsa", "Vignette", "Grain", "Mosaik", "Pertajam", "Glitch")) { index ->
+                extraVideoFilter += if (index > 0) VideoFilterHelper.getFilterCommand(index - 1) + "," else ""
+            }
+        }
+
+        dialogView.findViewById<Button>(R.id.btnAudio).setOnClickListener {
+            dialog.dismiss()
+            showChoiceDialog("Pilih Efek Audio", arrayOf("Normal", "Perbesar", "Perkecil", "Hapus Suara (Mute)", "Cepat", "Lambat", "Gema", "Fade In")) { index ->
+                extraAudioFilter = if (index > 0) VideoAudioHelper.getAudioCommand(index - 1) else ""
+            }
+        }
+
+        dialogView.findViewById<Button>(R.id.btnCrop).setOnClickListener {
+            dialog.dismiss()
+            showChoiceDialog("Pilih Rasio (Crop)", arrayOf("Bebas", "16:9 Lanskap", "9:16 Potret", "1:1 Persegi", "4:3 Klasik")) { index ->
+                extraVideoFilter += if (index > 0) VideoTransformHelper.getCropCommand(index - 1) + "," else ""
+            }
+        }
+
+        dialogView.findViewById<Button>(R.id.btnRotate).setOnClickListener {
+            dialog.dismiss()
+            showChoiceDialog("Putar/Balik Video", arrayOf("Normal", "Putar Kanan 90°", "Putar Kiri 90°", "Putar 180°", "Cermin Kiri-Kanan", "Cermin Atas-Bawah")) { index ->
+                extraVideoFilter += if (index > 0) VideoTransformHelper.getRotateCommand(index - 1) + "," else ""
+            }
+        }
+
+        dialogView.findViewById<Button>(R.id.btnText).setOnClickListener {
+            dialog.dismiss()
+            showTextInputDialog()
+        }
+
+        dialogView.findViewById<Button>(R.id.btnCompress).setOnClickListener {
+            dialog.dismiss()
+            showChoiceDialog("Kompres Video", arrayOf("Normal", "Hemat Ukuran (H.264)", "Super Hemat (H.265)")) { index ->
+                extraVideoFilter += if (index > 0) VideoTransformHelper.getFormatCommand(index - 1) + "," else ""
+            }
+        }
+
+        dialog.show()
+    }
+
+    private fun showChoiceDialog(title: String, options: Array<String>, onSelected: (Int) -> Unit) {
+        AlertDialog.Builder(this)
+            .setTitle(title)
+            .setItems(options) { _, which -> onSelected(which) }
+            .show()
+    }
+
+    private fun showTextInputDialog() {
+        val input = EditText(this).apply { hint = "Masukkan teks..." }
+        AlertDialog.Builder(this)
+            .setTitle("Tambah Teks/Watermark")
+            .setView(input)
+            .setPositiveButton("Tambah") { _, _ ->
+                val text = input.text.toString()
+                if (text.isNotEmpty()) {
+                    extraVideoFilter += VideoFilterHelper.getTextCommand(text, "bottom", "white", 40) + ","
+                }
+            }.setNegativeButton("Batal", null).show()
     }
 
     private fun showPanel(panelToShow: View) {
@@ -175,7 +257,7 @@ class VideoEditorActivity : AppCompatActivity() {
         if (!outputDir.exists()) outputDir.mkdirs()
         
         val outputFile = File(outputDir, "EDIT_${System.currentTimeMillis()}.mp4")
-        lastExportedFile = outputFile // Simpan referensi untuk tombol putar
+        lastExportedFile = outputFile
 
         try {
             val writer = concatFile.bufferedWriter()
@@ -205,10 +287,21 @@ class VideoEditorActivity : AppCompatActivity() {
                 cmd.append("-i \"${tempAudio.absolutePath}\" ")
             }
 
-            cmd.append("-vf scale=$resolution,setsar=1,fps=$fps ")
+            // GABUNGKAN FILTER TAMBAHAN DENGAN FILTER DASAR
+            val baseFilter = "scale=$resolution,setsar=1,fps=$fps"
+            val combinedFilter = if (extraVideoFilter.isNotEmpty()) {
+                "$extraVideoFilter$baseFilter".removeSuffix(",") // Buang koma terakhir jika ada
+            } else baseFilter
+
+            cmd.append("-vf $combinedFilter ")
             cmd.append("-c:v libx264 -pix_fmt yuv420p ")
 
-            if (audioUri != null) cmd.append("-c:a aac -shortest ")
+            if (audioUri != null) {
+                if (extraAudioFilter.isNotEmpty()) {
+                    cmd.append("-af $extraAudioFilter ")
+                }
+                cmd.append("-c:a aac -shortest ")
+            }
 
             cmd.append("\"${outputFile.absolutePath}\"")
 
@@ -220,9 +313,10 @@ class VideoEditorActivity : AppCompatActivity() {
                     if (ReturnCode.isSuccess(session.returnCode)) {
                         registerVideoToMediaStore(outputFile)
                         Toast.makeText(this, "Berhasil! Silakan tekan 'Putar Hasil Video'", Toast.LENGTH_LONG).show()
-                        // Tidak langsung finish() agar user bisa memutar hasilnya
+                        extraVideoFilter = "" // Reset setelah ekspor
+                        extraAudioFilter = ""
                     } else {
-                        Toast.makeText(this, "Gagal membuat video. Coba kurangi jumlah gambar.", Toast.LENGTH_LONG).show()
+                        Toast.makeText(this, "Gagal membuat video.", Toast.LENGTH_LONG).show()
                     }
                 }
             }, { }, { })
