@@ -4,13 +4,16 @@ import android.app.AlertDialog
 import android.content.Intent
 import android.os.Bundle
 import android.os.Environment
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.View
+import android.view.inputmethod.EditorInfo
 import android.webkit.MimeTypeMap
 import android.widget.CheckBox
+import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
-import androidx.core.widget.doAfterTextChanged
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.pla.manajer.adapter.FileAdapter
@@ -62,28 +65,12 @@ class MediaManagerActivity : AppCompatActivity() {
         b.selectionToolbar.visibility = View.GONE
         b.miniPlayerLayout.visibility = View.GONE
 
-        // PERBAIKAN: Pasang aksi untuk tombol sortir (jika ID-nya btnSort)
-        try {
-            b.btnSort.setOnClickListener { showSortDialog() }
-        } catch (e: Exception) {
-            // Abaikan jika ID tombolnya berbeda
-        }
+        // 1. TOMBOL SORTIR BERFUNGSI
+        b.btnSort.setOnClickListener { showSortDialog() }
 
-        // PERBAIKAN: Pasang aksi untuk pencarian
-        try {
-            b.etSearch.doAfterTextChanged { 
-                applyFilter(it?.toString() ?: "") 
-            }
-            // Jika Anda menekan enter, kolom dibersihkan
-            b.etSearch.setOnEditorActionListener { v, actionId, event ->
-                if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH) {
-                    v.text = null // Bersihkan kolom setelah cari
-                    true
-                } else false
-            }
-        } catch (e: Exception) {
-            // Abaikan jika ID kolom pencarian berbeda
-        }
+        // 2. KOLOM PENCARIAN OTOMATIS (Karena tidak ada di XML)
+        // Kita tambahkan EditText secara programatik di atas RecyclerView
+        setupSearchBar()
 
         b.btnDeleteSelected.setOnClickListener { deleteSelectedFiles() }
         b.btnCopySelected.setOnClickListener {
@@ -108,7 +95,38 @@ class MediaManagerActivity : AppCompatActivity() {
         loadRoots()
     }
 
-    // Filter pencarian
+    private fun setupSearchBar() {
+        val parent = b.recyclerMedia.parent as? android.view.ViewGroup ?: return
+        val searchBar = EditText(this).apply {
+            hint = "Cari folder atau file..."
+            setSingleLine()
+            setPadding(32, 16, 32, 16)
+            imeOptions = EditorInfo.IME_ACTION_SEARCH
+            
+            // Logika: Saat diketik, filter langsung jalan
+            addTextChangedListener(object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                    applyFilter(s?.toString() ?: "")
+                }
+                override fun afterTextChanged(s: Editable?) {}
+            })
+
+            // Logika: Saat Enter ditekan, filter diterapkan dan teks DIHAPUS
+            setOnEditorActionListener { v, actionId, event ->
+                if (actionId == EditorInfo.IME_ACTION_SEARCH) {
+                    val q = v.text.toString()
+                    applyFilter(q)
+                    v.text = null // Teks otomatis hilang setelah search
+                    true
+                } else false
+            }
+        }
+        // Masukkan search bar tepat di posisi recyclerMedia (indeks 1 di LinearLayout)
+        val layout = parent as android.widget.LinearLayout
+        layout.addView(searchBar, 1)
+    }
+
     private fun applyFilter(query: String) {
         if (query.isEmpty()) {
             currentFilteredFiles = allFiles
@@ -134,12 +152,11 @@ class MediaManagerActivity : AppCompatActivity() {
         AlertDialog.Builder(this).setTitle("Urutkan Berdasarkan")
             .setSingleChoiceItems(options, prefs.sortMode) { dialog, which ->
                 prefs.sortMode = which
-                applyFilter(b.etSearch.text?.toString() ?: "")
+                applyFilter("") // Reset filter saat urutan diubah
                 dialog.dismiss()
             }.setNegativeButton("Batal", null).show()
     }
 
-    // KUNCI PERUBAHAN: Memindai HP untuk mencari folder yang ada fotonya
     private fun loadRoots() {
         currentDir = null
         b.tvTitle.text = when(mediaType) {
@@ -158,9 +175,7 @@ class MediaManagerActivity : AppCompatActivity() {
                 fun scan(dir: File) {
                     val files = dir.listFiles() ?: return
                     var hasMedia = false
-                    if (files.any { it.isFile && it.extension.lowercase() in exts }) {
-                        hasMedia = true
-                    }
+                    if (files.any { it.isFile && it.extension.lowercase() in exts }) hasMedia = true
                     if (hasMedia) foundFolders.add(dir)
                     
                     files.filter { it.isDirectory && !it.name.startsWith(".") && it.name != "Android" }
@@ -173,7 +188,7 @@ class MediaManagerActivity : AppCompatActivity() {
             }
             
             allFiles = mediaFolders
-            applyFilter(b.etSearch.text?.toString() ?: "")
+            applyFilter("")
         }
     }
 
@@ -189,7 +204,7 @@ class MediaManagerActivity : AppCompatActivity() {
                 }
                 files.filter { it.isDirectory || (it.isFile && it.extension.lowercase() in exts) }
             }
-            applyFilter(b.etSearch.text?.toString() ?: "")
+            applyFilter("")
         }
     }
 
@@ -326,7 +341,7 @@ class MediaManagerActivity : AppCompatActivity() {
     }
 
     private fun renameDialog(f: File) {
-        val input = android.widget.EditText(this).apply { setText(f.name) }
+        val input = EditText(this).apply { setText(f.name) }
         AlertDialog.Builder(this).setTitle("Ganti Nama").setView(input)
             .setPositiveButton("OK") { _, _ ->
                 val newFile = File(f.parentFile, input.text.toString())
