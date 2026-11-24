@@ -52,7 +52,7 @@ class MediaManagerActivity : AppCompatActivity() {
             onSelectToggle = { f -> toggleSelection(f) },
             onMoreOptions = { f -> showMoreMenu(f) }
         ).apply {
-            setDateTimeMode(prefs.getBoolean("showDateTime", false))
+            setDateTimeMode(prefs.showDateTime)
             displayNames = mapOf(
                 Environment.getExternalStorageDirectory().absolutePath to "Memori Internal",
                 (getSdCard()?.absolutePath ?: "") to "Kartu SD"
@@ -104,7 +104,6 @@ class MediaManagerActivity : AppCompatActivity() {
     private fun loadDir(dir: File) {
         currentDir = dir
         b.tvTitle.text = dir.name
-        b.tvPath.text = getSimplePath(dir.absolutePath)
 
         lifecycleScope.launch {
             allFiles = withContext(Dispatchers.IO) {
