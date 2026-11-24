@@ -18,11 +18,9 @@ android {
 
     buildTypes {
         release {
-            // Minify dan Shrink agar ukuran APK lebih kecil (Aplikasi Rilis)
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // Tetap gunakan debug signing agar APK bisa langsung dipasang di HP tanpa perlu Keystore Play Store
             signingConfig = signingConfigs.getByName("debug")
         }
     }
@@ -35,6 +33,20 @@ android {
     kotlinOptions { jvmTarget = "17" }
 
     buildFeatures { viewBinding = true }
+
+    // Mencegah bentrok file library FFmpeg saat build
+    packaging {
+        resources {
+            excludes += setOf(
+                "META-INF/NOTICE.md",
+                "META-INF/LICENSE.md",
+                "META-INF/LICENSE",
+                "META-INF/NOTICE",
+                "META-INF/INDEX.LIST",
+                "META-INF/DEPENDENCIES"
+            )
+        }
+    }
 }
 
 dependencies {
@@ -50,10 +62,9 @@ dependencies {
     implementation("androidx.room:room-ktx:2.6.1")
     ksp("androidx.room:room-compiler:2.6.1")
     
-    // MESIN FFMPEG (VERSI VIDEO - SUDAH TERMASUK AUDIO)
-    implementation("dev.ffmpegkit-maintained:ffmpeg-kit-video:8.1.9")
+    // MESIN FFMPEG VERSI FULL-GPL (WAJIB UNTUK FITUR TEKS & EFEK AUDIO)
+    implementation("dev.ffmpegkit-maintained:ffmpeg-kit-full-gpl:8.1.9")
     
-    // UNTUK FITUR GITHUB
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.google.code.gson:gson:2.10.1")
 }
