@@ -38,6 +38,12 @@ class MediaManagerActivity : AppCompatActivity() {
     private val videoExts = listOf("mp4", "mkv", "avi", "mov", "webm")
     private val imageExts = listOf("jpg", "jpeg", "png", "webp", "gif", "bmp")
 
+    // CACHE UNTUK MENGHINDARI SCAN ULANG (Loading Cepat)
+    companion object {
+        private val cachedFolders = mutableMapOf<String, List<File>>()
+        private val cachedCounts = mutableMapOf<String, Map<String, Int>>()
+    }
+
     override fun onCreate(s: Bundle?) {
         super.onCreate(s)
         b = ActivityMediaManagerBinding.inflate(layoutInflater)
@@ -91,7 +97,6 @@ class MediaManagerActivity : AppCompatActivity() {
 
     private fun setupSearchBar() {
         val parent = b.recyclerMedia.parent as? android.view.ViewGroup ?: return
-        // Pastikan search bar belum ditambahkan
         if (parent.findViewWithTag<EditText>("searchBar") != null) return
 
         val searchBar = EditText(this).apply {
@@ -136,6 +141,15 @@ class MediaManagerActivity : AppCompatActivity() {
             "AUDIO" -> "Folder Audio"; "VIDEO" -> "Folder Video"; "IMAGE" -> "Folder Gambar"; else -> "Folder Media"
         }
         
+        // Cek apakah data sudah ada di cache
+        if (cachedFolders.containsKey(mediaType) && cachedCounts.containsKey(mediaType)) {
+            allItems = cachedFolders[mediaType] ?: emptyList()
+            adapter.fileCounts = cachedCounts[mediaType] ?: emptyMap()
+            applyFilter("")
+            return
+        }
+
+        // Jika belum ada di cache, lakukan scan
         lifecycleScope.launch {
             val result = withContext(Dispatchers.IO) {
                 val exts = getMediaExts()
@@ -180,6 +194,11 @@ class MediaManagerActivity : AppCompatActivity() {
             
             allItems = result.first
             adapter.fileCounts = result.second
+            
+            // Simpan ke cache
+            cachedFolders[mediaType] = allItems
+            cachedCounts[mediaType] = result.second
+
             applyFilter("")
         }
     }
@@ -199,7 +218,6 @@ class MediaManagerActivity : AppCompatActivity() {
                     (it.isFile && it.extension.lowercase() in exts) 
                 }
             }
-            // Reset fileCounts untuk mode di dalam folder
             val counts = mutableMapOf<String, Int>()
             allItems.filter { it.isDirectory }.forEach { d ->
                 var count = 0
