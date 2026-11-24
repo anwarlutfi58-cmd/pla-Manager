@@ -63,10 +63,7 @@ class MediaManagerActivity : AppCompatActivity() {
         b.selectionToolbar.visibility = View.GONE
         b.miniPlayerLayout.visibility = View.GONE
 
-        // Tombol Sortir (Urutkan)
         b.btnSort.setOnClickListener { showSortDialog() }
-        
-        // Kotak Pencarian
         setupSearchBar()
 
         b.btnDeleteSelected.setOnClickListener { deleteSelectedFiles() }
@@ -94,7 +91,11 @@ class MediaManagerActivity : AppCompatActivity() {
 
     private fun setupSearchBar() {
         val parent = b.recyclerMedia.parent as? android.view.ViewGroup ?: return
+        // Pastikan search bar belum ditambahkan
+        if (parent.findViewWithTag<EditText>("searchBar") != null) return
+
         val searchBar = EditText(this).apply {
+            tag = "searchBar"
             hint = "Cari folder atau file..."
             setSingleLine()
             setPadding(32, 16, 32, 16)
@@ -116,68 +117,96 @@ class MediaManagerActivity : AppCompatActivity() {
             }
         }
         val layout = parent as android.widget.LinearLayout
-        // Masukkan kotak pencarian di urutan ke-1 (di bawah Toolbar)
         layout.addView(searchBar, 1) 
+    }
+
+    private fun getMediaExts(): List<String> {
+        return when(mediaType) {
+            "AUDIO" -> audioExts
+            "VIDEO" -> videoExts
+            "IMAGE" -> imageExts
+            else -> emptyList()
+        }
     }
 
     private fun loadRoots() {
         currentDir = null
+        adapter.isRootMode = true
         b.tvTitle.text = when(mediaType) {
             "AUDIO" -> "Folder Audio"; "VIDEO" -> "Folder Video"; "IMAGE" -> "Folder Gambar"; else -> "Folder Media"
         }
         
         lifecycleScope.launch {
-            val folders = withContext(Dispatchers.IO) {
-                val exts = when(mediaType) {
-                    "AUDIO" -> audioExts; "VIDEO" -> videoExts; "IMAGE" -> imageExts; else -> emptyList()
-                }
+            val result = withContext(Dispatchers.IO) {
+                val exts = getMediaExts()
                 val roots = mutableListOf<File>()
                 roots.add(Environment.getExternalStorageDirectory())
                 getSdCard()?.let { roots.add(it) }
                 
                 val foundFolders = mutableSetOf<File>()
+                val folderCounts = mutableMapOf<String, Int>()
+
+                fun countMediaInDir(dir: File): Int {
+                    var count = 0
+                    val files = dir.listFiles() ?: return 0
+                    for (f in files) {
+                        if (f.isDirectory) {
+                            count += countMediaInDir(f)
+                        } else if (f.extension.lowercase() in exts) {
+                            count++
+                        }
+                    }
+                    return count
+                }
 
                 fun scanForMediaFolders(dir: File) {
                     val files = dir.listFiles() ?: return
                     
-                    // Cek apakah folder ini punya file media langsung
-                    if (files.any { it.isFile && it.extension.lowercase() in exts }) {
-                        // Jangan tampilkan folder tersembunyi (berawalan titik)
-                        if (!dir.name.startsWith(".")) {
+                    if (!dir.name.startsWith(".")) {
+                        val count = countMediaInDir(dir)
+                        if (count > 0) {
                             foundFolders.add(dir)
+                            folderCounts[dir.absolutePath] = count
                         }
                     }
                     
-                    // Lanjut ke subfolder (abaikan folder sistem dan tersembunyi)
                     files.filter { it.isDirectory && !it.name.startsWith(".") && it.name != "Android" }
                          .forEach { scanForMediaFolders(it) }
                 }
 
                 roots.forEach { scanForMediaFolders(it) }
-                foundFolders.sortedBy { it.name.lowercase() }
+                Pair(foundFolders.sortedBy { it.name.lowercase() }, folderCounts)
             }
             
-            allItems = folders
+            allItems = result.first
+            adapter.fileCounts = result.second
             applyFilter("")
         }
     }
 
     private fun loadDir(dir: File) {
         currentDir = dir
+        adapter.isRootMode = false
         b.tvTitle.text = dir.name
 
         lifecycleScope.launch {
             allItems = withContext(Dispatchers.IO) {
                 val files = dir.listFiles() ?: return@withContext emptyList<File>()
-                val exts = when(mediaType) {
-                    "AUDIO" -> audioExts; "VIDEO" -> videoExts; "IMAGE" -> imageExts; else -> emptyList()
-                }
-                // Hanya tampilkan folder yang relevan dan file media
+                val exts = getMediaExts()
+                
                 files.filter { 
                     (it.isDirectory && !it.name.startsWith(".")) || 
                     (it.isFile && it.extension.lowercase() in exts) 
                 }
             }
+            // Reset fileCounts untuk mode di dalam folder
+            val counts = mutableMapOf<String, Int>()
+            allItems.filter { it.isDirectory }.forEach { d ->
+                var count = 0
+                d.walkTopDown().forEach { if (it.isFile && it.extension.lowercase() in getMediaExts()) count++ }
+                counts[d.absolutePath] = count
+            }
+            adapter.fileCounts = counts
             applyFilter("")
         }
     }
@@ -192,27 +221,21 @@ class MediaManagerActivity : AppCompatActivity() {
         adapter.submit(sorted)
     }
 
-    // LOGIKA PENGURUTAN
     private fun sortFiles(files: List<File>): List<File> {
         return when (prefs.sortMode) {
-            1 -> files.sortedWith(compareBy<File> { !it.isDirectory }.thenByDescending { it.name.lowercase() }) // Nama Z-A
-            2 -> files.sortedWith(compareBy<File> { !it.isDirectory }.thenByDescending { it.lastModified() }) // Tanggal Terbaru
-            3 -> files.sortedWith(compareBy<File> { !it.isDirectory }.thenBy { it.lastModified() }) // Tanggal Terlama
-            4 -> files.sortedWith(compareBy<File> { !it.isDirectory }.thenByDescending { it.length() }) // Ukuran Terbesar
-            5 -> files.sortedWith(compareBy<File> { !it.isDirectory }.thenBy { it.length() }) // Ukuran Terkecil
-            else -> files.sortedWith(compareBy<File> { !it.isDirectory }.thenBy { it.name.lowercase() }) // Nama A-Z
+            1 -> files.sortedWith(compareBy<File> { !it.isDirectory }.thenByDescending { it.name.lowercase() })
+            2 -> files.sortedWith(compareBy<File> { !it.isDirectory }.thenByDescending { it.lastModified() })
+            3 -> files.sortedWith(compareBy<File> { !it.isDirectory }.thenBy { it.lastModified() })
+            4 -> files.sortedWith(compareBy<File> { !it.isDirectory }.thenByDescending { it.length() })
+            5 -> files.sortedWith(compareBy<File> { !it.isDirectory }.thenBy { it.length() })
+            else -> files.sortedWith(compareBy<File> { !it.isDirectory }.thenBy { it.name.lowercase() })
         }
     }
 
-    // DIALOG URUTKAN (BAHASA INDONESIA)
     private fun showSortDialog() {
         val options = arrayOf(
-            "Nama (A-Z)", 
-            "Nama (Z-A)", 
-            "Tanggal (Terbaru)", 
-            "Tanggal (Terlama)", 
-            "Ukuran (Terbesar)", 
-            "Ukuran (Terkecil)"
+            "Nama (A-Z)", "Nama (Z-A)", "Tanggal (Terbaru)", 
+            "Tanggal (Terlama)", "Ukuran (Terbesar)", "Ukuran (Terkecil)"
         )
         AlertDialog.Builder(this)
             .setTitle("Urutkan Berdasarkan")
@@ -254,7 +277,6 @@ class MediaManagerActivity : AppCompatActivity() {
 
     private fun handleBack() {
         if (currentDir != null) {
-            currentDir = null
             loadRoots()
         } else {
             finish()
