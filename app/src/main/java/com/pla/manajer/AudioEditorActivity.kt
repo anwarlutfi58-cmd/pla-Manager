@@ -429,43 +429,4 @@ class AudioEditorActivity : AppCompatActivity() {
         when (fmt) {
             "flac" -> cmd.append("-c:a flac -compression_level 8 " + if (bitDepth == "16-bit") "-sample_fmt s16 " else "-sample_fmt s32 ")
             "wav" -> cmd.append("-c:a pcm_s16le ")
-            "wav24" -> cmd.append("-c:a pcm_s24le ")
-            "aiff" -> cmd.append(when (bitDepth) { "16-bit" -> "-c:a pcm_s16be "; "32-bit" -> "-c:a pcm_s32be "; else -> "-c:a pcm_s24be " })
-            "mp3vbr" -> cmd.append("-c:a libmp3lame -q:a 2 ")
-            "mp3" -> cmd.append("-c:a libmp3lame -b:a ${b.spinnerBitrate.selectedItem} ")
-            "aac" -> cmd.append("-c:a aac -b:a ${b.spinnerBitrate.selectedItem} ")
-            "m4a" -> cmd.append("-c:a aac -b:a ${b.spinnerBitrate.selectedItem} ")
-            else -> cmd.append("-b:a ${b.spinnerBitrate.selectedItem} ")
-        }
-        if (b.cbTabFormat.isChecked) {
-            if (fmt in listOf("mp3", "aac", "m4a", "mp3vbr")) cmd.append("-ar ${b.spinnerSampleRate.selectedItem} ")
-            if (b.cbRemoveMetadata.isChecked) cmd.append("-map_metadata -1 ")
-        }
-        cmd.append("\"${outFile.absolutePath}\"")
-
-        b.btnProcess.isEnabled = false
-        b.tvProgress.text = "Sedang memproses... Mohon tunggu."
-        notif.showEdit("Memproses Audio", inputFile.name)
-
-        FFmpegKit.executeAsync(cmd.toString(), { session ->
-            runOnUiThread {
-                b.btnProcess.isEnabled = true
-                notif.hideEdit()
-                if (ReturnCode.isSuccess(session.returnCode)) {
-                    registerAudio(outFile, ext)
-                    b.tvProgress.text = "Berhasil disimpan di:\nPlaProjects/Edit_Audio/${outFile.name}"
-                    Toast.makeText(this, "Audio berhasil diproses!", Toast.LENGTH_LONG).show()
-                } else {
-                    b.tvProgress.text = "Gagal memproses audio."
-                    Toast.makeText(this, "Gagal: ${session.failStackTrace}", Toast.LENGTH_LONG).show()
-                }
-            }
-        }, { }, { })
-    }
-
-    private fun registerAudio(file: File, ext: String) {
-        try {
-            val values = ContentValues().apply {
-                put(MediaStore.Audio.Media.DISPLAY_NAME, file.name)
-                put(MediaStore.Audio.Media.MIME_TYPE, if (ext == "aiff") "audio/aiff" else "audio/$ext")
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) put(MediaStore.Audio.Media.RELATIVE_PATH, "PlaProjects/
+            "wav24" -> cmd.append("-c:a pcm_s
