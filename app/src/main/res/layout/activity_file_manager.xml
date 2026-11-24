@@ -58,26 +58,24 @@
                 android:textSize="12sp"
                 android:textStyle="bold" />
 
-            <ImageButton
-                android:id="@+id/btnTopUp"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:src="@drawable/ic_up"
-                app:tint="?attr/colorOnPrimaryContainer" />
+            <!-- TOMBOL BUAT FOLDER BARU (SELALU MUNCUL) -->
             <ImageButton
                 android:id="@+id/btnTopNew"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:src="@drawable/ic_add"
+                android:contentDescription="Buat Folder Baru"
                 app:tint="?attr/colorOnPrimaryContainer" />
+
+            <!-- TOMBOL SORTIR/URUTKAN -->
             <ImageButton
                 android:id="@+id/btnSort"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:src="@drawable/ic_sort"
+                android:contentDescription="Urutkan"
                 app:tint="?attr/colorOnPrimaryContainer" />
         </LinearLayout>
 
