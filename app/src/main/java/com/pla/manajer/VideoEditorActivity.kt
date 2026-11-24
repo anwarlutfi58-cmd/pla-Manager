@@ -324,4 +324,56 @@ class VideoEditorActivity : AppCompatActivity() {
             cmd.append("-vf \"${vFilters.joinToString(",")}\" ")
             
             cmd.append("-c:v libx264 -pix_fmt yuv420p ")
-            if (audioUri != null) cmd.append("-c:a aac -
+            if (audioUri != null) cmd.append("-c:a aac -shortest ")
+            cmd.append("\"${outputFile.absolutePath}\"")
+
+            FFmpegKit.executeAsync(cmd.toString(), { session ->
+                runOnUiThread {
+                    b.btnExport.isEnabled = true
+                    b.btnExport.text = "Ekspor"
+                    notif.hideEdit()
+                    if (ReturnCode.isSuccess(session.returnCode)) {
+                        registerVideoToMediaStore(outputFile)
+                        Toast.makeText(this, "Berhasil! Tekan 'Putar Hasil Video'", Toast.LENGTH_LONG).show()
+                    } else {
+                        Toast.makeText(this, "Gagal membuat video.", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }, { }, { })
+        } catch (e: Exception) {
+            b.btnExport.isEnabled = true
+            b.btnExport.text = "Ekspor"
+            notif.hideEdit()
+            Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun registerVideoToMediaStore(file: File) {
+        try {
+            val values = ContentValues().apply {
+                put(MediaStore.Video.Media.DISPLAY_NAME, file.name)
+                put(MediaStore.Video.Media.MIME_TYPE, if(file.extension == "gif") "image/gif" else "video/mp4")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    put(MediaStore.Video.Media.RELATIVE_PATH, "PlaProjects/Edit_Video")
+                } else {
+                    put(MediaStore.Video.Media.DATA, file.absolutePath)
+                }
+            }
+            contentResolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values)
+        } catch (e: Exception) { }
+    }
+
+    private fun getFileName(uri: Uri): String {
+        var name = "File Terpilih"
+        contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            if (cursor.moveToFirst()) name = cursor.getString(nameIndex)
+        }
+        return name
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        notif.hideEdit()
+    }
+}
