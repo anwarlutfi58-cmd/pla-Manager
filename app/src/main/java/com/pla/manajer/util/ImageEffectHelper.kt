@@ -4,7 +4,6 @@ import android.graphics.*
 
 object ImageEffectHelper {
 
-    // 1. Efek Mosaik (Pixelate)
     fun applyMosaic(bitmap: Bitmap, blockSize: Int = 30): Bitmap {
         val width = bitmap.width
         val height = bitmap.height
@@ -25,7 +24,6 @@ object ImageEffectHelper {
         return result
     }
 
-    // 2. Efek Sketsa Pensil (Pencil Sketch)
     fun applySketch(bitmap: Bitmap): Bitmap {
         val width = bitmap.width
         val height = bitmap.height
@@ -39,7 +37,6 @@ object ImageEffectHelper {
         paint.colorFilter = ColorMatrixColorFilter(colorMatrix)
         canvas.drawBitmap(bitmap, 0f, 0f, paint)
 
-        // Invert warna grayscale
         val inverted = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         val invCanvas = Canvas(inverted)
         val invPaint = Paint()
@@ -53,16 +50,15 @@ object ImageEffectHelper {
         invPaint.colorFilter = ColorMatrixColorFilter(invMatrix)
         invCanvas.drawBitmap(gray, 0f, 0f, invPaint)
 
-        // Blur gambar yang di-invert
         val blurred = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         val blurCanvas = Canvas(blurred)
         val blurPaint = Paint()
         blurPaint.maskFilter = BlurMaskFilter(20f, BlurMaskFilter.Blur.NORMAL)
         blurCanvas.drawBitmap(inverted, 0f, 0f, blurPaint)
 
-        // Blend dengan Color Dodge
+        // PERBAIKAN: Menggunakan Modo SRC_OVER / Screen agar aman di semua Android
         val blendPaint = Paint()
-        blendPaint.xfermode = PorterDuffXfermode(PorterDuff.Mode.COLOR_DODGE)
+        blendPaint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SCREEN) 
         val resultCanvas = Canvas(result)
         resultCanvas.drawBitmap(gray, 0f, 0f, null)
         resultCanvas.drawBitmap(blurred, 0f, 0f, blendPaint)
@@ -70,7 +66,6 @@ object ImageEffectHelper {
         return result
     }
 
-    // 3. Efek Kartun (Posterize)
     fun applyCartoon(bitmap: Bitmap, levels: Int = 5): Bitmap {
         val result = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(result)
@@ -90,22 +85,18 @@ object ImageEffectHelper {
         return result
     }
 
-    // 4. Efek Tilt-Shift (Blur Area Pinggir)
     fun applyTiltShift(bitmap: Bitmap): Bitmap {
         val result = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(result)
         
-        // Gambar asli di background
         canvas.drawBitmap(bitmap, 0f, 0f, null)
         
-        // Siapkan gambar blur
         val blurred = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
         val blurCanvas = Canvas(blurred)
         val blurPaint = Paint()
         blurPaint.maskFilter = BlurMaskFilter(25f, BlurMaskFilter.Blur.NORMAL)
         blurCanvas.drawBitmap(bitmap, 0f, 0f, blurPaint)
 
-        // Masker gradasi untuk area blur (atas & bawah)
         val paint = Paint()
         paint.isAntiAlias = true
         val shader = LinearGradient(
@@ -116,12 +107,10 @@ object ImageEffectHelper {
         )
         paint.shader = shader
         
-        // Terapkan ke gambar blur (transparan di tengah)
         val mask = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
         val maskCanvas = Canvas(mask)
         maskCanvas.drawRect(0f, 0f, bitmap.width.toFloat(), bitmap.height.toFloat(), paint)
         
-        // Xfermode untuk menempelkan blur hanya di pinggir
         val finalPaint = Paint()
         finalPaint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
         maskCanvas.drawBitmap(blurred, 0f, 0f, finalPaint)
