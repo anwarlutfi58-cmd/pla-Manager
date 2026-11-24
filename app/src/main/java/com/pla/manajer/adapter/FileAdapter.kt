@@ -2,6 +2,7 @@ package com.pla.manajer.adapter
 
 import android.graphics.Color
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.pla.manajer.R
@@ -23,7 +24,9 @@ class FileAdapter(
     var displayNames: Map<String, String> = emptyMap()
 
     var isSelectionMode = false
+    var isRootMode = false // Mode khusus untuk halaman awal MediaManager
     val selectedFiles = mutableSetOf<File>()
+    var fileCounts: Map<String, Int> = emptyMap() // Menyimpan jumlah file di dalam folder
 
     fun submit(list: List<File>) { items = list; notifyDataSetChanged() }
     fun setDateTimeMode(showTime: Boolean) { showDateTime = showTime }
@@ -41,12 +44,21 @@ class FileAdapter(
         val dateStr = SimpleDateFormat(pattern, Locale.getDefault()).format(Date(f.lastModified()))
 
         if (f.isDirectory) {
-            val count = f.listFiles()?.size ?: 0
+            val count = fileCounts[f.absolutePath] ?: (f.listFiles()?.size ?: 0)
             h.b.tvMeta.text = "$count file • $dateStr"
             h.b.ivIcon.setImageResource(R.drawable.ic_folder)
         } else {
             h.b.tvMeta.text = "${FileUtils.humanSize(f.length())} • $dateStr"
             h.b.ivIcon.setImageResource(R.drawable.ic_file)
+        }
+
+        // Logika visibilitas tombol
+        if (isRootMode) {
+            h.b.cbSelect.visibility = View.GONE
+            h.b.btnMore.visibility = View.GONE
+        } else {
+            h.b.cbSelect.visibility = View.VISIBLE
+            h.b.btnMore.visibility = View.VISIBLE
         }
 
         val isSelected = selectedFiles.contains(f)
@@ -58,7 +70,9 @@ class FileAdapter(
         h.b.cbSelect.setOnClickListener { onSelectToggle(f) }
         h.b.btnMore.setOnClickListener { onMoreOptions(f) }
         h.b.root.setOnClickListener { if (isSelectionMode) onSelectToggle(f) else onOpen(f) }
-        h.b.root.setOnLongClickListener { onLong(f); true }
+        h.b.root.setOnLongClickListener { 
+            if (!isRootMode) { onLong(f); true } else false 
+        }
     }
 
     override fun getItemCount() = items.size
