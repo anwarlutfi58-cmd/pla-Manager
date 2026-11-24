@@ -2,7 +2,6 @@ package com.pla.manajer
 
 import android.content.Intent
 import android.os.Bundle
-import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.ListView
@@ -24,7 +23,6 @@ class GithubRepoListActivity : AppCompatActivity() {
     private var filteredRepos: List<GithubApiHelper.RepoInfo> = emptyList()
     
     private var filterMode = 0 // 0 = Semua, 1 = Publik, 2 = Privat
-    private var repoAdapter: ArrayAdapter<String>? = null
 
     override fun onCreate(s: Bundle?) {
         super.onCreate(s)
@@ -52,11 +50,16 @@ class GithubRepoListActivity : AppCompatActivity() {
                 }.show()
         }
 
-        // Klik item repo -> Buka halaman detail (24 menu tadi)
+        // Klik item repo -> Buka halaman detail (24 menu)
         listView.setOnItemClickListener { _, _, position, _ ->
             val selectedRepo = filteredRepos[position]
-            // Nanti kita arahkan ke GithubRepoDetailActivity
-            Toast.makeText(this, "Membuka: ${selectedRepo.name}", Toast.LENGTH_SHORT).show()
+            val intent = Intent(this, GithubRepoDetailActivity::class.java).apply {
+                putExtra("repo_name", selectedRepo.name)
+                putExtra("repo_full_name", selectedRepo.fullName)
+                putExtra("repo_private", selectedRepo.isPrivate)
+                putExtra("repo_url", selectedRepo.htmlUrl)
+            }
+            startActivity(intent)
         }
 
         fetchRepos()
@@ -91,7 +94,7 @@ class GithubRepoListActivity : AppCompatActivity() {
             "${index + 1}. ${repo.name} [${if(repo.isPrivate) "Privat" else "Publik"}]"
         }
 
-        repoAdapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, displayList)
+        val repoAdapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, displayList)
         listView.adapter = repoAdapter
     }
 }
