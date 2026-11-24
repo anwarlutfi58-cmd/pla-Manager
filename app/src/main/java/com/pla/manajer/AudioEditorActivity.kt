@@ -1,15 +1,15 @@
 package com.pla.manajer
 
-import android.app.AlertDialog
 import android.content.Intent
 import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.view.LayoutInflater
+import android.os.Environment
 import android.view.View
 import android.widget.ArrayAdapter
-import android.widget.EditText
+import android.widget.Button
+import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -19,9 +19,7 @@ import com.arthenica.ffmpegkit.FFprobeKit
 import com.arthenica.ffmpegkit.ReturnCode
 import com.google.android.material.tabs.TabLayout
 import com.pla.manajer.databinding.ActivityAudioEditorBinding
-import com.pla.manajer.util.AudioEngineHelper
-import com.pla.manajer.util.AudioSystemHelper
-import com.pla.manajer.util.NotificationHelper
+import com.pla.manajer.util.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -32,8 +30,8 @@ class AudioEditorActivity : AppCompatActivity() {
     private lateinit var inputFile: File
     private lateinit var notif: NotificationHelper
 
-    private val formatLabels = arrayOf("MP3", "WAV", "AAC", "M4A", "FLAC (Lossless)", "AIFF (Lossless)", "WAV 24-bit", "MP3 VBR")
-    private val formatIds = arrayOf("mp3", "wav", "aac", "m4a", "flac", "aiff", "wav24", "mp3vbr")
+    private val formatLabels = arrayOf("MP3", "WAV", "AAC", "M4A", "FLAC (Lossless)", "AIFF", "WAV 24-bit", "MP3 VBR", "Opus", "FLAC 12")
+    private val formatIds = arrayOf("mp3", "wav", "aac", "m4a", "flac", "aiff", "wav24", "mp3vbr", "opus", "flac12")
 
     private var previewPlayer: MediaPlayer? = null
     private var isPlayingPreview = false
@@ -42,6 +40,7 @@ class AudioEditorActivity : AppCompatActivity() {
     private var sourceSampleRate = 44100
     private var startTime = "00:00:00"
     private var endTime = "00:00:00"
+    private var customEffectFilter = ""
 
     private lateinit var eqFreqs: IntArray
     private lateinit var eqBars: Array<SeekBar>
@@ -69,11 +68,44 @@ class AudioEditorActivity : AppCompatActivity() {
         setupSpinners()
         setupTabs()
         setupSliders()
-        setupTimePickers()
+        
+        b.btnPickStartTime.setOnClickListener { AudioUiHelper.showTimePicker(this, "Waktu Mulai", startTime) { startTime = it; b.btnPickStartTime.text = it; dirtyPreview() } }
+        b.btnPickEndTime.setOnClickListener { AudioUiHelper.showTimePicker(this, "Waktu Selesai", endTime) { endTime = it; b.btnPickEndTime.text = it; dirtyPreview() } }
+
+        val btnMoreTools = Button(this).apply {
+            text = "Buka Menu Alat Lanjutan (Efek, Master, 3D)"
+            setOnClickListener { 
+                AudioUiHelper.showAdvancedToolsMenu(this@AudioEditorActivity, 
+                    onFilterSelected = { filter -> customEffectFilter = filter },
+                    onVisualizer = { generateVisualizer() }
+                ) 
+            }
+        }
+        (b.layoutTabStereoPro as? LinearLayout)?.addView(btnMoreTools)
 
         b.btnPreviewAudio.setOnClickListener { onPreviewClick() }
         b.btnProcess.setOnClickListener { processAudio() }
         b.btnMeasureLoudness.setOnClickListener { measureLoudness() }
+    }
+
+    private fun generateVisualizer() {
+        val outDir = File(Environment.getExternalStorageDirectory(), "PlaProjects/Edit_Audio")
+        if (!outDir.exists()) outDir.mkdirs()
+        val outFile = File(outDir, "visualizer_${System.currentTimeMillis()}.mp4")
+        val cmd = AudioAnalysisHelper.getWaveformVideoCommand(inputFile.absolutePath, outFile.absolutePath)
+        notif.showEdit("Membuat Visualizer", "Mohon tunggu...")
+        
+        FFmpegKit.executeAsync(cmd) { session ->
+            runOnUiThread {
+                notif.hideEdit()
+                if (ReturnCode.isSuccess(session.returnCode)) {
+                    AudioSystemHelper.registerToMediaStore(this, outFile, "mp4")
+                    Toast.makeText(this, "Visualizer disimpan di Edit_Audio", Toast.LENGTH_LONG).show()
+                } else {
+                    Toast.makeText(this, "Gagal membuat visualizer.", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
     }
 
     private fun detectSampleRate() {
@@ -90,8 +122,8 @@ class AudioEditorActivity : AppCompatActivity() {
         b.spinnerFormat.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, formatLabels)
         b.spinnerBitrate.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, arrayOf("64k", "128k", "192k", "320k"))
         b.spinnerSampleRate.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, arrayOf("44100", "48000"))
-        b.spinnerQuality.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, arrayOf("Kualitas Rendah (Kompres)", "Kualitas Normal", "Kualitas Tinggi"))
-        b.spinnerSaveAs.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, arrayOf("Simpan Normal", "Nada Dering (Ringtone)", "Suara Alarm", "Suara Notifikasi"))
+        b.spinnerQuality.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, arrayOf("Kualitas Rendah", "Kualitas Normal", "Kualitas Tinggi"))
+        b.spinnerSaveAs.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, arrayOf("Simpan Normal", "Nada Dering", "Suara Alarm", "Notifikasi"))
         b.spinnerResampleRate.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, arrayOf("44100", "48000", "88200", "96000"))
         b.spinnerBitDepth.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, arrayOf("16-bit", "24-bit", "32-bit"))
         b.spinnerBitDepth.setSelection(1)
@@ -136,11 +168,11 @@ class AudioEditorActivity : AppCompatActivity() {
         }
         for (bar in eqBars) bar.setOnSeekBarChangeListener(eqL)
 
-        b.seekVolume.setOnSeekBarChangeListener(slider(b.tvVolumeLabel, "Volume: ", "%"))
-        b.seekMaster.setOnSeekBarChangeListener(slider(b.tvMasterLabel, "Mastering: ", "%"))
-        b.seekLimiter.setOnSeekBarChangeListener(slider(b.tvLimiterLabel, "Limiter: ", "%"))
-        b.seekEcho.setOnSeekBarChangeListener(slider(b.tvEchoLabel, "Echo: ", "%"))
-
+        AudioUiHelper.setupSeekBar(b.seekVolume, b.tvVolumeLabel, "Volume: ", "%") { dirtyPreview() }
+        AudioUiHelper.setupSeekBar(b.seekMaster, b.tvMasterLabel, "Mastering: ", "%") { dirtyPreview() }
+        AudioUiHelper.setupSeekBar(b.seekLimiter, b.tvLimiterLabel, "Limiter: ", "%") { dirtyPreview() }
+        AudioUiHelper.setupSeekBar(b.seekEcho, b.tvEchoLabel, "Echo: ", "%") { dirtyPreview() }
+        
         b.seekPanning.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
                 val pan = progress - 100
@@ -149,40 +181,12 @@ class AudioEditorActivity : AppCompatActivity() {
             override fun onStartTrackingTouch(sb: SeekBar?) {}
             override fun onStopTrackingTouch(sb: SeekBar?) {}
         })
-        b.seekStereo.setOnSeekBarChangeListener(slider(b.tvStereoLabel, "Stereo Width: ", "%"))
-
-        b.seekCompThreshold.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
-                b.tvCompThresholdLabel.text = "Threshold: ${String.format("%.0f", -60.0 + (progress / 100.0) * 60.0)} dB"; dirtyPreview()
-            }
-            override fun onStartTrackingTouch(sb: SeekBar?) {}
-            override fun onStopTrackingTouch(sb: SeekBar?) {}
-        })
-        b.seekCompRatio.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
-                b.tvCompRatioLabel.text = "Ratio: ${String.format("%.1f", 1 + progress / 100.0 * 9)}:1"; dirtyPreview()
-            }
-            override fun onStartTrackingTouch(sb: SeekBar?) {}
-            override fun onStopTrackingTouch(sb: SeekBar?) {}
-        })
-        b.seekCompAttack.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
-                b.tvCompAttackLabel.text = "Attack: ${String.format("%.0f", 0.01 + progress / 100.0 * 199.99)} ms"; dirtyPreview()
-            }
-            override fun onStartTrackingTouch(sb: SeekBar?) {}
-            override fun onStopTrackingTouch(sb: SeekBar?) {}
-        })
-        b.seekCompRelease.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
-                b.tvCompReleaseLabel.text = "Release: ${String.format("%.0f", 10 + progress / 100.0 * 990)} ms"; dirtyPreview()
-            }
-            override fun onStartTrackingTouch(sb: SeekBar?) {}
-            override fun onStopTrackingTouch(sb: SeekBar?) {}
-        })
-        b.seekMbIntensity.setOnSeekBarChangeListener(slider(b.tvMbIntensityLabel, "Intensitas: ", "%"))
-        b.seekEnhancerIntensity.setOnSeekBarChangeListener(slider(b.tvEnhancerIntensityLabel, "Intensitas Enhancer: ", "%"))
-        b.seekWidenerMid.setOnSeekBarChangeListener(slider(b.tvWidenerMidLabel, "Mid Level: ", "%"))
-        b.seekWidenerSide.setOnSeekBarChangeListener(slider(b.tvWidenerSideLabel, "Side Level: ", "%"))
+        
+        AudioUiHelper.setupSeekBar(b.seekStereo, b.tvStereoLabel, "Stereo Width: ", "%") { dirtyPreview() }
+        AudioUiHelper.setupSeekBar(b.seekMbIntensity, b.tvMbIntensityLabel, "Intensitas: ", "%") { dirtyPreview() }
+        AudioUiHelper.setupSeekBar(b.seekEnhancerIntensity, b.tvEnhancerIntensityLabel, "Intensitas Enhancer: ", "%") { dirtyPreview() }
+        AudioUiHelper.setupSeekBar(b.seekWidenerMid, b.tvWidenerMidLabel, "Mid Level: ", "%") { dirtyPreview() }
+        AudioUiHelper.setupSeekBar(b.seekWidenerSide, b.tvWidenerSideLabel, "Side Level: ", "%") { dirtyPreview() }
 
         val cbL = View.OnClickListener { dirtyPreview() }
         b.cbTabTrim.setOnClickListener(cbL); b.cbTabFormat.setOnClickListener(cbL); b.cbTabSpeed.setOnClickListener(cbL)
@@ -194,51 +198,24 @@ class AudioEditorActivity : AppCompatActivity() {
         b.cbStereoEnhancer.setOnClickListener(cbL); b.cbStereoWidener.setOnClickListener(cbL)
     }
 
-    private fun slider(label: android.widget.TextView, prefix: String, suffix: String) = object : SeekBar.OnSeekBarChangeListener {
-        override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
-            label.text = "$prefix$progress$suffix"; dirtyPreview()
-        }
-        override fun onStartTrackingTouch(sb: SeekBar?) {}
-        override fun onStopTrackingTouch(sb: SeekBar?) {}
-    }
+    private fun getFilters(): List<String> {
+        val filters = AudioEngineHelper.buildFilters(
+            b.cbTabSpeed.isChecked, b.seekTempo.progress, b.seekPitch.progress, sourceSampleRate,
+            b.cbTabEq.isChecked, b.seekVolume.progress, eqBars, eqFreqs, b.seekMaster.progress, b.seekLimiter.progress,
+            b.cbTabStereo.isChecked, b.seekStereo.progress, b.seekEcho.progress, b.seekPanning.progress,
+            b.cbTabFormat.isChecked, b.cbRemoveWatermark.isChecked,
+            b.cbTabLoudness.isChecked, b.cbNormalizeLufs.isChecked, b.cbNormalizePeak.isChecked, b.cbAgc.isChecked,
+            b.cbTabDinamika.isChecked, b.cbCompressor.isChecked, b.seekCompThreshold.progress, b.seekCompRatio.progress, b.seekCompAttack.progress, b.seekCompRelease.progress,
+            b.cbTabResample.isChecked, b.spinnerResampleRate.selectedItem.toString(), b.cbSoxResample.isChecked,
+            b.cbTabStereoPro.isChecked, b.cbStereoEnhancer.isChecked, b.seekEnhancerIntensity.progress, b.cbStereoWidener.isChecked, b.seekWidenerMid.progress, b.seekWidenerSide.progress
+        ).toMutableList()
 
-    private fun setupTimePickers() {
-        b.btnPickStartTime.setOnClickListener { showTimePicker("Waktu Mulai", startTime) { startTime = it; b.btnPickStartTime.text = it; dirtyPreview() } }
-        b.btnPickEndTime.setOnClickListener { showTimePicker("Waktu Selesai", endTime) { endTime = it; b.btnPickEndTime.text = it; dirtyPreview() } }
+        if (customEffectFilter.isNotEmpty()) filters.add(customEffectFilter)
+        return filters
     }
-
-    private fun showTimePicker(title: String, currentTime: String, onSave: (String) -> Unit) {
-        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_time_picker, null)
-        val etH = dialogView.findViewById<EditText>(R.id.etHours)
-        val etM = dialogView.findViewById<EditText>(R.id.etMinutes)
-        val etS = dialogView.findViewById<EditText>(R.id.etSeconds)
-        val parts = currentTime.split(":")
-        etH.setText(parts[0]); etM.setText(parts[1]); etS.setText(parts[2])
-        if (previewPlayer != null && previewPlayer!!.duration < 3600000) {
-            etH.isEnabled = false; etH.setText("00"); etH.hint = "00"
-        }
-        AlertDialog.Builder(this).setTitle(title).setView(dialogView)
-            .setPositiveButton("Simpan") { _, _ ->
-                val h = etH.text.toString().padStart(2, '0').ifEmpty { "00" }
-                val m = etM.text.toString().padStart(2, '0').ifEmpty { "00" }
-                val s = etS.text.toString().padStart(2, '0').ifEmpty { "00" }
-                onSave("$h:$m:$s")
-            }.setNegativeButton("Batal", null).show()
-    }
-
-    private fun getFilters() = AudioEngineHelper.buildFilters(
-        b.cbTabSpeed.isChecked, b.seekTempo.progress, b.seekPitch.progress, sourceSampleRate,
-        b.cbTabEq.isChecked, b.seekVolume.progress, eqBars, eqFreqs, b.seekMaster.progress, b.seekLimiter.progress,
-        b.cbTabStereo.isChecked, b.seekStereo.progress, b.seekEcho.progress, b.seekPanning.progress,
-        b.cbTabFormat.isChecked, b.cbRemoveWatermark.isChecked,
-        b.cbTabLoudness.isChecked, b.cbNormalizeLufs.isChecked, b.cbNormalizePeak.isChecked, b.cbAgc.isChecked,
-        b.cbTabDinamika.isChecked, b.cbCompressor.isChecked, b.seekCompThreshold.progress, b.seekCompRatio.progress, b.seekCompAttack.progress, b.seekCompRelease.progress,
-        b.cbTabResample.isChecked, b.spinnerResampleRate.selectedItem.toString(), b.cbSoxResample.isChecked,
-        b.cbTabStereoPro.isChecked, b.cbStereoEnhancer.isChecked, b.seekEnhancerIntensity.progress, b.cbStereoWidener.isChecked, b.seekWidenerMid.progress, b.seekWidenerSide.progress
-    )
 
     private fun needMultiband() = b.cbTabDinamika.isChecked && b.cbMultiband.isChecked
-    private fun hasAnyFilter() = getFilters().isNotEmpty() || needMultiband()
+    private fun hasAnyFilter() = getFilters().isNotEmpty() || needMultiband() || customEffectFilter.isNotEmpty()
     private fun dirtyPreview() { previewFile?.delete(); previewFile = null }
 
     private fun setPlayBtn(playing: Boolean) {
@@ -263,6 +240,7 @@ class AudioEditorActivity : AppCompatActivity() {
 
         val outFile = File(cacheDir, "preview_${System.currentTimeMillis()}.m4a")
         val simple = getFilters(); val hasMb = needMultiband()
+        
         val cmd = StringBuilder("-y ")
         if (b.cbTabTrim.isChecked && endTime != "00:00:00") cmd.append("-ss $startTime -to $endTime ")
         cmd.append("-i \"${inputFile.absolutePath}\" ")
@@ -317,52 +295,36 @@ class AudioEditorActivity : AppCompatActivity() {
 
         val idx = b.spinnerFormat.selectedItemPosition
         val fmt = formatIds[idx.coerceIn(0, formatIds.size - 1)]
-        val ext = when (fmt) { "wav24" -> "wav"; "mp3vbr" -> "mp3"; else -> fmt }
+        val ext = when (fmt) { "wav24" -> "wav"; "mp3vbr" -> "mp3"; "flac12" -> "flac"; else -> fmt }
         val outFile = AudioSystemHelper.getOutputFile(ext)
-
-        val simple = getFilters(); val hasMb = needMultiband()
-        val cmd = StringBuilder("-y ")
-        if (b.cbTabTrim.isChecked && endTime != "00:00:00") cmd.append("-ss $startTime -to $endTime ")
-        cmd.append("-i \"${inputFile.absolutePath}\" ")
-        if (hasMb) cmd.append("-filter_complex \"${AudioEngineHelper.buildMultibandFilterGraph(simple, b.seekMbIntensity.progress)}\" -map \"[mb_out]\" ")
-        else if (simple.isNotEmpty()) cmd.append("-filter_complex \"[0:a]${simple.joinToString(",")}[out]\" -map \"[out]\" ")
-
-        val bitDepth = b.spinnerBitDepth.selectedItem.toString()
-        when (fmt) {
-            "flac" -> cmd.append("-c:a flac -compression_level 8 " + if (bitDepth == "16-bit") "-sample_fmt s16 " else "-sample_fmt s32 ")
-            "wav" -> cmd.append("-c:a pcm_s16le ")
-            "wav24" -> cmd.append("-c:a pcm_s24le ")
-            "aiff" -> cmd.append(when (bitDepth) { "16-bit" -> "-c:a pcm_s16be "; "32-bit" -> "-c:a pcm_s32be "; else -> "-c:a pcm_s24be " })
-            "mp3vbr" -> cmd.append("-c:a libmp3lame -q:a 2 ")
-            "mp3" -> cmd.append("-c:a libmp3lame -b:a ${b.spinnerBitrate.selectedItem} ")
-            "aac" -> cmd.append("-c:a aac -b:a ${b.spinnerBitrate.selectedItem} ")
-            "m4a" -> cmd.append("-c:a aac -b:a ${b.spinnerBitrate.selectedItem} ")
-            else -> cmd.append("-b:a ${b.spinnerBitrate.selectedItem} ")
-        }
-        if (b.cbTabFormat.isChecked) {
-            if (fmt in listOf("mp3", "aac", "m4a", "mp3vbr")) cmd.append("-ar ${b.spinnerSampleRate.selectedItem} ")
-            if (b.cbRemoveMetadata.isChecked) cmd.append("-map_metadata -1 ")
-        }
-        cmd.append("\"${outFile.absolutePath}\"")
 
         b.btnProcess.isEnabled = false
         b.tvProgress.text = "Sedang memproses... Mohon tunggu."
         notif.showEdit("Memproses Audio", inputFile.name)
 
-        FFmpegKit.executeAsync(cmd.toString(), { session ->
-            runOnUiThread {
-                b.btnProcess.isEnabled = true
-                notif.hideEdit()
-                if (ReturnCode.isSuccess(session.returnCode)) {
-                    AudioSystemHelper.registerToMediaStore(this, outFile, ext)
-                    b.tvProgress.text = "Berhasil disimpan di:\nPlaProjects/Edit_Audio/${outFile.name}"
+        AudioProcessHelper.renderAudio(
+            context = this, inputFile = inputFile, outputFile = outFile,
+            simpleFilters = getFilters(), hasMb = needMultiband(), mbIntensity = b.seekMbIntensity.progress,
+            isTrim = b.cbTabTrim.isChecked, startTime = startTime, endTime = endTime,
+            format = fmt, bitDepth = b.spinnerBitDepth.selectedItem.toString(),
+            bitrate = b.spinnerBitrate.selectedItem.toString(), sampleRate = b.spinnerSampleRate.selectedItem.toString(),
+            removeMeta = b.cbRemoveMetadata.isChecked,
+            onSuccess = { file ->
+                runOnUiThread {
+                    b.btnProcess.isEnabled = true; notif.hideEdit()
+                    AudioSystemHelper.registerToMediaStore(this, file, ext)
+                    b.tvProgress.text = "Berhasil disimpan di:\nPlaProjects/Edit_Audio/${file.name}"
                     Toast.makeText(this, "Audio berhasil diproses!", Toast.LENGTH_LONG).show()
-                } else {
+                }
+            },
+            onError = { err ->
+                runOnUiThread {
+                    b.btnProcess.isEnabled = true; notif.hideEdit()
                     b.tvProgress.text = "Gagal memproses audio."
-                    Toast.makeText(this, "Gagal: ${session.failStackTrace}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, "Gagal: $err", Toast.LENGTH_LONG).show()
                 }
             }
-        }, { }, { })
+        )
     }
 
     override fun onDestroy() {
