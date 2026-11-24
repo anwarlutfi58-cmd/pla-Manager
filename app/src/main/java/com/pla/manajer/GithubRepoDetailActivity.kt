@@ -51,22 +51,33 @@ class GithubRepoDetailActivity : AppCompatActivity() {
     private fun setupButtons() {
         findViewById<Button>(R.id.btnBack).setOnClickListener { finish() }
         
-        findViewById<Button>(R.id.btn1).setOnClickListener { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(repoHtmlUrl))) }
+        // 1. BUKA BERKAS (Membuka daftar file di dalam repo)
+        findViewById<Button>(R.id.btn1).setOnClickListener { 
+            val intent = Intent(this, GithubFileListActivity::class.java).apply {
+                putExtra("owner", repoOwner)
+                putExtra("repo", repoName)
+            }
+            startActivity(intent)
+        }
+        
+        // 2. TAMBAH BERKAS TEKS (Ketik langsung)
         findViewById<Button>(R.id.btn2).setOnClickListener { showAddTextFileDialog() }
+        
+        // 3. PINDAH ARAH / UNGGAH FILE (dari HP)
         findViewById<Button>(R.id.btn3).setOnClickListener { pickFileLauncher.launch("*/*") }
 
-        // --- TOMBOL NO. 4: BANGUN APK (MUNCULKAN PILIHAN) ---
-        findViewById<Button>(R.id.btn4).setOnClickListener { showBuildOptionsDialog() }
+        // 4. BANGUN APK (Hanya Pilih ZIP atau Kode yang Sudah Ada)
+        findViewById<Button>(R.id.btn4).setOnClickListener { showBuildMethodDialog() }
 
         findViewById<Button>(R.id.btn5).setOnClickListener { showWorkflowsDialog() }
         findViewById<Button>(R.id.btn6).setOnClickListener { showWorkflowsDialog() }
-        findViewById<Button>(R.id.btn7).setOnClickListener { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("$repoHtmlUrl/releases"))) } // Unduh APK langsung ke rilis
+        findViewById<Button>(R.id.btn7).setOnClickListener { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("$repoHtmlUrl/releases"))) }
         findViewById<Button>(R.id.btn8).setOnClickListener { showWorkflowsDialog() }
         findViewById<Button>(R.id.btn9).setOnClickListener { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("$repoHtmlUrl/actions"))) }
         
-        findViewById<Button>(R.id.btn10).setOnClickListener { showSimpleToast("Fitur Keamanan APK berjalan.") }
-        findViewById<Button>(R.id.btn11).setOnClickListener { showSimpleToast("Fitur Kunci Tanda Tangan berjalan.") }
-        findViewById<Button>(R.id.btn12).setOnClickListener { showSimpleToast("Buat Rilis baru...") }
+        findViewById<Button>(R.id.btn10).setOnClickListener { showSimpleToast("Keamanan APK berjalan.") }
+        findViewById<Button>(R.id.btn11).setOnClickListener { showSimpleToast("Kunci Tanda Tangan berjalan.") }
+        findViewById<Button>(R.id.btn12).setOnClickListener { showSimpleToast("Buat Rilis...") }
         findViewById<Button>(R.id.btn13).setOnClickListener { showReleasesDialog() }
         findViewById<Button>(R.id.btn14).setOnClickListener { showCommitsDialog() }
         findViewById<Button>(R.id.btn15).setOnClickListener { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("$repoHtmlUrl/settings/secrets/actions"))) }
@@ -82,47 +93,39 @@ class GithubRepoDetailActivity : AppCompatActivity() {
     }
 
     // ==========================================
-    // LOGIKA BANGUN APK
+    // LOGIKA BANGUN APK (SESUAI INSTRUKSI ANDA)
     // ==========================================
-    private fun showBuildOptionsDialog() {
-        val options = arrayOf("1. Bangun dari Repo/Folder (ZIP)", "2. Bangun dari Kode Teks Langsung")
+    private fun showBuildMethodDialog() {
+        // Teks tombol diubah agar jelas menggunakan kode yang sudah ada
+        val options = arrayOf("Bangun dari File ZIP", "Bangun dari Kode yang Sudah Ada")
+        
         AlertDialog.Builder(this)
             .setTitle("Pilih Metode Bangun APK")
             .setItems(options) { _, which ->
                 if (which == 0) {
-                    // Bangun dari Repo
-                    askKeystoreQuestion { isCustomKey ->
-                        startBuildProcess(useCustomKey = isCustomKey)
-                    }
+                    // Jika pilih ZIP, langsung tanya soal kunci
+                    askKeystoreQuestion("ZIP")
                 } else {
-                    // Bangun dari Teks
-                    showTypeCodeDialog()
+                    // Jika pilih Kode yang Sudah Ada, langsung tanya soal kunci
+                    askKeystoreQuestion("KODE")
                 }
             }.show()
     }
 
-    private fun askKeystoreQuestion(onAnswer: (Boolean) -> Unit) {
+    // LANGKAH 2: PERTANYAAN KUNCI
+    private fun askKeystoreQuestion(method: String) {
         AlertDialog.Builder(this)
             .setTitle("Kunci Keamanan (Keystore)")
             .setMessage("Gunakan kunci dari GitHub Secrets, atau buat kunci sendiri yang akan disimpan di aplikasi PLA?")
-            .setPositiveButton("Buat Kunci Sendiri") { _, _ -> onAnswer(true) }
-            .setNegativeButton("Gunakan GitHub Secrets") { _, _ -> onAnswer(false) }
+            .setPositiveButton("Buat Kunci Sendiri") { _, _ -> showCreateKeystoreDialog(method) }
+            .setNegativeButton("Gunakan GitHub Secrets") { _, _ -> uploadWorkflowAndTriggerBuild() }
             .show()
     }
 
-    private fun startBuildProcess(useCustomKey: Boolean) {
-        if (useCustomKey) {
-            showCreateKeystoreDialog()
-        } else {
-            uploadWorkflowAndTriggerBuild()
-        }
-    }
-
-    private fun showCreateKeystoreDialog() {
+    private fun showCreateKeystoreDialog(method: String) {
         val layout = android.widget.LinearLayout(this).apply { orientation = android.widget.LinearLayout.VERTICAL; setPadding(50, 20, 50, 20) }
         val etAlias = EditText(this).apply { hint = "Nama Alias (contoh: mykey)" }
         val etPass = EditText(this).apply { hint = "Password Kunci" }
-
         layout.addView(etAlias); layout.addView(etPass)
 
         AlertDialog.Builder(this)
@@ -131,11 +134,8 @@ class GithubRepoDetailActivity : AppCompatActivity() {
             .setPositiveButton("Simpan & Bangun") { _, _ ->
                 val alias = etAlias.text.toString().ifEmpty { "plakey" }
                 val pass = etPass.text.toString().ifEmpty { "password123" }
-                
-                // Simpan kunci ke PLA
                 ApkBuilderHelper.generateKeystoreLocally(this, alias, pass)
-                Toast.makeText(this, "Kunci disimpan di PLA. Memulai Build...", Toast.LENGTH_SHORT).show()
-                
+                Toast.makeText(this, "Kunci disimpan. Memulai Build...", Toast.LENGTH_SHORT).show()
                 uploadWorkflowAndTriggerBuild()
             }
             .setNegativeButton("Batal", null)
@@ -147,40 +147,11 @@ class GithubRepoDetailActivity : AppCompatActivity() {
         lifecycleScope.launch {
             val success = ApkBuilderHelper.setupBuildWorkflow(token, repoOwner, repoName, true)
             if (success) {
-                Toast.makeText(this@GithubRepoDetailActivity, "Workflow berhasil dipasang! APK akan muncul di menu Rilis.", Toast.LENGTH_LONG).show()
+                Toast.makeText(this@GithubRepoDetailActivity, "Workflow dipasang! APK muncul di menu Rilis.", Toast.LENGTH_LONG).show()
             } else {
                 Toast.makeText(this@GithubRepoDetailActivity, "Gagal memasang workflow.", Toast.LENGTH_SHORT).show()
             }
         }
-    }
-
-    private fun showTypeCodeDialog() {
-        val layout = android.widget.LinearLayout(this).apply { orientation = android.widget.LinearLayout.VERTICAL; setPadding(50, 20, 50, 20) }
-        val etName = EditText(this).apply { hint = "Nama file (contoh: MainActivity.kt)" }
-        val etCode = EditText(this).apply { hint = "Tulis kode di sini..." }
-        layout.addView(etName); layout.addView(etCode)
-
-        AlertDialog.Builder(this)
-            .setTitle("Tulis Kode Langsung")
-            .setView(layout)
-            .setPositiveButton("Unggah & Bangun") { _, _ ->
-                val name = etName.text.toString().trim()
-                val code = etCode.text.toString()
-                if (name.isNotEmpty()) {
-                    lifecycleScope.launch {
-                        val success = GithubFeatureHelper.uploadFile(token, repoOwner, repoName, name, code.toByteArray())
-                        if (success) {
-                            askKeystoreQuestion { isCustomKey ->
-                                if (isCustomKey) showCreateKeystoreDialog() else uploadWorkflowAndTriggerBuild()
-                            }
-                        } else {
-                            Toast.makeText(this@GithubRepoDetailActivity, "Gagal mengunggah kode", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                }
-            }
-            .setNegativeButton("Batal", null)
-            .show()
     }
 
     // ==========================================
