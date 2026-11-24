@@ -1,9 +1,7 @@
 package com.pla.manajer
 
 import android.app.AlertDialog
-import android.content.ClipData
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
 import android.view.View
@@ -12,6 +10,7 @@ import android.widget.CheckBox
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
+import androidx.core.widget.doAfterTextChanged
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.pla.manajer.adapter.FileAdapter
@@ -32,6 +31,7 @@ class MediaManagerActivity : AppCompatActivity() {
     private var mediaType: String = "AUDIO"
     private var currentDir: File? = null
     private var allFiles: List<File> = emptyList()
+    private var currentFilteredFiles: List<File> = emptyList()
 
     private val audioExts = listOf("mp3", "wav", "aac", "m4a", "ogg", "flac", "opus")
     private val videoExts = listOf("mp4", "mkv", "avi", "mov", "webm")
@@ -53,10 +53,6 @@ class MediaManagerActivity : AppCompatActivity() {
             onMoreOptions = { f -> showMoreMenu(f) }
         ).apply {
             setDateTimeMode(prefs.showDateTime)
-            displayNames = mapOf(
-                Environment.getExternalStorageDirectory().absolutePath to "Memori Internal",
-                (getSdCard()?.absolutePath ?: "") to "Kartu SD"
-            )
         }
 
         b.recyclerMedia.layoutManager = LinearLayoutManager(this)
@@ -65,6 +61,29 @@ class MediaManagerActivity : AppCompatActivity() {
         b.btnTopBack.setOnClickListener { handleBack() }
         b.selectionToolbar.visibility = View.GONE
         b.miniPlayerLayout.visibility = View.GONE
+
+        // PERBAIKAN: Pasang aksi untuk tombol sortir (jika ID-nya btnSort)
+        try {
+            b.btnSort.setOnClickListener { showSortDialog() }
+        } catch (e: Exception) {
+            // Abaikan jika ID tombolnya berbeda
+        }
+
+        // PERBAIKAN: Pasang aksi untuk pencarian
+        try {
+            b.etSearch.doAfterTextChanged { 
+                applyFilter(it?.toString() ?: "") 
+            }
+            // Jika Anda menekan enter, kolom dibersihkan
+            b.etSearch.setOnEditorActionListener { v, actionId, event ->
+                if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH) {
+                    v.text = null // Bersihkan kolom setelah cari
+                    true
+                } else false
+            }
+        } catch (e: Exception) {
+            // Abaikan jika ID kolom pencarian berbeda
+        }
 
         b.btnDeleteSelected.setOnClickListener { deleteSelectedFiles() }
         b.btnCopySelected.setOnClickListener {
@@ -89,16 +108,73 @@ class MediaManagerActivity : AppCompatActivity() {
         loadRoots()
     }
 
+    // Filter pencarian
+    private fun applyFilter(query: String) {
+        if (query.isEmpty()) {
+            currentFilteredFiles = allFiles
+        } else {
+            currentFilteredFiles = allFiles.filter { it.name.lowercase().contains(query.lowercase()) }
+        }
+        val sorted = sortFiles(currentFilteredFiles)
+        adapter.submit(sorted)
+    }
+
+    private fun sortFiles(files: List<File>): List<File> {
+        return when (prefs.sortMode) {
+            2 -> files.sortedWith(compareBy<File> { !it.isDirectory }.thenByDescending { it.lastModified() })
+            3 -> files.sortedWith(compareBy<File> { !it.isDirectory }.thenBy { it.lastModified() })
+            4 -> files.sortedWith(compareBy<File> { !it.isDirectory }.thenByDescending { it.length() })
+            5 -> files.sortedWith(compareBy<File> { !it.isDirectory }.thenBy { it.length() })
+            else -> files.sortedWith(compareBy<File> { !it.isDirectory }.thenBy { it.name.lowercase() })
+        }
+    }
+
+    private fun showSortDialog() {
+        val options = arrayOf("Nama (A-Z)","Nama (Z-A)","Tanggal (Terlama)","Tanggal (Terbaru)","Ukuran (Terkecil)","Ukuran (Terbesar)")
+        AlertDialog.Builder(this).setTitle("Urutkan Berdasarkan")
+            .setSingleChoiceItems(options, prefs.sortMode) { dialog, which ->
+                prefs.sortMode = which
+                applyFilter(b.etSearch.text?.toString() ?: "")
+                dialog.dismiss()
+            }.setNegativeButton("Batal", null).show()
+    }
+
+    // KUNCI PERUBAHAN: Memindai HP untuk mencari folder yang ada fotonya
     private fun loadRoots() {
         currentDir = null
         b.tvTitle.text = when(mediaType) {
             "AUDIO" -> "Audio"; "VIDEO" -> "Video"; "IMAGE" -> "Gambar"; else -> "Media"
         }
-        val roots = mutableListOf<File>()
-        roots.add(Environment.getExternalStorageDirectory())
-        getSdCard()?.let { roots.add(it) }
-        allFiles = roots
-        adapter.submit(roots)
+        
+        lifecycleScope.launch {
+            val mediaFolders = withContext(Dispatchers.IO) {
+                val exts = when(mediaType) {
+                    "AUDIO" -> audioExts; "VIDEO" -> videoExts; "IMAGE" -> imageExts; else -> emptyList()
+                }
+                val rootDir = Environment.getExternalStorageDirectory()
+                val sdCard = getSdCard()
+                val foundFolders = mutableSetOf<File>()
+
+                fun scan(dir: File) {
+                    val files = dir.listFiles() ?: return
+                    var hasMedia = false
+                    if (files.any { it.isFile && it.extension.lowercase() in exts }) {
+                        hasMedia = true
+                    }
+                    if (hasMedia) foundFolders.add(dir)
+                    
+                    files.filter { it.isDirectory && !it.name.startsWith(".") && it.name != "Android" }
+                         .forEach { scan(it) }
+                }
+
+                scan(rootDir)
+                sdCard?.let { scan(it) }
+                foundFolders.toList()
+            }
+            
+            allFiles = mediaFolders
+            applyFilter(b.etSearch.text?.toString() ?: "")
+        }
     }
 
     private fun loadDir(dir: File) {
@@ -112,9 +188,8 @@ class MediaManagerActivity : AppCompatActivity() {
                     "AUDIO" -> audioExts; "VIDEO" -> videoExts; "IMAGE" -> imageExts; else -> emptyList()
                 }
                 files.filter { it.isDirectory || (it.isFile && it.extension.lowercase() in exts) }
-                    .sortedWith(compareBy<File> { !it.isDirectory }.thenBy { it.name.lowercase() })
             }
-            adapter.submit(allFiles)
+            applyFilter(b.etSearch.text?.toString() ?: "")
         }
     }
 
@@ -170,7 +245,7 @@ class MediaManagerActivity : AppCompatActivity() {
                     dao.add(com.pla.manajer.data.TrashItem(originalPath = f.absolutePath, trashPath = target.absolutePath, name = f.name, isDir = f.isDirectory))
                 }
             }
-            currentDir?.let { loadDir(it) } ?: loadRoots()
+            if (currentDir != null) currentDir?.let { loadDir(it) } else loadRoots()
             notif.showFile("Selesai", "Dipindah ke Sampah")
         }
     }
@@ -179,7 +254,7 @@ class MediaManagerActivity : AppCompatActivity() {
         lifecycleScope.launch {
             notif.showFile("Menghapus", "Menghapus permanen...")
             withContext(Dispatchers.IO) { files.forEach { if (it.isDirectory) it.deleteRecursively() else it.delete() } }
-            currentDir?.let { loadDir(it) } ?: loadRoots()
+            if (currentDir != null) currentDir?.let { loadDir(it) } else loadRoots()
             notif.showFile("Selesai", "Dihapus permanen")
         }
     }
@@ -199,7 +274,7 @@ class MediaManagerActivity : AppCompatActivity() {
             notif.showFile(if (isMove) "Memindah" else "Menyalin", "${src.name} → ${dst.parentFile?.name}")
             try {
                 withContext(Dispatchers.IO) { if (isMove) FileUtils.move(src, dst) else FileUtils.copy(src, dst) }
-                currentDir?.let { loadDir(it) } ?: loadRoots()
+                if (currentDir != null) currentDir?.let { loadDir(it) } else loadRoots()
                 notif.showFile("Selesai", "Berhasil")
             } catch (e: Exception) { Toast.makeText(this@MediaManagerActivity, "Gagal: ${e.message}", Toast.LENGTH_SHORT).show() }
         }
@@ -255,15 +330,16 @@ class MediaManagerActivity : AppCompatActivity() {
         AlertDialog.Builder(this).setTitle("Ganti Nama").setView(input)
             .setPositiveButton("OK") { _, _ ->
                 val newFile = File(f.parentFile, input.text.toString())
-                if (f.renameTo(newFile)) currentDir?.let { loadDir(it) } else Toast.makeText(this, "Gagal rename", Toast.LENGTH_SHORT).show()
+                if (f.renameTo(newFile)) {
+                    if (currentDir != null) currentDir?.let { loadDir(it) } else loadRoots()
+                } else Toast.makeText(this, "Gagal rename", Toast.LENGTH_SHORT).show()
             }.setNegativeButton("Batal", null).show()
     }
 
     private fun handleBack() {
         if (currentDir != null) {
-            val parent = currentDir?.parentFile
-            val roots = listOfNotNull(Environment.getExternalStorageDirectory(), getSdCard())
-            if (parent != null && roots.contains(parent)) loadDir(parent) else loadRoots()
+            currentDir = null
+            loadRoots()
         } else finish()
     }
 
@@ -276,18 +352,6 @@ class MediaManagerActivity : AppCompatActivity() {
             return File(sd)
         }
         return null
-    }
-
-    private fun getSimplePath(path: String): String {
-        val internal = Environment.getExternalStorageDirectory().absolutePath
-        val sd = getSdCard()?.absolutePath
-        return when {
-            path == internal -> "Memori Internal"
-            sd != null && path == sd -> "Kartu SD"
-            path.startsWith(internal) -> "Memori Internal" + path.replaceFirst(internal, "")
-            sd != null && path.startsWith(sd) -> "Kartu SD" + path.replaceFirst(sd, "")
-            else -> path
-        }
     }
 
     @Deprecated("Deprecated in Java")
