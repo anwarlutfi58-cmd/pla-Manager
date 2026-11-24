@@ -31,6 +31,9 @@ class VideoEditorActivity : AppCompatActivity() {
     private var lastExportedFile: File? = null
     private var extraVideoFilter = ""
     private var extraAudioFilter = ""
+    private var useChromaKey = false
+    private var useCinematicBars = false
+    private var useAutoEnhance = false
 
     private val pickImagesLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == RESULT_OK) {
@@ -132,12 +135,18 @@ class VideoEditorActivity : AppCompatActivity() {
             setOnClickListener { showRealVideoTools() }
         }
 
+        val btnAdvanced2 = Button(this).apply {
+            text = "Alat Lanjutan (Chroma Key, PIP, Stiker)"
+            setOnClickListener { showAdvancedTools2() }
+        }
+
         val parent = b.btnExport.parent as? LinearLayout
         if (parent != null) {
             val index = parent.indexOfChild(b.btnExport)
             parent.addView(btnPickRealVideo, index)
             parent.addView(btnPlay, index + 1)
             parent.addView(btnAdvanced, index + 2)
+            parent.addView(btnAdvanced2, index + 3)
         }
 
         b.btnExport.setOnClickListener {
@@ -147,6 +156,26 @@ class VideoEditorActivity : AppCompatActivity() {
                 showExportDialog()
             }
         }
+    }
+
+    private fun showAdvancedTools2() {
+        val options = arrayOf("Aktifkan Chroma Key", "Aktifkan Cinematic Bars", "Aktifkan Auto-Enhance", "Pilih Stiker Overlay")
+        AlertDialog.Builder(this).setTitle("Alat Lanjutan").setItems(options) { _, which ->
+            when(which) {
+                0 -> { useChromaKey = true; Toast.makeText(this, "Chroma Key aktif", Toast.LENGTH_SHORT).show() }
+                1 -> { useCinematicBars = true; Toast.makeText(this, "Cinematic Bars aktif", Toast.LENGTH_SHORT).show() }
+                2 -> { useAutoEnhance = true; Toast.makeText(this, "Auto-Enhance aktif", Toast.LENGTH_SHORT).show() }
+                3 -> showStickerPicker()
+            }
+        }.show()
+    }
+
+    private fun showStickerPicker() {
+        val stickerList = VideoStickerHelper.stickers
+        AlertDialog.Builder(this).setTitle("Pilih Stiker").setItems(stickerList) { _, which ->
+            extraVideoFilter = VideoStickerHelper.getStickerResId(stickerList[which]).toString()
+            Toast.makeText(this, "Stiker dipilih, akan muncul saat ekspor", Toast.LENGTH_SHORT).show()
+        }.show()
     }
 
     private fun showRealVideoTools() {
@@ -273,6 +302,10 @@ class VideoEditorActivity : AppCompatActivity() {
             val vFilter = StringBuilder("scale=$resolution,setsar=1,fps=$fps")
             val effectFilter = VideoProHelper.getVisualFilter(b.spinnerEffects.selectedItem.toString())
             if (effectFilter.isNotEmpty()) vFilter.append(",$effectFilter")
+            if (useChromaKey) vFilter.append(",${VideoProHelper2.getChromaKeyFilter()}")
+            if (useCinematicBars) vFilter.append(",${VideoProHelper2.getCinematicBarsFilter()}")
+            if (useAutoEnhance) vFilter.append(",${VideoProHelper2.getAutoEnhanceFilter()}")
+            
             val wmText = b.etWatermark.text.toString()
             if (wmText.isNotEmpty()) {
                 val pos = VideoProHelper.getWatermarkPosition(b.spinnerTextPos.selectedItem.toString())
@@ -300,6 +333,7 @@ class VideoEditorActivity : AppCompatActivity() {
                         registerVideoToMediaStore(outputFile)
                         Toast.makeText(this, "Berhasil! Tekan 'Putar Hasil Video'", Toast.LENGTH_LONG).show()
                         extraVideoFilter = ""
+                        useChromaKey = false; useCinematicBars = false; useAutoEnhance = false
                     } else {
                         Toast.makeText(this, "Gagal memproses video.", Toast.LENGTH_LONG).show()
                     }
@@ -357,6 +391,9 @@ class VideoEditorActivity : AppCompatActivity() {
             val vFilter = StringBuilder("scale=$resolution,setsar=1,fps=$fps")
             val effectFilter = VideoProHelper.getVisualFilter(b.spinnerEffects.selectedItem.toString())
             if (effectFilter.isNotEmpty()) vFilter.append(",$effectFilter")
+            if (useCinematicBars) vFilter.append(",${VideoProHelper2.getCinematicBarsFilter()}")
+            if (useAutoEnhance) vFilter.append(",${VideoProHelper2.getAutoEnhanceFilter()}")
+            
             val wmText = b.etWatermark.text.toString()
             if (wmText.isNotEmpty()) {
                 val pos = VideoProHelper.getWatermarkPosition(b.spinnerTextPos.selectedItem.toString())
