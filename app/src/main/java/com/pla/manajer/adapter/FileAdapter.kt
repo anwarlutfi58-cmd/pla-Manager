@@ -24,9 +24,9 @@ class FileAdapter(
     var displayNames: Map<String, String> = emptyMap()
 
     var isSelectionMode = false
-    var isRootMode = false // Mode khusus untuk halaman awal MediaManager
+    var isRootMode = false
     val selectedFiles = mutableSetOf<File>()
-    var fileCounts: Map<String, Int> = emptyMap() // Menyimpan jumlah file di dalam folder
+    var fileCounts: Map<String, Int> = emptyMap()
 
     fun submit(list: List<File>) { items = list; notifyDataSetChanged() }
     fun setDateTimeMode(showTime: Boolean) { showDateTime = showTime }
@@ -45,14 +45,14 @@ class FileAdapter(
 
         if (f.isDirectory) {
             val count = fileCounts[f.absolutePath] ?: (f.listFiles()?.size ?: 0)
-            h.b.tvMeta.text = "$count file • $dateStr"
+            // PERBAIKAN: Folder tidak menampilkan tanggal
+            h.b.tvMeta.text = "$count file"
             h.b.ivIcon.setImageResource(R.drawable.ic_folder)
         } else {
             h.b.tvMeta.text = "${FileUtils.humanSize(f.length())} • $dateStr"
             h.b.ivIcon.setImageResource(R.drawable.ic_file)
         }
 
-        // Logika visibilitas tombol
         if (isRootMode) {
             h.b.cbSelect.visibility = View.GONE
             h.b.btnMore.visibility = View.GONE
