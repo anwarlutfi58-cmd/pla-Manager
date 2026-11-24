@@ -40,6 +40,47 @@
             </intent-filter>
         </activity>
 
+        <!-- 1. PLA EDIT FOTO -->
+        <activity android:name=".ImageEditorActivity" android:label="PLA Edit Foto" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <action android:name="android.intent.action.EDIT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+        </activity>
+
+        <!-- 2. PLA EDIT VIDEO -->
+        <activity android:name=".VideoEditorActivity" android:label="PLA Edit Video" android:exported="true" android:configChanges="orientation|screenSize|keyboardHidden">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <action android:name="android.intent.action.EDIT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="video/*" />
+            </intent-filter>
+        </activity>
+
+        <!-- 3. PLA MUSIC (Pemutar Musik) -->
+        <activity android:name=".AudioPlayerActivity" android:label="PLA Music" android:launchMode="singleTop" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="audio/*" />
+            </intent-filter>
+        </activity>
+
+        <!-- 4. PLA EDIT AUDIO (Editor Audio) -->
+        <activity android:name=".AudioEditorActivity" android:label="PLA Edit Audio" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <action android:name="android.intent.action.EDIT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="audio/*" />
+            </intent-filter>
+        </activity>
+
+        <!-- AKTIVITAS LAINNYA -->
         <activity android:name=".FileManagerActivity" />
         <activity android:name=".ProjectManagerActivity" />
         <activity android:name=".CodeEditorActivity" />
@@ -49,13 +90,9 @@
         <activity android:name=".AppManagerActivity" />
         <activity android:name=".MediaManagerActivity" />
         <activity android:name=".CloudActivity" />
-        <activity android:name=".AudioPlayerActivity" android:launchMode="singleTop" />
-        <activity android:name=".AudioEditorActivity" />
         <activity android:name=".AudioMergeActivity" />
         <activity android:name=".AudioMixerActivity" />
-        <activity android:name=".ImageEditorActivity" />
         <activity android:name=".CollageActivity" />
-        <activity android:name=".VideoEditorActivity" android:configChanges="orientation|screenSize|keyboardHidden" />
         <activity android:name=".VideoAdvancedActivity" />
         <activity android:name=".GithubBuilderActivity" />
 
