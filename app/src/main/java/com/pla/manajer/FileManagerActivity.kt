@@ -65,7 +65,7 @@ class FileManagerActivity : AppCompatActivity() {
         notif = NotificationHelper(this)
 
         currentDir = File(intent.getStringExtra("initial_path") ?: prefs.lastPath)
-        showDateTime = prefs.getBoolean("showDateTime", false)
+        showDateTime = prefs.showDateTime
 
         adapter = FileAdapter(
             onOpen = { f -> if (!adapter.isSelectionMode) open(f) },
