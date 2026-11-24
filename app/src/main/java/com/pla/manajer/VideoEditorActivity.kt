@@ -17,6 +17,7 @@ import com.arthenica.ffmpegkit.FFmpegKit
 import com.arthenica.ffmpegkit.ReturnCode
 import com.pla.manajer.databinding.ActivityVideoEditorBinding
 import com.pla.manajer.util.NotificationHelper
+import com.pla.manajer.util.VideoPlayerHelper // <-- Import Helper
 import java.io.File
 import java.io.FileOutputStream
 
@@ -26,6 +27,9 @@ class VideoEditorActivity : AppCompatActivity() {
     private val imageUris = mutableListOf<Uri>()
     private var audioUri: Uri? = null
     private var isLandscape = false
+    
+    // Menyimpan file video terakhir yang diekspor agar bisa diputar
+    private var lastExportedFile: File? = null
 
     private val pickImagesLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == RESULT_OK) {
@@ -81,6 +85,33 @@ class VideoEditorActivity : AppCompatActivity() {
         b.btnPickAudio.setOnClickListener { pickAudioLauncher.launch("audio/*") }
 
         b.spinnerRatio.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, arrayOf("16:9 (Lanskap)", "9:16 (Potret/TikTok)", "1:1 (Persegi)"))
+
+        // Tambahkan tombol Putar otomatis di atas tombol Ekspor jika belum ada
+        val btnPlay = Button(this).apply {
+            text = "Putar Hasil Video"
+            setOnClickListener {
+                val file = lastExportedFile
+                if (file != null && file.exists()) {
+                    VideoPlayerHelper.playVideo(this@VideoEditorActivity, file)
+                } else {
+                    // Jika belum diedit, coba cari video terakhir di folder
+                    val dir = File(Environment.getExternalStorageDirectory(), "PlaProjects/Edit_Video")
+                    val lastVideo = dir.listFiles()?.filter { it.extension == "mp4" }?.maxByOrNull { it.lastModified() }
+                    if (lastVideo != null) {
+                        VideoPlayerHelper.playVideo(this@VideoEditorActivity, lastVideo)
+                    } else {
+                        Toast.makeText(this@VideoEditorActivity, "Belum ada video yang dibuat.", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+        
+        // Masukkan tombol play ke layout (di atas tombol export)
+        val parent = b.btnExport.parent as? LinearLayout
+        if (parent != null) {
+            val index = parent.indexOfChild(b.btnExport)
+            parent.addView(btnPlay, index)
+        }
 
         b.btnExport.setOnClickListener {
             if (imageUris.isEmpty()) {
@@ -142,7 +173,9 @@ class VideoEditorActivity : AppCompatActivity() {
 
         val outputDir = File(Environment.getExternalStorageDirectory(), "PlaProjects/Edit_Video")
         if (!outputDir.exists()) outputDir.mkdirs()
+        
         val outputFile = File(outputDir, "EDIT_${System.currentTimeMillis()}.mp4")
+        lastExportedFile = outputFile // Simpan referensi untuk tombol putar
 
         try {
             val writer = concatFile.bufferedWriter()
@@ -186,8 +219,8 @@ class VideoEditorActivity : AppCompatActivity() {
                     notif.hideEdit()
                     if (ReturnCode.isSuccess(session.returnCode)) {
                         registerVideoToMediaStore(outputFile)
-                        Toast.makeText(this, "Berhasil disimpan di PlaProjects/Edit_Video", Toast.LENGTH_LONG).show()
-                        finish()
+                        Toast.makeText(this, "Berhasil! Silakan tekan 'Putar Hasil Video'", Toast.LENGTH_LONG).show()
+                        // Tidak langsung finish() agar user bisa memutar hasilnya
                     } else {
                         Toast.makeText(this, "Gagal membuat video. Coba kurangi jumlah gambar.", Toast.LENGTH_LONG).show()
                     }
