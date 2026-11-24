@@ -25,6 +25,7 @@ class FileAdapter(
 
     var isSelectionMode = false
     var isRootMode = false
+    var hideCheckboxAndMore = false // <-- TAMBAHAN BARU
     val selectedFiles = mutableSetOf<File>()
     var fileCounts: Map<String, Int> = emptyMap()
 
@@ -45,7 +46,6 @@ class FileAdapter(
 
         if (f.isDirectory) {
             val count = fileCounts[f.absolutePath] ?: (f.listFiles()?.size ?: 0)
-            // PERBAIKAN: Folder tidak menampilkan tanggal
             h.b.tvMeta.text = "$count file"
             h.b.ivIcon.setImageResource(R.drawable.ic_folder)
         } else {
@@ -53,7 +53,8 @@ class FileAdapter(
             h.b.ivIcon.setImageResource(R.drawable.ic_file)
         }
 
-        if (isRootMode) {
+        // Logika visibilitas tombol
+        if (isRootMode || hideCheckboxAndMore) {
             h.b.cbSelect.visibility = View.GONE
             h.b.btnMore.visibility = View.GONE
         } else {
@@ -71,7 +72,7 @@ class FileAdapter(
         h.b.btnMore.setOnClickListener { onMoreOptions(f) }
         h.b.root.setOnClickListener { if (isSelectionMode) onSelectToggle(f) else onOpen(f) }
         h.b.root.setOnLongClickListener { 
-            if (!isRootMode) { onLong(f); true } else false 
+            if (!isRootMode && !hideCheckboxAndMore) { onLong(f); true } else false 
         }
     }
 
