@@ -10,6 +10,7 @@ import android.content.pm.PackageManager
 import android.media.audiofx.Equalizer
 import android.media.session.MediaSession
 import android.media.session.PlaybackState
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -24,6 +25,7 @@ import com.pla.manajer.databinding.ActivityAudioPlayerBinding
 import com.pla.manajer.util.NotificationHelper
 import com.pla.manajer.util.PlaMediaPlayer
 import java.io.File
+import java.io.FileOutputStream
 
 class AudioPlayerActivity : AppCompatActivity() {
     private lateinit var b: ActivityAudioPlayerBinding
@@ -66,10 +68,30 @@ class AudioPlayerActivity : AppCompatActivity() {
 
         notif = NotificationHelper(this)
 
-        filePaths = intent.getStringArrayListExtra("file_paths") ?: emptyList()
+        // --- PENANGKAP SHARE INTENT DARI LUAR ---
+        var startPath: String? = intent.getStringExtra("start_path")
+        var pathsList = intent.getStringArrayListExtra("file_paths")
 
-        // ROTASI: lagu yang ditekan jadi nomor 1, sisanya menyusul
-        val startPath = intent.getStringExtra("start_path")
+        if (pathsList.isNullOrEmpty() && intent?.action == Intent.ACTION_SEND) {
+            val uri = if (Build.VERSION.SDK_INT >= 33) {
+                intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                intent.getParcelableExtra(Intent.EXTRA_STREAM)
+            }
+            if (uri != null) {
+                val tempFile = File(cacheDir, "shared_music_player.mp3")
+                contentResolver.openInputStream(uri)?.use { input ->
+                    FileOutputStream(tempFile).use { output -> input.copyTo(output) }
+                }
+                startPath = tempFile.absolutePath
+                pathsList = arrayListOf(tempFile.absolutePath)
+            }
+        }
+        // ------------------------------------------
+
+        filePaths = pathsList ?: emptyList()
+
         if (startPath != null && filePaths.isNotEmpty()) {
             val i = filePaths.indexOf(startPath)
             if (i > 0) filePaths = filePaths.drop(i) + filePaths.take(i)
