@@ -19,11 +19,11 @@
             android:layout_marginBottom="12dp" />
 
         <Button android:id="@+id/btnSpeed" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Atur Kecepatan (Fast/Slow Motion)" />
-        <Button android:id="@+id/btnFilter" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Filter Warna & Efek Visual" />
-        <Button android:id="@+id/btnAudio" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Atur Suara & Audio Lanjutan" />
+        <Button android:id="@+id/btnFilter" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Filter Warna dan Efek Visual" />
+        <Button android:id="@+id/btnAudio" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Atur Suara dan Audio Lanjutan" />
         <Button android:id="@+id/btnCrop" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Potong / Ganti Rasio (Crop)" />
         <Button android:id="@+id/btnRotate" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Putar / Balik Video" />
-        <Button android:id="@+id/btnText" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Tambah Teks & Watermark" />
+        <Button android:id="@+id/btnText" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Tambah Teks dan Watermark" />
         <Button android:id="@+id/btnCompress" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Kompres Ukuran Video" />
 
     </LinearLayout>
