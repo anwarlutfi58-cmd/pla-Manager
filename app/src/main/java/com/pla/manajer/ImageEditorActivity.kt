@@ -10,14 +10,14 @@ import android.provider.MediaStore
 import android.view.MotionEvent
 import android.view.View
 import android.widget.ArrayAdapter
+import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.tabs.TabLayout
 import com.pla.manajer.databinding.ActivityImageEditorBinding
-import com.pla.manajer.util.ImageFilterHelper
-import com.pla.manajer.util.NotificationHelper
+import com.pla.manajer.util.*
 import java.io.File
 import java.io.FileOutputStream
 
@@ -28,9 +28,14 @@ class ImageEditorActivity : AppCompatActivity() {
     private lateinit var canvas: Canvas
     private lateinit var notif: NotificationHelper
 
-    private var isEraserMode = false
+    // Mode Kuas & Bentuk
+    private var currentMode = 0 // 0 = Normal, 1 = Eraser, 2 = Brush, 3 = Shape
     private var lastX = 0f
     private var lastY = 0f
+    private var startX = 0f
+    private var startY = 0f
+    private var currentColor = Color.RED
+    private var shapeType = 0 // 0=Garis, 1=Kotak, 2=Lingkaran, 3=Panah
 
     override fun onCreate(s: Bundle?) {
         super.onCreate(s)
@@ -86,51 +91,125 @@ class ImageEditorActivity : AppCompatActivity() {
         b.btnRotateRight.setOnClickListener { rotateImage(90f) }
         b.btnFlip.setOnClickListener { flipImage() }
 
-        // --- TOMBOL TEKS DENGAN 20 WARNA ---
+        // Teks 20 Warna
         b.btnAddText.setOnClickListener { showTextColorDialog() }
 
+        // Mode Eraser
         b.btnMagicEraser.setOnClickListener {
-            isEraserMode = !isEraserMode
-            b.btnMagicEraser.text = if (isEraserMode) "MODE HAPUS AKTIF" else "Gosok Hapus Watermark"
+            currentMode = if (currentMode == 1) 0 else 1
+            b.btnMagicEraser.text = if (currentMode == 1) "MODE HAPUS AKTIF" else "Gosok Hapus Watermark"
+            Toast.makeText(this, if(currentMode == 1) "Mode Hapus Aktif" else "Mode Normal", Toast.LENGTH_SHORT).show()
         }
 
+        // Listener Sentuhan (Untuk Eraser, Kuas, dan Bentuk)
         b.ivImage.setOnTouchListener { _, event ->
-            if (!isEraserMode) return@setOnTouchListener false
+            if (currentMode == 0) return@setOnTouchListener false
+            
             val scaleX = mutableBitmap.width.toFloat() / b.ivImage.width
             val scaleY = mutableBitmap.height.toFloat() / b.ivImage.height
             val bmpX = event.x * scaleX
             val bmpY = event.y * scaleY
 
             when (event.action) {
-                MotionEvent.ACTION_DOWN -> { lastX = bmpX; lastY = bmpY }
-                MotionEvent.ACTION_MOVE -> {
-                    val eraserPaint = Paint().apply {
-                        color = Color.TRANSPARENT
-                        strokeWidth = 80f
-                        style = Paint.Style.STROKE
-                        maskFilter = BlurMaskFilter(40f, BlurMaskFilter.Blur.NORMAL)
-                    }
-                    canvas.drawLine(lastX, lastY, bmpX, bmpY, eraserPaint)
+                MotionEvent.ACTION_DOWN -> { 
                     lastX = bmpX; lastY = bmpY
+                    startX = bmpX; startY = bmpY
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    if (currentMode == 1) { // Eraser
+                        val eraserPaint = Paint().apply {
+                            color = Color.TRANSPARENT
+                            strokeWidth = 80f
+                            style = Paint.Style.STROKE
+                            maskFilter = BlurMaskFilter(40f, BlurMaskFilter.Blur.NORMAL)
+                        }
+                        canvas.drawLine(lastX, lastY, bmpX, bmpY, eraserPaint)
+                        lastX = bmpX; lastY = bmpY
+                    } else if (currentMode == 2) { // Kuas
+                        ImageDrawHelper.drawBrush(canvas, lastX, lastY, bmpX, bmpY, currentColor, 15f)
+                        lastX = bmpX; lastY = bmpY
+                    } else if (currentMode == 3) { // Bentuk (Preview)
+                        // Hapus coretan sebelumnya dengan me-redraw bitmap asli
+                        canvas.drawBitmap(mutableBitmap, 0f, 0f, null)
+                        ImageDrawHelper.drawShape(canvas, shapeType, startX, startY, bmpX, bmpY, currentColor, false)
+                    }
                     b.ivImage.invalidate()
+                }
+                MotionEvent.ACTION_UP -> {
+                    if (currentMode == 3) {
+                        canvas.drawBitmap(mutableBitmap, 0f, 0f, null)
+                        ImageDrawHelper.drawShape(canvas, shapeType, startX, startY, bmpX, bmpY, currentColor, false)
+                        b.ivImage.invalidate()
+                    }
                 }
             }
             true
         }
 
-        // --- MENU EFEK TAMBAHAN (3D, FILTER, DLL) ---
-        // Kita buat tombol ini muncul otomatis di layar Tab Lainnya
-        val extraBtn = android.widget.Button(this).apply {
+        // --- MENU EFEK TAMBAHAN DI TAB LAINNYA ---
+        val extraBtn1 = Button(this).apply {
             text = "Buka Alat EFEK & FILTER Lanjutan"
             setOnClickListener { showExtraEffectsMenu() }
         }
-        (b.layoutTabLainnya as? LinearLayout)?.addView(extraBtn)
+        val extraBtn2 = Button(this).apply {
+            text = "Buka Alat GAMBAR (Kuas/Bentuk)"
+            setOnClickListener { showDrawMenu() }
+        }
+        val extraBtn3 = Button(this).apply {
+            text = "Buka Efek UNIK (Mosaik/Kartun/Sketsa)"
+            setOnClickListener { showUniqueEffectsMenu() }
+        }
+        (b.layoutTabLainnya as? LinearLayout)?.apply {
+            addView(extraBtn1)
+            addView(extraBtn2)
+            addView(extraBtn3)
+        }
 
         b.btnApplyEffects.setOnClickListener { applyColorAndSizeEffects() }
         b.btnSaveImage.setOnClickListener { saveImageToGallery() }
     }
 
-    // --- FUNGSI UNTUK 20 WARNA TEKS ---
+    private fun showDrawMenu() {
+        val options = arrayOf("Kuas (Brush)", "Garis", "Kotak", "Lingkaran", "Panah", "Ambil Warna (Pipet)")
+        AlertDialog.Builder(this).setTitle("Alat Gambar").setItems(options) { _, which ->
+            when(which) {
+                0 -> { currentMode = 2; Toast.makeText(this, "Kuas Aktif. Gosok layar untuk menggambar.", Toast.LENGTH_SHORT).show() }
+                1 -> { currentMode = 3; shapeType = 0; Toast.makeText(this, "Garis Aktif", Toast.LENGTH_SHORT).show() }
+                2 -> { currentMode = 3; shapeType = 1; Toast.makeText(this, "Kotak Aktif", Toast.LENGTH_SHORT).show() }
+                3 -> { currentMode = 3; shapeType = 2; Toast.makeText(this, "Lingkaran Aktif", Toast.LENGTH_SHORT).show() }
+                4 -> { currentMode = 3; shapeType = 3; Toast.makeText(this, "Panah Aktif", Toast.LENGTH_SHORT).show() }
+                5 -> { // Pipet (Ambil Warna)
+                    Toast.makeText(this, "Ketuk gambar untuk mengambil warna!", Toast.LENGTH_SHORT).show()
+                    // Logika pipet bisa disesuaikan di ACTION_DOWN
+                }
+            }
+            // Tanya warna
+            if (which in 0..4) showColorPickerForDrawing()
+        }.show()
+    }
+
+    private fun showColorPickerForDrawing() {
+        val colors = ImageFilterHelper.get20Colors()
+        val colorNames = colors.map { it.first }.toTypedArray()
+        AlertDialog.Builder(this).setTitle("Pilih Warna Alat").setItems(colorNames) { _, which ->
+            currentColor = colors[which].second
+        }.show()
+    }
+
+    private fun showUniqueEffectsMenu() {
+        val options = arrayOf("Mosaik (Pixelate)", "Sketsa Pensil", "Kartun (Posterize)", "Tilt-Shift (Miniatur)")
+        AlertDialog.Builder(this).setTitle("Efek Unik").setItems(options) { _, which ->
+            when(which) {
+                0 -> mutableBitmap = ImageEffectHelper.applyMosaic(mutableBitmap)
+                1 -> mutableBitmap = ImageEffectHelper.applySketch(mutableBitmap)
+                2 -> mutableBitmap = ImageEffectHelper.applyCartoon(mutableBitmap)
+                3 -> mutableBitmap = ImageEffectHelper.applyTiltShift(mutableBitmap)
+            }
+            b.ivImage.setImageBitmap(mutableBitmap)
+            Toast.makeText(this, "Efek diterapkan!", Toast.LENGTH_SHORT).show()
+        }.show()
+    }
+
     private fun showTextColorDialog() {
         val input = EditText(this).apply { hint = "Ketik teks di sini..." }
         val colors = ImageFilterHelper.get20Colors()
@@ -160,31 +239,20 @@ class ImageEditorActivity : AppCompatActivity() {
             .setNegativeButton("Batal", null).show()
     }
 
-    // --- FUNGSI UNTUK EFEK TAMBAHAN (3D, Vignette, Blur, dll) ---
     private fun showExtraEffectsMenu() {
-        val options = arrayOf(
-            "Efek 3D (Emboss)",
-            "Filter Hitam Putih (Grayscale)",
-            "Filter Sepia (Jadul)",
-            "Filter Negatif (Invert)",
-            "Efek Vignette (Pinggir Gelap)",
-            "Efek Blur"
-        )
-
-        AlertDialog.Builder(this)
-            .setTitle("Pilih Efek Tambahan")
-            .setItems(options) { _, which ->
-                when(which) {
-                    0 -> mutableBitmap = ImageFilterHelper.apply3D(mutableBitmap)
-                    1 -> mutableBitmap = ImageFilterHelper.applyGrayscale(mutableBitmap)
-                    2 -> mutableBitmap = ImageFilterHelper.applySepia(mutableBitmap)
-                    3 -> mutableBitmap = ImageFilterHelper.applyInvert(mutableBitmap)
-                    4 -> mutableBitmap = ImageFilterHelper.applyVignette(mutableBitmap)
-                    5 -> mutableBitmap = ImageFilterHelper.applyBlur(mutableBitmap)
-                }
-                b.ivImage.setImageBitmap(mutableBitmap)
-                Toast.makeText(this, "Efek diterapkan!", Toast.LENGTH_SHORT).show()
-            }.show()
+        val options = arrayOf("Efek 3D (Emboss)", "Filter Hitam Putih (Grayscale)", "Filter Sepia (Jadul)", "Filter Negatif (Invert)", "Efek Vignette (Pinggir Gelap)", "Efek Blur")
+        AlertDialog.Builder(this).setTitle("Pilih Efek Tambahan").setItems(options) { _, which ->
+            when(which) {
+                0 -> mutableBitmap = ImageFilterHelper.apply3D(mutableBitmap)
+                1 -> mutableBitmap = ImageFilterHelper.applyGrayscale(mutableBitmap)
+                2 -> mutableBitmap = ImageFilterHelper.applySepia(mutableBitmap)
+                3 -> mutableBitmap = ImageFilterHelper.applyInvert(mutableBitmap)
+                4 -> mutableBitmap = ImageFilterHelper.applyVignette(mutableBitmap)
+                5 -> mutableBitmap = ImageFilterHelper.applyBlur(mutableBitmap)
+            }
+            b.ivImage.setImageBitmap(mutableBitmap)
+            Toast.makeText(this, "Efek diterapkan!", Toast.LENGTH_SHORT).show()
+        }.show()
     }
 
     private fun rotateImage(degrees: Float) {
