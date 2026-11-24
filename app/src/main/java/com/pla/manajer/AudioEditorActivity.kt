@@ -132,11 +132,10 @@ class AudioEditorActivity : AppCompatActivity() {
     private fun setupTabs() {
         b.tabLayoutAudio.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab?) {
-                // Kumpulkan semua layout tab (termasuk yang baru)
                 val layouts = listOf(
                     b.layoutTabTrim, b.layoutTabFormat, b.layoutTabSpeed, b.layoutTabEq, b.layoutTabStereo, 
                     b.layoutTabLoudness, b.layoutTabDinamika, b.layoutTabResample, b.layoutTabStereoPro,
-                    b.layoutTabVokal, b.layoutTabFade // 2 layout baru
+                    b.layoutTabVokal, b.layoutTabEfekSpesial, b.layoutTabEchoReverb, b.layoutTabFade
                 )
                 layouts.forEach { it.visibility = View.GONE }
                 val i = tab?.position ?: 0
@@ -176,7 +175,6 @@ class AudioEditorActivity : AppCompatActivity() {
         AudioUiHelper.setupSeekBar(b.seekVolume, b.tvVolumeLabel, "Volume: ", "%") { dirtyPreview() }
         AudioUiHelper.setupSeekBar(b.seekMaster, b.tvMasterLabel, "Mastering: ", "%") { dirtyPreview() }
         AudioUiHelper.setupSeekBar(b.seekLimiter, b.tvLimiterLabel, "Limiter: ", "%") { dirtyPreview() }
-        AudioUiHelper.setupSeekBar(b.seekEcho, b.tvEchoLabel, "Echo: ", "%") { dirtyPreview() }
         
         b.seekPanning.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
@@ -193,9 +191,21 @@ class AudioEditorActivity : AppCompatActivity() {
         AudioUiHelper.setupSeekBar(b.seekWidenerMid, b.tvWidenerMidLabel, "Mid Level: ", "%") { dirtyPreview() }
         AudioUiHelper.setupSeekBar(b.seekWidenerSide, b.tvWidenerSideLabel, "Side Level: ", "%") { dirtyPreview() }
 
-        // Setup Listener untuk Tab Baru (Fade)
+        // Setup Listener untuk Echo & Reverb
+        b.seekEchoDelay.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
+                b.tvEchoDelayLabel.text = "Delay (Jeda): $progress ms"; dirtyPreview()
+            }
+            override fun onStartTrackingTouch(sb: SeekBar?) {}
+            override fun onStopTrackingTouch(sb: SeekBar?) {}
+        })
+        AudioUiHelper.setupSeekBar(b.seekEchoFeedback, b.tvEchoFeedbackLabel, "Feedback (Ulangan): ", "%") { dirtyPreview() }
+        AudioUiHelper.setupSeekBar(b.seekReverbRoom, b.tvReverbRoomLabel, "Ukuran Ruangan: ", "%") { dirtyPreview() }
+        AudioUiHelper.setupSeekBar(b.seekReverbDamping, b.tvReverbDampingLabel, "Kelembutan Gema: ", "%") { dirtyPreview() }
+
         AudioUiHelper.setupSeekBar(b.seekFadeIn, b.tvFadeInLabel, "Fade In: ", " Detik") { dirtyPreview() }
         AudioUiHelper.setupSeekBar(b.seekFadeOut, b.tvFadeOutLabel, "Fade Out: ", " Detik") { dirtyPreview() }
+        AudioUiHelper.setupSeekBar(b.seekAutoTune, b.tvAutoTuneLabel, "Auto-Tune Ringan: ", "%") { dirtyPreview() }
 
         val cbL = View.OnClickListener { dirtyPreview() }
         b.cbTabTrim.setOnClickListener(cbL); b.cbTabFormat.setOnClickListener(cbL); b.cbTabSpeed.setOnClickListener(cbL)
@@ -206,26 +216,34 @@ class AudioEditorActivity : AppCompatActivity() {
         b.cbCompressor.setOnClickListener(cbL); b.cbMultiband.setOnClickListener(cbL); b.cbSoxResample.setOnClickListener(cbL)
         b.cbStereoEnhancer.setOnClickListener(cbL); b.cbStereoWidener.setOnClickListener(cbL)
         
-        // Checkbox Tab Baru
-        b.cbTabVokal.setOnClickListener(cbL); b.cbTabFade.setOnClickListener(cbL)
-        b.cbRemoveVocal.setOnClickListener(cbL); b.cbIsolateVocal.setOnClickListener(cbL); b.cbCenterCancel.setOnClickListener(cbL)
+        b.cbTabVokal.setOnClickListener(cbL); b.cbTabEfekSpesial.setOnClickListener(cbL); b.cbTabEchoReverb.setOnClickListener(cbL); b.cbTabFade.setOnClickListener(cbL)
+        b.cbVocalDoubler.setOnClickListener(cbL); b.cbWhisper.setOnClickListener(cbL); b.cbBreathControl.setOnClickListener(cbL)
+        b.cbDeEsser.setOnClickListener(cbL); b.cbChorus.setOnClickListener(cbL)
+        b.cbRobotVoice.setOnClickListener(cbL); b.cbChipmunk.setOnClickListener(cbL); b.cbDeepVoice.setOnClickListener(cbL)
+        b.cbTelephone.setOnClickListener(cbL); b.cbRadio.setOnClickListener(cbL); b.cb8DAudio.setOnClickListener(cbL)
+        b.cbTapeStop.setOnClickListener(cbL); b.cbVinylCrackle.setOnClickListener(cbL)
         b.cbNoiseReduction.setOnClickListener(cbL); b.cbHighPass.setOnClickListener(cbL)
+        b.cbDeClick.setOnClickListener(cbL); b.cbSilenceRemove.setOnClickListener(cbL)
     }
 
     private fun getFilters(): List<String> {
         val filters = AudioEngineHelper.buildFilters(
             b.cbTabSpeed.isChecked, b.seekTempo.progress, b.seekPitch.progress, sourceSampleRate,
             b.cbTabEq.isChecked, b.seekVolume.progress, eqBars, eqFreqs, b.seekMaster.progress, b.seekLimiter.progress,
-            b.cbTabStereo.isChecked, b.seekStereo.progress, b.seekEcho.progress, b.seekPanning.progress,
+            b.cbTabStereo.isChecked, b.seekStereo.progress, b.seekPanning.progress,
             b.cbTabFormat.isChecked, b.cbRemoveWatermark.isChecked,
             b.cbTabLoudness.isChecked, b.cbNormalizeLufs.isChecked, b.cbNormalizePeak.isChecked, b.cbAgc.isChecked,
             b.cbTabDinamika.isChecked, b.cbCompressor.isChecked, b.seekCompThreshold.progress, b.seekCompRatio.progress, b.seekCompAttack.progress, b.seekCompRelease.progress,
             b.cbTabResample.isChecked, b.spinnerResampleRate.selectedItem.toString(), b.cbSoxResample.isChecked,
             b.cbTabStereoPro.isChecked, b.cbStereoEnhancer.isChecked, b.seekEnhancerIntensity.progress, b.cbStereoWidener.isChecked, b.seekWidenerMid.progress, b.seekWidenerSide.progress,
-            // Fitur Baru
-            fadeInProgress = b.seekFadeIn.progress, fadeOutProgress = b.seekFadeOut.progress,
-            noiseReduction = b.cbNoiseReduction.isChecked, highPass = b.cbHighPass.isChecked,
-            removeVocal = b.cbRemoveVocal.isChecked, isolateVocal = b.cbIsolateVocal.isChecked, centerCancel = b.cbCenterCancel.isChecked
+            // Vokal Pro
+            b.cbTabVokal.isChecked, b.cbVocalDoubler.isChecked, b.cbWhisper.isChecked, b.cbBreathControl.isChecked, b.cbDeEsser.isChecked, b.cbChorus.isChecked, b.seekAutoTune.progress,
+            // Efek Spesial
+            b.cbTabEfekSpesial.isChecked, b.cbRobotVoice.isChecked, b.cbChipmunk.isChecked, b.cbDeepVoice.isChecked, b.cbTelephone.isChecked, b.cbRadio.isChecked, b.cb8DAudio.isChecked, b.cbTapeStop.isChecked, b.cbVinylCrackle.isChecked,
+            // Echo & Reverb
+            b.cbTabEchoReverb.isChecked, b.seekEchoDelay.progress, b.seekEchoFeedback.progress, b.seekReverbRoom.progress, b.seekReverbDamping.progress,
+            // Fade & Noise
+            b.seekFadeIn.progress, b.seekFadeOut.progress, b.cbNoiseReduction.isChecked, b.cbHighPass.isChecked, b.cbDeClick.isChecked, b.cbSilenceRemove.isChecked
         ).toMutableList()
 
         if (customEffectFilter.isNotEmpty()) filters.add(customEffectFilter)
