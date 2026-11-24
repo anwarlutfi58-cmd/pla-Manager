@@ -1,14 +1,11 @@
 package com.pla.manajer
 
 import android.app.AlertDialog
-import android.content.ContentValues
 import android.content.Intent
 import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.Environment
-import android.provider.MediaStore
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.ArrayAdapter
@@ -22,12 +19,13 @@ import com.arthenica.ffmpegkit.FFprobeKit
 import com.arthenica.ffmpegkit.ReturnCode
 import com.google.android.material.tabs.TabLayout
 import com.pla.manajer.databinding.ActivityAudioEditorBinding
+import com.pla.manajer.util.AudioEngineHelper
+import com.pla.manajer.util.AudioSystemHelper
 import com.pla.manajer.util.NotificationHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.FileOutputStream
 
 class AudioEditorActivity : AppCompatActivity() {
     private lateinit var b: ActivityAudioEditorBinding
@@ -42,7 +40,6 @@ class AudioEditorActivity : AppCompatActivity() {
     private var previewFile: File? = null
     private var isPreparingPreview = false
     private var sourceSampleRate = 44100
-
     private var startTime = "00:00:00"
     private var endTime = "00:00:00"
 
@@ -55,29 +52,19 @@ class AudioEditorActivity : AppCompatActivity() {
         setContentView(b.root)
         notif = NotificationHelper(this)
 
-        // --- PENANGKAP SHARE INTENT DARI LUAR ---
         var path = intent.getStringExtra("file_path")
         if (path == null && intent?.action == Intent.ACTION_SEND) {
-            val uri = if (Build.VERSION.SDK_INT >= 33) {
-                intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
-            } else {
-                @Suppress("DEPRECATION")
-                intent.getParcelableExtra(Intent.EXTRA_STREAM)
-            }
+            val uri = if (Build.VERSION.SDK_INT >= 33) intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+                      else @Suppress("DEPRECATION") intent.getParcelableExtra(Intent.EXTRA_STREAM)
             if (uri != null) {
-                val tempFile = File(cacheDir, "shared_edit_audio.mp3")
-                contentResolver.openInputStream(uri)?.use { input ->
-                    FileOutputStream(tempFile).use { output -> input.copyTo(output) }
-                }
-                path = tempFile.absolutePath
+                val tempFile = AudioSystemHelper.copyUriToCache(this, uri, "shared_edit_audio.mp3")
+                if (tempFile != null) path = tempFile.absolutePath
             }
         }
         if (path == null) { finish(); return }
         inputFile = File(path)
-        // ----------------------------------------
 
         b.tvFileName.text = inputFile.name
-
         detectSampleRate()
         setupSpinners()
         setupTabs()
@@ -239,101 +226,19 @@ class AudioEditorActivity : AppCompatActivity() {
             }.setNegativeButton("Batal", null).show()
     }
 
-    private fun buildSimpleFilters(): List<String> {
-        val f = mutableListOf<String>()
-
-        if (b.cbTabSpeed.isChecked) {
-            val tempoActive = b.seekTempo.progress != 50
-            val pitchActive = b.seekPitch.progress != 50
-            if (tempoActive || pitchActive) {
-                val speed = (b.seekTempo.progress + 50) / 100f
-                val pitchSemis = (b.seekPitch.progress - 50) / 10f
-                val pitchFactor = Math.pow(2.0, pitchSemis.toDouble() / 12.0)
-                if (pitchSemis != 0f) {
-                    f.add("asetrate=${(sourceSampleRate * pitchFactor).toInt()}")
-                    f.add("aresample=$sourceSampleRate")
-                }
-                val atempoTarget = (speed / pitchFactor).toFloat()
-                if (atempoTarget != 1.0f) {
-                    var rem = atempoTarget.toDouble()
-                    while (rem < 0.5) { f.add("atempo=0.5"); rem /= 0.5 }
-                    while (rem > 2.0) { f.add("atempo=2.0"); rem /= 2.0 }
-                    if (rem != 1.0) f.add("atempo=$rem")
-                }
-            }
-        }
-
-        if (b.cbTabEq.isChecked) {
-            if (b.seekVolume.progress != 100) f.add("volume=${b.seekVolume.progress / 100.0}")
-            for (i in eqFreqs.indices) {
-                val db = eqBars[i].progress - 10
-                if (db != 0) f.add("equalizer=f=${eqFreqs[i]}:width_type=o:width=2:g=$db")
-            }
-            if (b.seekMaster.progress > 0) f.add("dynaudnorm=f=150:g=${b.seekMaster.progress}")
-            if (b.seekLimiter.progress > 0) f.add("alimiter=limit=${b.seekLimiter.progress / 100.0}")
-        }
-
-        if (b.cbTabStereo.isChecked) {
-            if (b.seekStereo.progress > 0) f.add("stereowiden=delay=20:feedback=0.3:crossfeed=0.3:drymix=0.8")
-            if (b.seekEcho.progress > 0) f.add("aecho=0.8:0.9:1000:${b.seekEcho.progress / 100.0}")
-            if (b.seekPanning.progress != 100) {
-                val p = (b.seekPanning.progress - 100) / 100.0
-                f.add("pan=stereo|c0=c0*${1-p}+c1*$p|c1=c1*${1-p}+c0*$p")
-            }
-        }
-
-        if (b.cbTabFormat.isChecked && b.cbRemoveWatermark.isChecked) f.add("lowpass=f=16000")
-
-        if (b.cbTabLoudness.isChecked) {
-            if (b.cbNormalizeLufs.isChecked) f.add("loudnorm=I=-14:TP=-1:LRA=11")
-            else if (b.cbNormalizePeak.isChecked) f.add("loudnorm=I=-1:TP=-1:LRA=11")
-            if (b.cbAgc.isChecked) f.add("dynaudnorm=p=0.9:s=5:m=10")
-        }
-
-        if (b.cbTabDinamika.isChecked && b.cbCompressor.isChecked) {
-            val db = -60.0 + (b.seekCompThreshold.progress / 100.0) * 60.0
-            val threshold = Math.pow(10.0, db / 20.0)
-            val ratio = 1.0 + (b.seekCompRatio.progress / 100.0) * 9.0
-            val attack = 0.01 + (b.seekCompAttack.progress / 100.0) * 199.99
-            val release = 10.0 + (b.seekCompRelease.progress / 100.0) * 990.0
-            f.add("acompressor=threshold=$threshold:ratio=$ratio:attack=$attack:release=$release")
-        }
-
-        if (b.cbTabResample.isChecked) {
-            val sr = b.spinnerResampleRate.selectedItem.toString()
-            if (b.cbSoxResample.isChecked) f.add("aresample=resampler=soxr:osr=$sr") else f.add("aresample=osr=$sr")
-        }
-
-        if (b.cbTabStereoPro.isChecked) {
-            if (b.cbStereoEnhancer.isChecked) {
-                val k = 1.0 + (b.seekEnhancerIntensity.progress / 100.0) * 0.5
-                f.add("stereotools=mlev=$k:slev=$k")
-            }
-            if (b.cbStereoWidener.isChecked) {
-                val mid = 0.5 + (b.seekWidenerMid.progress / 100.0)
-                val side = 0.5 + (b.seekWidenerSide.progress / 100.0)
-                f.add("stereotools=mlev=$mid:slev=$side")
-            }
-        }
-        return f
-    }
+    private fun getFilters() = AudioEngineHelper.buildFilters(
+        b.cbTabSpeed.isChecked, b.seekTempo.progress, b.seekPitch.progress, sourceSampleRate,
+        b.cbTabEq.isChecked, b.seekVolume.progress, eqBars, eqFreqs, b.seekMaster.progress, b.seekLimiter.progress,
+        b.cbTabStereo.isChecked, b.seekStereo.progress, b.seekEcho.progress, b.seekPanning.progress,
+        b.cbTabFormat.isChecked, b.cbRemoveWatermark.isChecked,
+        b.cbTabLoudness.isChecked, b.cbNormalizeLufs.isChecked, b.cbNormalizePeak.isChecked, b.cbAgc.isChecked,
+        b.cbTabDinamika.isChecked, b.cbCompressor.isChecked, b.seekCompThreshold.progress, b.seekCompRatio.progress, b.seekCompAttack.progress, b.seekCompRelease.progress,
+        b.cbTabResample.isChecked, b.spinnerResampleRate.selectedItem.toString(), b.cbSoxResample.isChecked,
+        b.cbTabStereoPro.isChecked, b.cbStereoEnhancer.isChecked, b.seekEnhancerIntensity.progress, b.cbStereoWidener.isChecked, b.seekWidenerMid.progress, b.seekWidenerSide.progress
+    )
 
     private fun needMultiband() = b.cbTabDinamika.isChecked && b.cbMultiband.isChecked
-
-    private fun buildMultibandFilterGraph(simple: List<String>): String {
-        val intensity = b.seekMbIntensity.progress
-        val th = (0.3 - (intensity / 100.0) * 0.25).coerceAtLeast(0.05)
-        val comp = "acompressor=threshold=$th:ratio=4:attack=20:release=250"
-        val prefix = if (simple.isEmpty()) "" else simple.joinToString(",") + ","
-        return "[0:a]${prefix}asplit=3[mb_lo][mb_mi][mb_hi];" +
-            "[mb_lo]lowpass=f=200,$comp[mb_lo2];" +
-            "[mb_mi]highpass=f=200,lowpass=f=2000,$comp[mb_mi2];" +
-            "[mb_hi]highpass=f=2000,$comp[mb_hi2];" +
-            "[mb_lo2][mb_mi2][mb_hi2]amix=inputs=3[mb_out]"
-    }
-
-    private fun hasAnyFilter() = buildSimpleFilters().isNotEmpty() || needMultiband()
-
+    private fun hasAnyFilter() = getFilters().isNotEmpty() || needMultiband()
     private fun dirtyPreview() { previewFile?.delete(); previewFile = null }
 
     private fun setPlayBtn(playing: Boolean) {
@@ -357,11 +262,11 @@ class AudioEditorActivity : AppCompatActivity() {
         notif.showEdit("Menyiapkan Preview", inputFile.name)
 
         val outFile = File(cacheDir, "preview_${System.currentTimeMillis()}.m4a")
-        val simple = buildSimpleFilters(); val hasMb = needMultiband()
+        val simple = getFilters(); val hasMb = needMultiband()
         val cmd = StringBuilder("-y ")
         if (b.cbTabTrim.isChecked && endTime != "00:00:00") cmd.append("-ss $startTime -to $endTime ")
         cmd.append("-i \"${inputFile.absolutePath}\" ")
-        if (hasMb) cmd.append("-filter_complex \"${buildMultibandFilterGraph(simple)}\" -map \"[mb_out]\" ")
+        if (hasMb) cmd.append("-filter_complex \"${AudioEngineHelper.buildMultibandFilterGraph(simple, b.seekMbIntensity.progress)}\" -map \"[mb_out]\" ")
         else if (simple.isNotEmpty()) cmd.append("-filter_complex \"[0:a]${simple.joinToString(",")}[out]\" -map \"[out]\" ")
         cmd.append("-b:a 192k \"${outFile.absolutePath}\"")
 
@@ -413,20 +318,57 @@ class AudioEditorActivity : AppCompatActivity() {
         val idx = b.spinnerFormat.selectedItemPosition
         val fmt = formatIds[idx.coerceIn(0, formatIds.size - 1)]
         val ext = when (fmt) { "wav24" -> "wav"; "mp3vbr" -> "mp3"; else -> fmt }
+        val outFile = AudioSystemHelper.getOutputFile(ext)
 
-        val outDir = File(Environment.getExternalStorageDirectory(), "PlaProjects/Edit_Audio")
-        if (!outDir.exists()) outDir.mkdirs()
-        val outFile = File(outDir, "EDIT_${System.currentTimeMillis()}.${ext}")
-
-        val simple = buildSimpleFilters(); val hasMb = needMultiband()
+        val simple = getFilters(); val hasMb = needMultiband()
         val cmd = StringBuilder("-y ")
         if (b.cbTabTrim.isChecked && endTime != "00:00:00") cmd.append("-ss $startTime -to $endTime ")
         cmd.append("-i \"${inputFile.absolutePath}\" ")
-        if (hasMb) cmd.append("-filter_complex \"${buildMultibandFilterGraph(simple)}\" -map \"[mb_out]\" ")
+        if (hasMb) cmd.append("-filter_complex \"${AudioEngineHelper.buildMultibandFilterGraph(simple, b.seekMbIntensity.progress)}\" -map \"[mb_out]\" ")
         else if (simple.isNotEmpty()) cmd.append("-filter_complex \"[0:a]${simple.joinToString(",")}[out]\" -map \"[out]\" ")
 
         val bitDepth = b.spinnerBitDepth.selectedItem.toString()
         when (fmt) {
             "flac" -> cmd.append("-c:a flac -compression_level 8 " + if (bitDepth == "16-bit") "-sample_fmt s16 " else "-sample_fmt s32 ")
             "wav" -> cmd.append("-c:a pcm_s16le ")
-            "wav24" -> cmd.append("-c:a pcm_s
+            "wav24" -> cmd.append("-c:a pcm_s24le ")
+            "aiff" -> cmd.append(when (bitDepth) { "16-bit" -> "-c:a pcm_s16be "; "32-bit" -> "-c:a pcm_s32be "; else -> "-c:a pcm_s24be " })
+            "mp3vbr" -> cmd.append("-c:a libmp3lame -q:a 2 ")
+            "mp3" -> cmd.append("-c:a libmp3lame -b:a ${b.spinnerBitrate.selectedItem} ")
+            "aac" -> cmd.append("-c:a aac -b:a ${b.spinnerBitrate.selectedItem} ")
+            "m4a" -> cmd.append("-c:a aac -b:a ${b.spinnerBitrate.selectedItem} ")
+            else -> cmd.append("-b:a ${b.spinnerBitrate.selectedItem} ")
+        }
+        if (b.cbTabFormat.isChecked) {
+            if (fmt in listOf("mp3", "aac", "m4a", "mp3vbr")) cmd.append("-ar ${b.spinnerSampleRate.selectedItem} ")
+            if (b.cbRemoveMetadata.isChecked) cmd.append("-map_metadata -1 ")
+        }
+        cmd.append("\"${outFile.absolutePath}\"")
+
+        b.btnProcess.isEnabled = false
+        b.tvProgress.text = "Sedang memproses... Mohon tunggu."
+        notif.showEdit("Memproses Audio", inputFile.name)
+
+        FFmpegKit.executeAsync(cmd.toString(), { session ->
+            runOnUiThread {
+                b.btnProcess.isEnabled = true
+                notif.hideEdit()
+                if (ReturnCode.isSuccess(session.returnCode)) {
+                    AudioSystemHelper.registerToMediaStore(this, outFile, ext)
+                    b.tvProgress.text = "Berhasil disimpan di:\nPlaProjects/Edit_Audio/${outFile.name}"
+                    Toast.makeText(this, "Audio berhasil diproses!", Toast.LENGTH_LONG).show()
+                } else {
+                    b.tvProgress.text = "Gagal memproses audio."
+                    Toast.makeText(this, "Gagal: ${session.failStackTrace}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }, { }, { })
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        previewPlayer?.release()
+        previewFile?.delete()
+        notif.hideEdit()
+    }
+}
