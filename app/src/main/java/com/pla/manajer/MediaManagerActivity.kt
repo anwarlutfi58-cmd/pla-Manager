@@ -2,12 +2,10 @@ package com.pla.manajer
 
 import android.app.AlertDialog
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
-import android.text.Editable
-import android.text.TextWatcher
 import android.view.View
-import android.view.inputmethod.EditorInfo
 import android.webkit.MimeTypeMap
 import android.widget.CheckBox
 import android.widget.EditText
@@ -32,9 +30,9 @@ class MediaManagerActivity : AppCompatActivity() {
     private lateinit var prefs: Prefs
     private lateinit var notif: NotificationHelper
     private var mediaType: String = "AUDIO"
+    
     private var currentDir: File? = null
-    private var allFiles: List<File> = emptyList()
-    private var currentFilteredFiles: List<File> = emptyList()
+    private var allItems: List<File> = emptyList()
 
     private val audioExts = listOf("mp3", "wav", "aac", "m4a", "ogg", "flac", "opus")
     private val videoExts = listOf("mp4", "mkv", "avi", "mov", "webm")
@@ -65,11 +63,10 @@ class MediaManagerActivity : AppCompatActivity() {
         b.selectionToolbar.visibility = View.GONE
         b.miniPlayerLayout.visibility = View.GONE
 
-        // 1. TOMBOL SORTIR BERFUNGSI
+        // Tombol Sortir (Urutkan)
         b.btnSort.setOnClickListener { showSortDialog() }
-
-        // 2. KOLOM PENCARIAN OTOMATIS (Karena tidak ada di XML)
-        // Kita tambahkan EditText secara programatik di atas RecyclerView
+        
+        // Kotak Pencarian
         setupSearchBar()
 
         b.btnDeleteSelected.setOnClickListener { deleteSelectedFiles() }
@@ -101,93 +98,66 @@ class MediaManagerActivity : AppCompatActivity() {
             hint = "Cari folder atau file..."
             setSingleLine()
             setPadding(32, 16, 32, 16)
-            imeOptions = EditorInfo.IME_ACTION_SEARCH
+            imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH
             
-            // Logika: Saat diketik, filter langsung jalan
-            addTextChangedListener(object : TextWatcher {
+            addTextChangedListener(object : android.text.TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                     applyFilter(s?.toString() ?: "")
                 }
-                override fun afterTextChanged(s: Editable?) {}
+                override fun afterTextChanged(s: android.text.Editable?) {}
             })
 
-            // Logika: Saat Enter ditekan, filter diterapkan dan teks DIHAPUS
             setOnEditorActionListener { v, actionId, event ->
-                if (actionId == EditorInfo.IME_ACTION_SEARCH) {
-                    val q = v.text.toString()
-                    applyFilter(q)
-                    v.text = null // Teks otomatis hilang setelah search
+                if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH) {
+                    v.text = null
                     true
                 } else false
             }
         }
-        // Masukkan search bar tepat di posisi recyclerMedia (indeks 1 di LinearLayout)
         val layout = parent as android.widget.LinearLayout
-        layout.addView(searchBar, 1)
-    }
-
-    private fun applyFilter(query: String) {
-        if (query.isEmpty()) {
-            currentFilteredFiles = allFiles
-        } else {
-            currentFilteredFiles = allFiles.filter { it.name.lowercase().contains(query.lowercase()) }
-        }
-        val sorted = sortFiles(currentFilteredFiles)
-        adapter.submit(sorted)
-    }
-
-    private fun sortFiles(files: List<File>): List<File> {
-        return when (prefs.sortMode) {
-            2 -> files.sortedWith(compareBy<File> { !it.isDirectory }.thenByDescending { it.lastModified() })
-            3 -> files.sortedWith(compareBy<File> { !it.isDirectory }.thenBy { it.lastModified() })
-            4 -> files.sortedWith(compareBy<File> { !it.isDirectory }.thenByDescending { it.length() })
-            5 -> files.sortedWith(compareBy<File> { !it.isDirectory }.thenBy { it.length() })
-            else -> files.sortedWith(compareBy<File> { !it.isDirectory }.thenBy { it.name.lowercase() })
-        }
-    }
-
-    private fun showSortDialog() {
-        val options = arrayOf("Nama (A-Z)","Nama (Z-A)","Tanggal (Terlama)","Tanggal (Terbaru)","Ukuran (Terkecil)","Ukuran (Terbesar)")
-        AlertDialog.Builder(this).setTitle("Urutkan Berdasarkan")
-            .setSingleChoiceItems(options, prefs.sortMode) { dialog, which ->
-                prefs.sortMode = which
-                applyFilter("") // Reset filter saat urutan diubah
-                dialog.dismiss()
-            }.setNegativeButton("Batal", null).show()
+        // Masukkan kotak pencarian di urutan ke-1 (di bawah Toolbar)
+        layout.addView(searchBar, 1) 
     }
 
     private fun loadRoots() {
         currentDir = null
         b.tvTitle.text = when(mediaType) {
-            "AUDIO" -> "Audio"; "VIDEO" -> "Video"; "IMAGE" -> "Gambar"; else -> "Media"
+            "AUDIO" -> "Folder Audio"; "VIDEO" -> "Folder Video"; "IMAGE" -> "Folder Gambar"; else -> "Folder Media"
         }
         
         lifecycleScope.launch {
-            val mediaFolders = withContext(Dispatchers.IO) {
+            val folders = withContext(Dispatchers.IO) {
                 val exts = when(mediaType) {
                     "AUDIO" -> audioExts; "VIDEO" -> videoExts; "IMAGE" -> imageExts; else -> emptyList()
                 }
-                val rootDir = Environment.getExternalStorageDirectory()
-                val sdCard = getSdCard()
+                val roots = mutableListOf<File>()
+                roots.add(Environment.getExternalStorageDirectory())
+                getSdCard()?.let { roots.add(it) }
+                
                 val foundFolders = mutableSetOf<File>()
 
-                fun scan(dir: File) {
+                fun scanForMediaFolders(dir: File) {
                     val files = dir.listFiles() ?: return
-                    var hasMedia = false
-                    if (files.any { it.isFile && it.extension.lowercase() in exts }) hasMedia = true
-                    if (hasMedia) foundFolders.add(dir)
                     
+                    // Cek apakah folder ini punya file media langsung
+                    if (files.any { it.isFile && it.extension.lowercase() in exts }) {
+                        // Jangan tampilkan folder tersembunyi (berawalan titik)
+                        if (!dir.name.startsWith(".")) {
+                            foundFolders.add(dir)
+                        }
+                    }
+                    
+                    // Lanjut ke subfolder (abaikan folder sistem dan tersembunyi)
                     files.filter { it.isDirectory && !it.name.startsWith(".") && it.name != "Android" }
-                         .forEach { scan(it) }
+                         .forEach { scanForMediaFolders(it) }
                 }
 
-                scan(rootDir)
-                sdCard?.let { scan(it) }
-                foundFolders.toList()
+                roots.forEach { scanForMediaFolders(it) }
+                foundFolders.sortedBy { it.name.lowercase() }
             }
             
-            allFiles = mediaFolders
+            allItems = folders
             applyFilter("")
         }
     }
@@ -197,15 +167,62 @@ class MediaManagerActivity : AppCompatActivity() {
         b.tvTitle.text = dir.name
 
         lifecycleScope.launch {
-            allFiles = withContext(Dispatchers.IO) {
+            allItems = withContext(Dispatchers.IO) {
                 val files = dir.listFiles() ?: return@withContext emptyList<File>()
                 val exts = when(mediaType) {
                     "AUDIO" -> audioExts; "VIDEO" -> videoExts; "IMAGE" -> imageExts; else -> emptyList()
                 }
-                files.filter { it.isDirectory || (it.isFile && it.extension.lowercase() in exts) }
+                // Hanya tampilkan folder yang relevan dan file media
+                files.filter { 
+                    (it.isDirectory && !it.name.startsWith(".")) || 
+                    (it.isFile && it.extension.lowercase() in exts) 
+                }
             }
             applyFilter("")
         }
+    }
+
+    private fun applyFilter(query: String) {
+        val filtered = if (query.isEmpty()) {
+            allItems
+        } else {
+            allItems.filter { it.name.lowercase().contains(query.lowercase()) }
+        }
+        val sorted = sortFiles(filtered)
+        adapter.submit(sorted)
+    }
+
+    // LOGIKA PENGURUTAN
+    private fun sortFiles(files: List<File>): List<File> {
+        return when (prefs.sortMode) {
+            1 -> files.sortedWith(compareBy<File> { !it.isDirectory }.thenByDescending { it.name.lowercase() }) // Nama Z-A
+            2 -> files.sortedWith(compareBy<File> { !it.isDirectory }.thenByDescending { it.lastModified() }) // Tanggal Terbaru
+            3 -> files.sortedWith(compareBy<File> { !it.isDirectory }.thenBy { it.lastModified() }) // Tanggal Terlama
+            4 -> files.sortedWith(compareBy<File> { !it.isDirectory }.thenByDescending { it.length() }) // Ukuran Terbesar
+            5 -> files.sortedWith(compareBy<File> { !it.isDirectory }.thenBy { it.length() }) // Ukuran Terkecil
+            else -> files.sortedWith(compareBy<File> { !it.isDirectory }.thenBy { it.name.lowercase() }) // Nama A-Z
+        }
+    }
+
+    // DIALOG URUTKAN (BAHASA INDONESIA)
+    private fun showSortDialog() {
+        val options = arrayOf(
+            "Nama (A-Z)", 
+            "Nama (Z-A)", 
+            "Tanggal (Terbaru)", 
+            "Tanggal (Terlama)", 
+            "Ukuran (Terbesar)", 
+            "Ukuran (Terkecil)"
+        )
+        AlertDialog.Builder(this)
+            .setTitle("Urutkan Berdasarkan")
+            .setSingleChoiceItems(options, prefs.sortMode) { dialog, which ->
+                prefs.sortMode = which
+                applyFilter("")
+                dialog.dismiss()
+            }
+            .setNegativeButton("Batal", null)
+            .show()
     }
 
     private fun open(f: File) {
@@ -214,7 +231,7 @@ class MediaManagerActivity : AppCompatActivity() {
         } else {
             val ext = f.extension.lowercase()
             if (ext in audioExts) {
-                val audioList = allFiles.filter { it.isFile && it.extension.lowercase() in audioExts }.map { it.absolutePath }
+                val audioList = allItems.filter { it.isFile && it.extension.lowercase() in audioExts }.map { it.absolutePath }
                 val intent = Intent(this, AudioPlayerActivity::class.java)
                 intent.putStringArrayListExtra("file_paths", ArrayList(audioList))
                 intent.putExtra("start_path", f.absolutePath)
@@ -233,6 +250,75 @@ class MediaManagerActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    private fun handleBack() {
+        if (currentDir != null) {
+            currentDir = null
+            loadRoots()
+        } else {
+            finish()
+        }
+    }
+
+    override fun onBackPressed() {
+        handleBack()
+    }
+
+    private fun enableSelectionMode(f: File) {
+        adapter.isSelectionMode = true; adapter.selectedFiles.add(f)
+        adapter.notifyDataSetChanged(); b.selectionToolbar.visibility = View.VISIBLE
+    }
+
+    private fun toggleSelection(f: File) {
+        if (adapter.selectedFiles.contains(f)) adapter.selectedFiles.remove(f) else adapter.selectedFiles.add(f)
+        adapter.isSelectionMode = adapter.selectedFiles.isNotEmpty()
+        if (adapter.selectedFiles.isEmpty()) closeSelectionMode() else adapter.notifyDataSetChanged()
+    }
+
+    private fun closeSelectionMode() {
+        adapter.isSelectionMode = false; adapter.selectedFiles.clear()
+        adapter.notifyDataSetChanged(); b.selectionToolbar.visibility = View.GONE
+    }
+
+    private fun showMoreMenu(f: File) {
+        val options = mutableListOf("Bagikan", "Ganti Nama")
+        if (mediaType == "AUDIO" && f.isFile) options.add(0, "Edit Audio")
+        if (mediaType == "IMAGE" && f.isFile) options.add(0, "Edit Gambar")
+
+        AlertDialog.Builder(this)
+            .setTitle(f.name)
+            .setItems(options.toTypedArray()) { _, which ->
+                when (options[which]) {
+                    "Edit Audio" -> startActivity(Intent(this, AudioEditorActivity::class.java).putExtra("file_path", f.absolutePath))
+                    "Edit Gambar" -> startActivity(Intent(this, ImageEditorActivity::class.java).putExtra("file_path", f.absolutePath))
+                    "Bagikan" -> shareFile(f)
+                    "Ganti Nama" -> renameDialog(f)
+                }
+            }.show()
+    }
+
+    private fun shareFile(f: File) {
+        try {
+            val uri = FileProvider.getUriForFile(this, "$packageName.provider", f)
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = MimeTypeMap.getSingleton().getMimeTypeFromExtension(f.extension) ?: "*/*"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(Intent.createChooser(intent, "Bagikan via"))
+        } catch (e: Exception) { Toast.makeText(this, "Gagal", Toast.LENGTH_SHORT).show() }
+    }
+
+    private fun renameDialog(f: File) {
+        val input = EditText(this).apply { setText(f.name) }
+        AlertDialog.Builder(this).setTitle("Ganti Nama").setView(input)
+            .setPositiveButton("OK") { _, _ ->
+                val newFile = File(f.parentFile, input.text.toString())
+                if (f.renameTo(newFile)) {
+                    if (currentDir != null) currentDir?.let { loadDir(it) } else loadRoots()
+                } else Toast.makeText(this, "Gagal rename", Toast.LENGTH_SHORT).show()
+            }.setNegativeButton("Batal", null).show()
     }
 
     private fun deleteSelectedFiles() {
@@ -295,69 +381,6 @@ class MediaManagerActivity : AppCompatActivity() {
         }
     }
 
-    private fun enableSelectionMode(f: File) {
-        adapter.isSelectionMode = true; adapter.selectedFiles.add(f)
-        adapter.notifyDataSetChanged(); b.selectionToolbar.visibility = View.VISIBLE
-    }
-
-    private fun toggleSelection(f: File) {
-        if (adapter.selectedFiles.contains(f)) adapter.selectedFiles.remove(f) else adapter.selectedFiles.add(f)
-        adapter.isSelectionMode = adapter.selectedFiles.isNotEmpty()
-        if (adapter.selectedFiles.isEmpty()) closeSelectionMode() else adapter.notifyDataSetChanged()
-    }
-
-    private fun closeSelectionMode() {
-        adapter.isSelectionMode = false; adapter.selectedFiles.clear()
-        adapter.notifyDataSetChanged(); b.selectionToolbar.visibility = View.GONE
-    }
-
-    private fun showMoreMenu(f: File) {
-        val options = mutableListOf("Bagikan", "Ganti Nama")
-        if (mediaType == "AUDIO") options.add(0, "Edit Audio")
-        if (mediaType == "IMAGE") options.add(0, "Edit Gambar")
-
-        AlertDialog.Builder(this)
-            .setTitle(f.name)
-            .setItems(options.toTypedArray()) { _, which ->
-                when (options[which]) {
-                    "Edit Audio" -> startActivity(Intent(this, AudioEditorActivity::class.java).putExtra("file_path", f.absolutePath))
-                    "Edit Gambar" -> startActivity(Intent(this, ImageEditorActivity::class.java).putExtra("file_path", f.absolutePath))
-                    "Bagikan" -> shareFile(f)
-                    "Ganti Nama" -> renameDialog(f)
-                }
-            }.show()
-    }
-
-    private fun shareFile(f: File) {
-        try {
-            val uri = FileProvider.getUriForFile(this, "$packageName.provider", f)
-            val intent = Intent(Intent.ACTION_SEND).apply {
-                type = MimeTypeMap.getSingleton().getMimeTypeFromExtension(f.extension) ?: "*/*"
-                putExtra(Intent.EXTRA_STREAM, uri)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            startActivity(Intent.createChooser(intent, "Bagikan via"))
-        } catch (e: Exception) { Toast.makeText(this, "Gagal", Toast.LENGTH_SHORT).show() }
-    }
-
-    private fun renameDialog(f: File) {
-        val input = EditText(this).apply { setText(f.name) }
-        AlertDialog.Builder(this).setTitle("Ganti Nama").setView(input)
-            .setPositiveButton("OK") { _, _ ->
-                val newFile = File(f.parentFile, input.text.toString())
-                if (f.renameTo(newFile)) {
-                    if (currentDir != null) currentDir?.let { loadDir(it) } else loadRoots()
-                } else Toast.makeText(this, "Gagal rename", Toast.LENGTH_SHORT).show()
-            }.setNegativeButton("Batal", null).show()
-    }
-
-    private fun handleBack() {
-        if (currentDir != null) {
-            currentDir = null
-            loadRoots()
-        } else finish()
-    }
-
     private fun getSdCard(): File? {
         val dirs = getExternalFilesDirs(null)
         if (dirs.size > 1 && dirs[1] != null) {
@@ -368,7 +391,4 @@ class MediaManagerActivity : AppCompatActivity() {
         }
         return null
     }
-
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() { handleBack() }
 }
