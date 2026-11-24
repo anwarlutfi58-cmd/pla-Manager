@@ -298,4 +298,126 @@ class VideoEditorActivity : AppCompatActivity() {
                     notif.hideEdit()
                     if (ReturnCode.isSuccess(session.returnCode)) {
                         registerVideoToMediaStore(outputFile)
-                        Toast.makeText(this, "
+                        Toast.makeText(this, "Berhasil! Tekan 'Putar Hasil Video'", Toast.LENGTH_LONG).show()
+                        extraVideoFilter = ""
+                    } else {
+                        Toast.makeText(this, "Gagal memproses video.", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }, { }, { })
+
+        } catch (e: Exception) {
+            b.btnExport.isEnabled = true
+            b.btnExport.text = "Ekspor"
+            notif.hideEdit()
+            Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun renderSlideshow(resolution: String, fps: String) {
+        b.btnExport.isEnabled = false
+        b.btnExport.text = "Memproses..."
+        Toast.makeText(this, "Sedang membuat video... Mohon tunggu.", Toast.LENGTH_LONG).show()
+        notif.showEdit("Membuat Video", "Mengekspor ${imageUris.size} gambar ke MP4...")
+
+        val duration = b.etDuration.text.toString().toIntOrNull() ?: 3
+        val concatFile = File(cacheDir, "concat_list.txt")
+        val outputDir = File(Environment.getExternalStorageDirectory(), "PlaProjects/Edit_Video")
+        if (!outputDir.exists()) outputDir.mkdirs()
+        val outputFile = File(outputDir, "EDIT_${System.currentTimeMillis()}.mp4")
+        lastExportedFile = outputFile
+
+        try {
+            val writer = concatFile.bufferedWriter()
+            imageUris.forEach { uri ->
+                val tempImg = File(cacheDir, "img_${System.currentTimeMillis()}.jpg")
+                contentResolver.openInputStream(uri)?.use { input ->
+                    FileOutputStream(tempImg).use { output -> input.copyTo(output) }
+                }
+                writer.write("file '${tempImg.absolutePath}'\n")
+                writer.write("duration $duration\n")
+            }
+            val lastImg = File(cacheDir, "img_${System.currentTimeMillis()}.jpg")
+            contentResolver.openInputStream(imageUris.last())?.use { input ->
+                FileOutputStream(lastImg).use { output -> input.copyTo(output) }
+            }
+            writer.write("file '${lastImg.absolutePath}'\n")
+            writer.close()
+
+            val cmd = StringBuilder()
+            cmd.append("-y -f concat -safe 0 -i \"${concatFile.absolutePath}\" ")
+            if (audioUri != null) {
+                val tempAudio = File(cacheDir, "bgm.m4a")
+                contentResolver.openInputStream(audioUri!!)?.use { input ->
+                    FileOutputStream(tempAudio).use { output -> input.copyTo(output) }
+                }
+                cmd.append("-i \"${tempAudio.absolutePath}\" ")
+            }
+            
+            val vFilter = StringBuilder("scale=$resolution,setsar=1,fps=$fps")
+            val effectFilter = VideoProHelper.getVisualFilter(b.spinnerEffects.selectedItem.toString())
+            if (effectFilter.isNotEmpty()) vFilter.append(",$effectFilter")
+            val wmText = b.etWatermark.text.toString()
+            if (wmText.isNotEmpty()) {
+                val pos = VideoProHelper.getWatermarkPosition(b.spinnerTextPos.selectedItem.toString())
+                val color = when(b.spinnerTextColor.selectedItemPosition) {
+                    1 -> "black"; 2 -> "yellow"; 3 -> "red"; 4 -> "blue"; 5 -> "green"; else -> "white"
+                }
+                vFilter.append(",drawtext=text='$wmText':fontcolor=$color:fontsize=36:box=1:boxcolor=black@0.5:$pos")
+            }
+            cmd.append("-vf \"$vFilter\" ")
+            
+            cmd.append("-c:v libx264 -pix_fmt yuv420p ")
+            if (audioUri != null) cmd.append("-c:a aac -shortest ")
+            cmd.append("\"${outputFile.absolutePath}\"")
+
+            FFmpegKit.executeAsync(cmd.toString(), { session ->
+                runOnUiThread {
+                    b.btnExport.isEnabled = true
+                    b.btnExport.text = "Ekspor"
+                    notif.hideEdit()
+                    if (ReturnCode.isSuccess(session.returnCode)) {
+                        registerVideoToMediaStore(outputFile)
+                        Toast.makeText(this, "Berhasil! Tekan 'Putar Hasil Video'", Toast.LENGTH_LONG).show()
+                    } else {
+                        Toast.makeText(this, "Gagal membuat video.", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }, { }, { })
+        } catch (e: Exception) {
+            b.btnExport.isEnabled = true
+            b.btnExport.text = "Ekspor"
+            notif.hideEdit()
+            Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun registerVideoToMediaStore(file: File) {
+        try {
+            val values = ContentValues().apply {
+                put(MediaStore.Video.Media.DISPLAY_NAME, file.name)
+                put(MediaStore.Video.Media.MIME_TYPE, if(file.extension == "gif") "image/gif" else "video/mp4")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    put(MediaStore.Video.Media.RELATIVE_PATH, "PlaProjects/Edit_Video")
+                } else {
+                    put(MediaStore.Video.Media.DATA, file.absolutePath)
+                }
+            }
+            contentResolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values)
+        } catch (e: Exception) { }
+    }
+
+    private fun getFileName(uri: Uri): String {
+        var name = "File Terpilih"
+        contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            if (cursor.moveToFirst()) name = cursor.getString(nameIndex)
+        }
+        return name
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        notif.hideEdit()
+    }
+}
