@@ -83,9 +83,49 @@ class AudioEditorActivity : AppCompatActivity() {
         }
         (b.layoutTabStereoPro as? LinearLayout)?.addView(btnMoreTools)
 
+        // Tombol Baru untuk Audio Split & Spectral Delay
+        val btnAudioPro = Button(this).apply {
+            text = "Alat Audio Lanjutan (Split, Spectral)"
+            setOnClickListener { showAudioProMenu() }
+        }
+        (b.layoutTabStereoPro as? LinearLayout)?.addView(btnAudioPro)
+
         b.btnPreviewAudio.setOnClickListener { onPreviewClick() }
         b.btnProcess.setOnClickListener { processAudio() }
         b.btnMeasureLoudness.setOnClickListener { measureLoudness() }
+    }
+
+    private fun showAudioProMenu() {
+        val options = arrayOf("Pisah Kanal Kiri & Kanan (Split)", "Spectral Delay (Echo Lembut)", "Auto-Tune Ringan (Pro)")
+        android.app.AlertDialog.Builder(this).setTitle("Alat Audio Lanjutan").setItems(options) { _, which ->
+            when(which) {
+                0 -> splitAudioChannels()
+                1 -> { customEffectFilter = AudioProHelper.getSpectralDelayFilter(); Toast.makeText(this, "Spectral Delay Aktif", Toast.LENGTH_SHORT).show() }
+                2 -> { customEffectFilter = AudioProHelper.getAutoTuneFilter(50); Toast.makeText(this, "Auto-Tune Aktif", Toast.LENGTH_SHORT).show() }
+            }
+        }.show()
+    }
+
+    private fun splitAudioChannels() {
+        val outDir = File(Environment.getExternalStorageDirectory(), "PlaProjects/Edit_Audio")
+        if (!outDir.exists()) outDir.mkdirs()
+        val outL = File(outDir, "LEFT_${System.currentTimeMillis()}.m4a")
+        val outR = File(outDir, "RIGHT_${System.currentTimeMillis()}.m4a")
+        val cmd = AudioProHelper.getSplitChannelCommand(inputFile.absolutePath, outL.absolutePath, outR.absolutePath)
+        
+        notif.showEdit("Memisahkan Kanal", "Mohon tunggu...")
+        FFmpegKit.executeAsync(cmd) { session ->
+            runOnUiThread {
+                notif.hideEdit()
+                if (ReturnCode.isSuccess(session.returnCode)) {
+                    AudioSystemHelper.registerToMediaStore(this, outL, "m4a")
+                    AudioSystemHelper.registerToMediaStore(this, outR, "m4a")
+                    Toast.makeText(this, "Berhasil dipisah (L & R)", Toast.LENGTH_LONG).show()
+                } else {
+                    Toast.makeText(this, "Gagal memisahkan kanal", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
     }
 
     private fun generateVisualizer() {
@@ -191,7 +231,6 @@ class AudioEditorActivity : AppCompatActivity() {
         AudioUiHelper.setupSeekBar(b.seekWidenerMid, b.tvWidenerMidLabel, "Mid Level: ", "%") { dirtyPreview() }
         AudioUiHelper.setupSeekBar(b.seekWidenerSide, b.tvWidenerSideLabel, "Side Level: ", "%") { dirtyPreview() }
 
-        // Setup Listener untuk Echo & Reverb
         b.seekEchoDelay.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
                 b.tvEchoDelayLabel.text = "Delay (Jeda): $progress ms"; dirtyPreview()
@@ -236,13 +275,9 @@ class AudioEditorActivity : AppCompatActivity() {
             b.cbTabDinamika.isChecked, b.cbCompressor.isChecked, b.seekCompThreshold.progress, b.seekCompRatio.progress, b.seekCompAttack.progress, b.seekCompRelease.progress,
             b.cbTabResample.isChecked, b.spinnerResampleRate.selectedItem.toString(), b.cbSoxResample.isChecked,
             b.cbTabStereoPro.isChecked, b.cbStereoEnhancer.isChecked, b.seekEnhancerIntensity.progress, b.cbStereoWidener.isChecked, b.seekWidenerMid.progress, b.seekWidenerSide.progress,
-            // Vokal Pro
             b.cbTabVokal.isChecked, b.cbVocalDoubler.isChecked, b.cbWhisper.isChecked, b.cbBreathControl.isChecked, b.cbDeEsser.isChecked, b.cbChorus.isChecked, b.seekAutoTune.progress,
-            // Efek Spesial
             b.cbTabEfekSpesial.isChecked, b.cbRobotVoice.isChecked, b.cbChipmunk.isChecked, b.cbDeepVoice.isChecked, b.cbTelephone.isChecked, b.cbRadio.isChecked, b.cb8DAudio.isChecked, b.cbTapeStop.isChecked, b.cbVinylCrackle.isChecked,
-            // Echo & Reverb
             b.cbTabEchoReverb.isChecked, b.seekEchoDelay.progress, b.seekEchoFeedback.progress, b.seekReverbRoom.progress, b.seekReverbDamping.progress,
-            // Fade & Noise
             b.seekFadeIn.progress, b.seekFadeOut.progress, b.cbNoiseReduction.isChecked, b.cbHighPass.isChecked, b.cbDeClick.isChecked, b.cbSilenceRemove.isChecked
         ).toMutableList()
 
