@@ -25,13 +25,13 @@ class VideoEditorActivity : AppCompatActivity() {
     private lateinit var notif: NotificationHelper
     private val imageUris = mutableListOf<Uri>()
     private var audioUri: Uri? = null
+    private var videoUri: Uri? = null // Untuk menyimpan video asli dari HP
     private var isLandscape = false
     
     private var lastExportedFile: File? = null
 
-    // Menyimpan filter string tambahan yang dipilih user
-    private var extraVideoFilter = ""
-    private var extraAudioFilter = ""
+    // Filter string untuk video asli
+    private var realVideoOptions = ""
 
     private val pickImagesLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == RESULT_OK) {
@@ -44,7 +44,20 @@ class VideoEditorActivity : AppCompatActivity() {
             } else if (data?.data != null) {
                 imageUris.add(data.data!!)
             }
+            videoUri = null // Reset video jika user memilih gambar
             updatePreview()
+        }
+    }
+
+    // Launcher BARU untuk memilih Video Asli
+    private val pickVideoLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        if (uri != null) {
+            videoUri = uri
+            imageUris.clear() // Reset gambar jika user memilih video
+            b.ivPreview.setImageResource(R.drawable.ic_video_file) // Atau biarkan kosong
+            b.tvNoImage.visibility = View.GONE
+            val name = getFileName(uri)
+            Toast.makeText(this, "Video terpilih: $name", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -63,6 +76,7 @@ class VideoEditorActivity : AppCompatActivity() {
 
         b.btnBack.setOnClickListener { finish() }
 
+        // TOMBOL LAMA: Pilih Gambar (Slideshow)
         b.toolAddImage.setOnClickListener {
             val intent = Intent(Intent.ACTION_GET_CONTENT)
             intent.type = "image/*"
@@ -85,8 +99,13 @@ class VideoEditorActivity : AppCompatActivity() {
         }
 
         b.btnPickAudio.setOnClickListener { pickAudioLauncher.launch("audio/*") }
-
         b.spinnerRatio.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, arrayOf("16:9 (Lanskap)", "9:16 (Potret/TikTok)", "1:1 (Persegi)"))
+
+        // --- TOMBOL BARU: PILIH VIDEO ASLI ---
+        val btnPickRealVideo = Button(this).apply {
+            text = "Pilih Video Asli (.mp4) dari HP"
+            setOnClickListener { pickVideoLauncher.launch("video/*") }
+        }
 
         // --- TOMBOL PUTAR HASIL VIDEO ---
         val btnPlay = Button(this).apply {
@@ -109,97 +128,76 @@ class VideoEditorActivity : AppCompatActivity() {
         
         // --- TOMBOL MENU TAMBAHAN (Fitur Lanjutan) ---
         val btnAdvanced = Button(this).apply {
-            text = "Buka Alat Video Lanjutan (Crop, Speed, Filter, dll)"
-            setOnClickListener { showAdvancedToolsDialog() }
+            text = "Buka Alat Video Asli (Potong, Mute, dll)"
+            setOnClickListener { showRealVideoTools() }
         }
 
+        // Susun tombol-tombol baru di layout
         val parent = b.btnExport.parent as? LinearLayout
         if (parent != null) {
             val index = parent.indexOfChild(b.btnExport)
-            parent.addView(btnPlay, index)
-            parent.addView(btnAdvanced, index + 1)
+            parent.addView(btnPickRealVideo, index)
+            parent.addView(btnPlay, index + 1)
+            parent.addView(btnAdvanced, index + 2)
         }
 
         b.btnExport.setOnClickListener {
-            if (imageUris.isEmpty()) {
-                Toast.makeText(this, "Pilih gambar terlebih dahulu!", Toast.LENGTH_SHORT).show()
+            if (imageUris.isEmpty() && videoUri == null) {
+                Toast.makeText(this, "Pilih gambar atau video terlebih dahulu!", Toast.LENGTH_SHORT).show()
             } else {
                 showExportDialog()
             }
         }
     }
 
-    // --- LOGIKA MENU TAMBAHAN ---
-    private fun showAdvancedToolsDialog() {
-        val dialogView = layoutInflater.inflate(R.layout.dialog_video_tools, null)
-        val dialog = AlertDialog.Builder(this).setView(dialogView).create()
-
-        dialogView.findViewById<Button>(R.id.btnSpeed).setOnClickListener {
-            dialog.dismiss()
-            showChoiceDialog("Pilih Kecepatan", arrayOf("Normal", "Cepat 2x", "Lambat 2x", "Sangat Cepat 4x")) { index ->
-                extraVideoFilter += if (index > 0) VideoTransformHelper.getSpeedCommand(index - 1) + "," else ""
-            }
+    // --- LOGIKA UNTUK MEMOTONG VIDEO ASLI ---
+    private fun showRealVideoTools() {
+        if (videoUri == null) {
+            Toast.makeText(this, "Pilih Video Asli terlebih dahulu (tombol paling atas)!", Toast.LENGTH_LONG).show()
+            return
         }
 
-        dialogView.findViewById<Button>(R.id.btnFilter).setOnClickListener {
-            dialog.dismiss()
-            showChoiceDialog("Pilih Filter", arrayOf("Normal", "Hitam Putih", "Sepia", "Negatif", "Vintage", "Cerah", "Gelap", "Warna Tajam", "Blur", "Sketsa", "Vignette", "Grain", "Mosaik", "Pertajam", "Glitch")) { index ->
-                extraVideoFilter += if (index > 0) VideoFilterHelper.getFilterCommand(index - 1) + "," else ""
-            }
-        }
-
-        dialogView.findViewById<Button>(R.id.btnAudio).setOnClickListener {
-            dialog.dismiss()
-            showChoiceDialog("Pilih Efek Audio", arrayOf("Normal", "Perbesar", "Perkecil", "Hapus Suara (Mute)", "Cepat", "Lambat", "Gema", "Fade In")) { index ->
-                extraAudioFilter = if (index > 0) VideoAudioHelper.getAudioCommand(index - 1) else ""
-            }
-        }
-
-        dialogView.findViewById<Button>(R.id.btnCrop).setOnClickListener {
-            dialog.dismiss()
-            showChoiceDialog("Pilih Rasio (Crop)", arrayOf("Bebas", "16:9 Lanskap", "9:16 Potret", "1:1 Persegi", "4:3 Klasik")) { index ->
-                extraVideoFilter += if (index > 0) VideoTransformHelper.getCropCommand(index - 1) + "," else ""
-            }
-        }
-
-        dialogView.findViewById<Button>(R.id.btnRotate).setOnClickListener {
-            dialog.dismiss()
-            showChoiceDialog("Putar/Balik Video", arrayOf("Normal", "Putar Kanan 90°", "Putar Kiri 90°", "Putar 180°", "Cermin Kiri-Kanan", "Cermin Atas-Bawah")) { index ->
-                extraVideoFilter += if (index > 0) VideoTransformHelper.getRotateCommand(index - 1) + "," else ""
-            }
-        }
-
-        dialogView.findViewById<Button>(R.id.btnText).setOnClickListener {
-            dialog.dismiss()
-            showTextInputDialog()
-        }
-
-        dialogView.findViewById<Button>(R.id.btnCompress).setOnClickListener {
-            dialog.dismiss()
-            showChoiceDialog("Kompres Video", arrayOf("Normal", "Hemat Ukuran (H.264)", "Super Hemat (H.265)")) { index ->
-                extraVideoFilter += if (index > 0) VideoTransformHelper.getFormatCommand(index - 1) + "," else ""
-            }
-        }
-
-        dialog.show()
+        val options = arrayOf("Potong Video (Trim)", "Hapus Suara (Mute)", "Percepat Video 2x", "Jadikan GIF")
+        AlertDialog.Builder(this)
+            .setTitle("Alat Video Asli")
+            .setItems(options) { _, which ->
+                when(which) {
+                    0 -> showTrimDialog()
+                    1 -> {
+                        realVideoOptions = RealVideoHelper.getMuteCommand()
+                        Toast.makeText(this, "Suara akan dihapus saat ekspor", Toast.LENGTH_SHORT).show()
+                    }
+                    2 -> {
+                        realVideoOptions = RealVideoHelper.getSpeedUpCommand(2.0f)
+                        Toast.makeText(this, "Video akan dipercepat saat ekspor", Toast.LENGTH_SHORT).show()
+                    }
+                    3 -> {
+                        realVideoOptions = RealVideoHelper.getToGifCommand()
+                        Toast.makeText(this, "Video akan diubah jadi GIF saat ekspor", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }.show()
     }
 
-    private fun showChoiceDialog(title: String, options: Array<String>, onSelected: (Int) -> Unit) {
-        AlertDialog.Builder(this)
-            .setTitle(title)
-            .setItems(options) { _, which -> onSelected(which) }
-            .show()
-    }
+    private fun showTrimDialog() {
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(50, 20, 50, 20)
+        }
+        val etStart = EditText(this).apply { hint = "Mulai (contoh: 00:00:05)" }
+        val etEnd = EditText(this).apply { hint = "Selesai (contoh: 00:00:15)" }
+        layout.addView(etStart)
+        layout.addView(etEnd)
 
-    private fun showTextInputDialog() {
-        val input = EditText(this).apply { hint = "Masukkan teks..." }
         AlertDialog.Builder(this)
-            .setTitle("Tambah Teks/Watermark")
-            .setView(input)
-            .setPositiveButton("Tambah") { _, _ ->
-                val text = input.text.toString()
-                if (text.isNotEmpty()) {
-                    extraVideoFilter += VideoFilterHelper.getTextCommand(text, "bottom", "white", 40) + ","
+            .setTitle("Potong Video")
+            .setView(layout)
+            .setPositiveButton("Simpan") { _, _ ->
+                val start = etStart.text.toString()
+                val end = etEnd.text.toString()
+                if (start.isNotEmpty() && end.isNotEmpty()) {
+                    realVideoOptions = RealVideoHelper.getTrimCommand(start, end)
+                    Toast.makeText(this, "Video akan dipotong saat ekspor", Toast.LENGTH_SHORT).show()
                 }
             }.setNegativeButton("Batal", null).show()
     }
@@ -238,13 +236,81 @@ class VideoEditorActivity : AppCompatActivity() {
                     else -> "1920:1080"
                 }
                 val fps = if (spinnerFps.selectedItemPosition == 0) "30" else "60"
-                startRendering(resolution, fps)
+                
+                if (videoUri != null) {
+                    renderRealVideo(resolution, fps)
+                } else {
+                    renderSlideshow(resolution, fps)
+                }
             }
             .setNegativeButton("Batal", null)
             .show()
     }
 
-    private fun startRendering(resolution: String, fps: String) {
+    // --- RENDER VIDEO ASLI DARI HP (BUKAN FOTO) ---
+    private fun renderRealVideo(resolution: String, fps: String) {
+        b.btnExport.isEnabled = false
+        b.btnExport.text = "Memproses Video..."
+        notif.showEdit("Memproses Video", "Mengedit video asli...")
+
+        val outputDir = File(Environment.getExternalStorageDirectory(), "PlaProjects/Edit_Video")
+        if (!outputDir.exists()) outputDir.mkdirs()
+        val outputFile = File(outputDir, "EDIT_VIDEO_${System.currentTimeMillis()}.mp4")
+        lastExportedFile = outputFile
+
+        try {
+            val tempVideo = File(cacheDir, "input_video.mp4")
+            contentResolver.openInputStream(videoUri!!)?.use { input ->
+                FileOutputStream(tempVideo).use { output -> input.copyTo(output) }
+            }
+
+            val cmd = StringBuilder()
+            // Jika ada opsi trim, taruh sebelum -i
+            if (realVideoOptions.contains("-ss")) {
+                cmd.append("${realVideoOptions} ")
+            }
+            
+            cmd.append("-i \"${tempVideo.absolutePath}\" ")
+            cmd.append("-vf scale=$resolution,setsar=1,fps=$fps ")
+            
+            if (realVideoOptions.isNotEmpty() && !realVideoOptions.contains("-ss")) {
+                // Tambahkan filter khusus (seperti mute atau gif)
+                if (realVideoOptions == RealVideoHelper.getToGifCommand()) {
+                    cmd.append("${realVideoOptions} ")
+                } else {
+                    cmd.append("${realVideoOptions} ")
+                }
+            } else {
+                cmd.append("-c:v libx264 -pix_fmt yuv420p -c:a aac ")
+            }
+
+            cmd.append("\"${outputFile.absolutePath}\"")
+
+            FFmpegKit.executeAsync(cmd.toString(), { session ->
+                runOnUiThread {
+                    b.btnExport.isEnabled = true
+                    b.btnExport.text = "Ekspor"
+                    notif.hideEdit()
+                    if (ReturnCode.isSuccess(session.returnCode)) {
+                        registerVideoToMediaStore(outputFile)
+                        Toast.makeText(this, "Berhasil! Tekan 'Putar Hasil Video'", Toast.LENGTH_LONG).show()
+                        realVideoOptions = ""
+                    } else {
+                        Toast.makeText(this, "Gagal memproses video.", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }, { }, { })
+
+        } catch (e: Exception) {
+            b.btnExport.isEnabled = true
+            b.btnExport.text = "Ekspor"
+            notif.hideEdit()
+            Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // --- RENDER SLIDESHOW FOTO (KODE LAMA ANDA) ---
+    private fun renderSlideshow(resolution: String, fps: String) {
         b.btnExport.isEnabled = false
         b.btnExport.text = "Memproses..."
         Toast.makeText(this, "Sedang membuat video... Mohon tunggu.", Toast.LENGTH_LONG).show()
@@ -252,10 +318,8 @@ class VideoEditorActivity : AppCompatActivity() {
 
         val duration = b.etDuration.text.toString().toIntOrNull() ?: 3
         val concatFile = File(cacheDir, "concat_list.txt")
-
         val outputDir = File(Environment.getExternalStorageDirectory(), "PlaProjects/Edit_Video")
         if (!outputDir.exists()) outputDir.mkdirs()
-        
         val outputFile = File(outputDir, "EDIT_${System.currentTimeMillis()}.mp4")
         lastExportedFile = outputFile
 
@@ -278,7 +342,6 @@ class VideoEditorActivity : AppCompatActivity() {
 
             val cmd = StringBuilder()
             cmd.append("-y -f concat -safe 0 -i \"${concatFile.absolutePath}\" ")
-
             if (audioUri != null) {
                 val tempAudio = File(cacheDir, "bgm.m4a")
                 contentResolver.openInputStream(audioUri!!)?.use { input ->
@@ -286,23 +349,9 @@ class VideoEditorActivity : AppCompatActivity() {
                 }
                 cmd.append("-i \"${tempAudio.absolutePath}\" ")
             }
-
-            // GABUNGKAN FILTER TAMBAHAN DENGAN FILTER DASAR
-            val baseFilter = "scale=$resolution,setsar=1,fps=$fps"
-            val combinedFilter = if (extraVideoFilter.isNotEmpty()) {
-                "$extraVideoFilter$baseFilter".removeSuffix(",") // Buang koma terakhir jika ada
-            } else baseFilter
-
-            cmd.append("-vf $combinedFilter ")
+            cmd.append("-vf scale=$resolution,setsar=1,fps=$fps ")
             cmd.append("-c:v libx264 -pix_fmt yuv420p ")
-
-            if (audioUri != null) {
-                if (extraAudioFilter.isNotEmpty()) {
-                    cmd.append("-af $extraAudioFilter ")
-                }
-                cmd.append("-c:a aac -shortest ")
-            }
-
+            if (audioUri != null) cmd.append("-c:a aac -shortest ")
             cmd.append("\"${outputFile.absolutePath}\"")
 
             FFmpegKit.executeAsync(cmd.toString(), { session ->
@@ -312,15 +361,12 @@ class VideoEditorActivity : AppCompatActivity() {
                     notif.hideEdit()
                     if (ReturnCode.isSuccess(session.returnCode)) {
                         registerVideoToMediaStore(outputFile)
-                        Toast.makeText(this, "Berhasil! Silakan tekan 'Putar Hasil Video'", Toast.LENGTH_LONG).show()
-                        extraVideoFilter = "" // Reset setelah ekspor
-                        extraAudioFilter = ""
+                        Toast.makeText(this, "Berhasil! Tekan 'Putar Hasil Video'", Toast.LENGTH_LONG).show()
                     } else {
                         Toast.makeText(this, "Gagal membuat video.", Toast.LENGTH_LONG).show()
                     }
                 }
             }, { }, { })
-
         } catch (e: Exception) {
             b.btnExport.isEnabled = true
             b.btnExport.text = "Ekspor"
@@ -333,7 +379,7 @@ class VideoEditorActivity : AppCompatActivity() {
         try {
             val values = ContentValues().apply {
                 put(MediaStore.Video.Media.DISPLAY_NAME, file.name)
-                put(MediaStore.Video.Media.MIME_TYPE, "video/mp4")
+                put(MediaStore.Video.Media.MIME_TYPE, if(file.extension == "gif") "image/gif" else "video/mp4")
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     put(MediaStore.Video.Media.RELATIVE_PATH, "PlaProjects/Edit_Video")
                 } else {
@@ -341,12 +387,11 @@ class VideoEditorActivity : AppCompatActivity() {
                 }
             }
             contentResolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values)
-        } catch (e: Exception) {
-        }
+        } catch (e: Exception) { }
     }
 
     private fun getFileName(uri: Uri): String {
-        var name = "Audio Terpilih"
+        var name = "File Terpilih"
         contentResolver.query(uri, null, null, null, null)?.use { cursor ->
             val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
             if (cursor.moveToFirst()) name = cursor.getString(nameIndex)
