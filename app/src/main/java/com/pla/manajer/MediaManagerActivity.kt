@@ -137,7 +137,7 @@ class MediaManagerActivity : AppCompatActivity() {
         currentDir = null
         adapter.isRootMode = true
         b.tvTitle.text = when(mediaType) {
-            "AUDIO" -> "Folder Audio"; "VIDEO" -> "Folder Video"; "IMAGE" -> "Folder Gambar"; else -> "Folder Media"
+            "AUDIO" -> "Audio"; "VIDEO" -> "Video"; "IMAGE" -> "Gambar"; else -> "Media"
         }
         
         if (cachedFolders.containsKey(mediaType) && cachedCounts.containsKey(mediaType)) {
@@ -174,8 +174,6 @@ class MediaManagerActivity : AppCompatActivity() {
                     val files = dir.listFiles() ?: return
                     
                     if (!dir.name.startsWith(".")) {
-                        // PERBAIKAN: Hanya masukkan folder jika ada file media LANGSUNG di dalamnya.
-                        // Tidak peduli subfoldernya punya media atau tidak.
                         val hasDirectMedia = files.any { it.isFile && it.extension.lowercase() in exts }
                         if (hasDirectMedia) {
                             foundFolders.add(dir)
@@ -291,12 +289,11 @@ class MediaManagerActivity : AppCompatActivity() {
         }
     }
 
-    // PERBAIKAN: Tombol kembali sekarang mengarah ke beranda media yang benar
     private fun handleBack() {
         if (currentDir != null) {
-            loadRoots() // Kembali ke halaman awal Audio/Video/Gambar, BUKAN ke File Manager
+            loadRoots()
         } else {
-            finish() // Keluar dari aplikasi jika sudah di halaman awal
+            finish()
         }
     }
 
