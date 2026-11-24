@@ -13,6 +13,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.pla.manajer.util.ApkBuilderHelper
 import com.pla.manajer.util.GithubApiHelper
 import com.pla.manajer.util.GithubFeatureHelper
 import kotlinx.coroutines.launch
@@ -26,11 +27,8 @@ class GithubRepoDetailActivity : AppCompatActivity() {
     private var isRepoPrivate: Boolean = false
     private var repoHtmlUrl: String = ""
 
-    // Launcher untuk Pindah Arah
     private val pickFileLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        if (uri != null) {
-            uploadFileToGithub(uri)
-        }
+        if (uri != null) uploadFileToGithub(uri)
     }
 
     override fun onCreate(s: Bundle?) {
@@ -45,8 +43,7 @@ class GithubRepoDetailActivity : AppCompatActivity() {
         repoOwner = repoFullName.split("/").firstOrNull() ?: ""
 
         findViewById<TextView>(R.id.tvRepoName).text = "Repo: $repoName"
-        findViewById<TextView>(R.id.tvRepoStatus).text = 
-            "Status: ${if (isRepoPrivate) "Privat" else "Publik"}\nNama lengkap: $repoFullName"
+        findViewById<TextView>(R.id.tvRepoStatus).text = "Status: ${if (isRepoPrivate) "Privat" else "Publik"}\nNama lengkap: $repoFullName"
 
         setupButtons()
     }
@@ -54,105 +51,144 @@ class GithubRepoDetailActivity : AppCompatActivity() {
     private fun setupButtons() {
         findViewById<Button>(R.id.btnBack).setOnClickListener { finish() }
         
-        // 1. Buka Berkas (Sementara diarahkan ke browser untuk lihat file)
-        findViewById<Button>(R.id.btn1).setOnClickListener { 
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(repoHtmlUrl))) 
-        }
-        
-        // 2. Tambah Berkas (Ketik Teks)
+        findViewById<Button>(R.id.btn1).setOnClickListener { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(repoHtmlUrl))) }
         findViewById<Button>(R.id.btn2).setOnClickListener { showAddTextFileDialog() }
-        
-        // 3. Pindah Arah / Unggah Berkas
         findViewById<Button>(R.id.btn3).setOnClickListener { pickFileLauncher.launch("*/*") }
 
-        // 4. Bangun APK (Build)
-        findViewById<Button>(R.id.btn4).setOnClickListener { 
-            Toast.makeText(this, "Menjalankan Build... (Pastikan Workflow YAML sudah ada)", Toast.LENGTH_LONG).show()
-            // Fungsi untuk men-trigger build bisa ditambahkan di GithubFeatureHelper jika YAML siap
-        }
+        // --- TOMBOL NO. 4: BANGUN APK (MUNCULKAN PILIHAN) ---
+        findViewById<Button>(R.id.btn4).setOnClickListener { showBuildOptionsDialog() }
 
-        // 5. Cek Status Build (Workflow)
         findViewById<Button>(R.id.btn5).setOnClickListener { showWorkflowsDialog() }
-
-        // 6. Riwayat Pembangunan (Sama seperti Cek Status)
         findViewById<Button>(R.id.btn6).setOnClickListener { showWorkflowsDialog() }
-
-        // 7. Unduh APK Terbaru (Sementara ke halaman Actions)
-        findViewById<Button>(R.id.btn7).setOnClickListener { 
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("$repoHtmlUrl/actions"))) 
-        }
-
-        // 8. Lihat Workflow & Log
+        findViewById<Button>(R.id.btn7).setOnClickListener { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("$repoHtmlUrl/releases"))) } // Unduh APK langsung ke rilis
         findViewById<Button>(R.id.btn8).setOnClickListener { showWorkflowsDialog() }
-
-        // 9. Hapus Artefak (Sementara ke halaman Actions)
-        findViewById<Button>(R.id.btn9).setOnClickListener { 
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("$repoHtmlUrl/actions"))) 
-        }
-
-        // 10-13 (Fitur Keamanan & Rilis)
+        findViewById<Button>(R.id.btn9).setOnClickListener { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("$repoHtmlUrl/actions"))) }
+        
         findViewById<Button>(R.id.btn10).setOnClickListener { showSimpleToast("Fitur Keamanan APK berjalan.") }
         findViewById<Button>(R.id.btn11).setOnClickListener { showSimpleToast("Fitur Kunci Tanda Tangan berjalan.") }
         findViewById<Button>(R.id.btn12).setOnClickListener { showSimpleToast("Buat Rilis baru...") }
         findViewById<Button>(R.id.btn13).setOnClickListener { showReleasesDialog() }
-
-        // 14. Riwayat Commit
         findViewById<Button>(R.id.btn14).setOnClickListener { showCommitsDialog() }
-
-        // 15. Secrets dan Variables
-        findViewById<Button>(R.id.btn15).setOnClickListener { 
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("$repoHtmlUrl/settings/secrets/actions"))) 
-        }
-
-        // 16. Info Repo
-        findViewById<Button>(R.id.btn16).setOnClickListener { 
-            AlertDialog.Builder(this).setTitle("Info Repo").setMessage("Nama: $repoName\nStatus: ${if(isRepoPrivate) "Privat" else "Publik"}\nPemilik: $repoOwner").setPositiveButton("OK", null).show()
-        }
-
-        // 17. Unduh ZIP
-        findViewById<Button>(R.id.btn17).setOnClickListener {
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("$repoHtmlUrl/archive/refs/heads/main.zip")))
-        }
-
-        // 18. Ubah Privasi
+        findViewById<Button>(R.id.btn15).setOnClickListener { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("$repoHtmlUrl/settings/secrets/actions"))) }
+        findViewById<Button>(R.id.btn16).setOnClickListener { showRepoInfoDialog() }
+        findViewById<Button>(R.id.btn17).setOnClickListener { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("$repoHtmlUrl/archive/refs/heads/main.zip"))) }
         findViewById<Button>(R.id.btn18).setOnClickListener { showPrivacyDialog() }
-
-        // 19. Ganti Nama
         findViewById<Button>(R.id.btn19).setOnClickListener { showRenameDialog() }
-
-        // 20. Salin Tautan
-        findViewById<Button>(R.id.btn20).setOnClickListener {
-            val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
-            clipboard.setPrimaryClip(ClipData.newPlainText("Repo URL", repoHtmlUrl))
-            Toast.makeText(this, "Tautan disalin", Toast.LENGTH_SHORT).show()
-        }
-
-        // 21. Bagikan Tautan
-        findViewById<Button>(R.id.btn21).setOnClickListener {
-            val share = Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, repoHtmlUrl) }
-            startActivity(Intent.createChooser(share, "Bagikan via"))
-        }
-
-        // 22. Situs Web (Pages)
-        findViewById<Button>(R.id.btn22).setOnClickListener {
-            val pagesUrl = if (repoName.endsWith(".github.io")) "https://$repoName" else "https://$repoOwner.github.io/$repoName"
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(pagesUrl)))
-        }
-
-        // 23. Buka di Browser
-        findViewById<Button>(R.id.btn23).setOnClickListener {
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(repoHtmlUrl)))
-        }
-
-        // 24. Hapus Repo
+        findViewById<Button>(R.id.btn20).setOnClickListener { copyLink() }
+        findViewById<Button>(R.id.btn21).setOnClickListener { shareLink() }
+        findViewById<Button>(R.id.btn22).setOnClickListener { openPages() }
+        findViewById<Button>(R.id.btn23).setOnClickListener { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(repoHtmlUrl))) }
         findViewById<Button>(R.id.btn24).setOnClickListener { showDeleteConfirm() }
     }
 
-    // --- FUNGSI PENDUKUNG ---
+    // ==========================================
+    // LOGIKA BANGUN APK
+    // ==========================================
+    private fun showBuildOptionsDialog() {
+        val options = arrayOf("1. Bangun dari Repo/Folder (ZIP)", "2. Bangun dari Kode Teks Langsung")
+        AlertDialog.Builder(this)
+            .setTitle("Pilih Metode Bangun APK")
+            .setItems(options) { _, which ->
+                if (which == 0) {
+                    // Bangun dari Repo
+                    askKeystoreQuestion { isCustomKey ->
+                        startBuildProcess(useCustomKey = isCustomKey)
+                    }
+                } else {
+                    // Bangun dari Teks
+                    showTypeCodeDialog()
+                }
+            }.show()
+    }
 
+    private fun askKeystoreQuestion(onAnswer: (Boolean) -> Unit) {
+        AlertDialog.Builder(this)
+            .setTitle("Kunci Keamanan (Keystore)")
+            .setMessage("Gunakan kunci dari GitHub Secrets, atau buat kunci sendiri yang akan disimpan di aplikasi PLA?")
+            .setPositiveButton("Buat Kunci Sendiri") { _, _ -> onAnswer(true) }
+            .setNegativeButton("Gunakan GitHub Secrets") { _, _ -> onAnswer(false) }
+            .show()
+    }
+
+    private fun startBuildProcess(useCustomKey: Boolean) {
+        if (useCustomKey) {
+            showCreateKeystoreDialog()
+        } else {
+            uploadWorkflowAndTriggerBuild()
+        }
+    }
+
+    private fun showCreateKeystoreDialog() {
+        val layout = android.widget.LinearLayout(this).apply { orientation = android.widget.LinearLayout.VERTICAL; setPadding(50, 20, 50, 20) }
+        val etAlias = EditText(this).apply { hint = "Nama Alias (contoh: mykey)" }
+        val etPass = EditText(this).apply { hint = "Password Kunci" }
+
+        layout.addView(etAlias); layout.addView(etPass)
+
+        AlertDialog.Builder(this)
+            .setTitle("Buat Kunci Sendiri")
+            .setView(layout)
+            .setPositiveButton("Simpan & Bangun") { _, _ ->
+                val alias = etAlias.text.toString().ifEmpty { "plakey" }
+                val pass = etPass.text.toString().ifEmpty { "password123" }
+                
+                // Simpan kunci ke PLA
+                ApkBuilderHelper.generateKeystoreLocally(this, alias, pass)
+                Toast.makeText(this, "Kunci disimpan di PLA. Memulai Build...", Toast.LENGTH_SHORT).show()
+                
+                uploadWorkflowAndTriggerBuild()
+            }
+            .setNegativeButton("Batal", null)
+            .show()
+    }
+
+    private fun uploadWorkflowAndTriggerBuild() {
+        Toast.makeText(this, "Menyiapkan workflow di GitHub...", Toast.LENGTH_SHORT).show()
+        lifecycleScope.launch {
+            val success = ApkBuilderHelper.setupBuildWorkflow(token, repoOwner, repoName, true)
+            if (success) {
+                Toast.makeText(this@GithubRepoDetailActivity, "Workflow berhasil dipasang! APK akan muncul di menu Rilis.", Toast.LENGTH_LONG).show()
+            } else {
+                Toast.makeText(this@GithubRepoDetailActivity, "Gagal memasang workflow.", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun showTypeCodeDialog() {
+        val layout = android.widget.LinearLayout(this).apply { orientation = android.widget.LinearLayout.VERTICAL; setPadding(50, 20, 50, 20) }
+        val etName = EditText(this).apply { hint = "Nama file (contoh: MainActivity.kt)" }
+        val etCode = EditText(this).apply { hint = "Tulis kode di sini..." }
+        layout.addView(etName); layout.addView(etCode)
+
+        AlertDialog.Builder(this)
+            .setTitle("Tulis Kode Langsung")
+            .setView(layout)
+            .setPositiveButton("Unggah & Bangun") { _, _ ->
+                val name = etName.text.toString().trim()
+                val code = etCode.text.toString()
+                if (name.isNotEmpty()) {
+                    lifecycleScope.launch {
+                        val success = GithubFeatureHelper.uploadFile(token, repoOwner, repoName, name, code.toByteArray())
+                        if (success) {
+                            askKeystoreQuestion { isCustomKey ->
+                                if (isCustomKey) showCreateKeystoreDialog() else uploadWorkflowAndTriggerBuild()
+                            }
+                        } else {
+                            Toast.makeText(this@GithubRepoDetailActivity, "Gagal mengunggah kode", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            }
+            .setNegativeButton("Batal", null)
+            .show()
+    }
+
+    // ==========================================
+    // FUNGSI LAINNYA
+    // ==========================================
     private fun showAddTextFileDialog() {
         val layout = android.widget.LinearLayout(this).apply { orientation = android.widget.LinearLayout.VERTICAL; setPadding(50, 20, 50, 20) }
-        val etName = EditText(this).apply { hint = "Nama file (contoh: catatan.txt)" }
+        val etName = EditText(this).apply { hint = "Nama file" }
         val etContent = EditText(this).apply { hint = "Isi teks..." }
         layout.addView(etName); layout.addView(etContent)
 
@@ -163,7 +199,7 @@ class GithubRepoDetailActivity : AppCompatActivity() {
                 if (name.isNotEmpty()) {
                     lifecycleScope.launch {
                         val success = GithubFeatureHelper.uploadFile(token, repoOwner, repoName, name, content.toByteArray())
-                        Toast.makeText(this@GithubRepoDetailActivity, if (success) "Berhasil diunggah!" else "Gagal mengunggah", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@GithubRepoDetailActivity, if (success) "Berhasil!" else "Gagal", Toast.LENGTH_SHORT).show()
                     }
                 }
             }.setNegativeButton("Batal", null).show()
@@ -201,7 +237,7 @@ class GithubRepoDetailActivity : AppCompatActivity() {
                 }
                 val bytes = contentResolver.openInputStream(uri)?.readBytes() ?: return@launch
                 val success = GithubFeatureHelper.uploadFile(token, repoOwner, repoName, fileName, bytes)
-                Toast.makeText(this@GithubRepoDetailActivity, if (success) "Berhasil diunggah!" else "Gagal mengunggah", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@GithubRepoDetailActivity, if (success) "Berhasil!" else "Gagal", Toast.LENGTH_SHORT).show()
             } catch (e: Exception) {
                 Toast.makeText(this@GithubRepoDetailActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
             }
@@ -212,7 +248,7 @@ class GithubRepoDetailActivity : AppCompatActivity() {
         AlertDialog.Builder(this).setTitle("Ubah Status").setMessage("Ubah status privasi?").setPositiveButton("Ya") { _, _ ->
             lifecycleScope.launch {
                 val success = GithubApiHelper.changePrivacy(token, repoOwner, repoName, !isRepoPrivate)
-                if (success) { Toast.makeText(this@GithubRepoDetailActivity, "Berhasil diubah", Toast.LENGTH_SHORT).show(); finish() } 
+                if (success) { Toast.makeText(this@GithubRepoDetailActivity, "Berhasil", Toast.LENGTH_SHORT).show(); finish() } 
                 else Toast.makeText(this@GithubRepoDetailActivity, "Gagal", Toast.LENGTH_SHORT).show()
             }
         }.setNegativeButton("Batal", null).show()
@@ -225,7 +261,7 @@ class GithubRepoDetailActivity : AppCompatActivity() {
             if (newName.isNotEmpty() && newName != repoName) {
                 lifecycleScope.launch {
                     val success = GithubApiHelper.renameRepo(token, repoOwner, repoName, newName)
-                    if (success) { Toast.makeText(this@GithubRepoDetailActivity, "Berhasil diganti", Toast.LENGTH_SHORT).show(); finish() } 
+                    if (success) { Toast.makeText(this@GithubRepoDetailActivity, "Berhasil", Toast.LENGTH_SHORT).show(); finish() } 
                     else Toast.makeText(this@GithubRepoDetailActivity, "Gagal", Toast.LENGTH_SHORT).show()
                 }
             }
@@ -237,9 +273,29 @@ class GithubRepoDetailActivity : AppCompatActivity() {
             lifecycleScope.launch {
                 val success = GithubApiHelper.deleteRepo(token, repoOwner, repoName)
                 if (success) { Toast.makeText(this@GithubRepoDetailActivity, "Berhasil dihapus", Toast.LENGTH_SHORT).show(); finish() } 
-                else Toast.makeText(this@GithubRepoDetailActivity, "Gagal menghapus", Toast.LENGTH_SHORT).show()
+                else Toast.makeText(this@GithubRepoDetailActivity, "Gagal", Toast.LENGTH_SHORT).show()
             }
         }.setNegativeButton("Batal", null).show()
+    }
+
+    private fun showRepoInfoDialog() {
+        AlertDialog.Builder(this).setTitle("Info Repo").setMessage("Nama: $repoName\nStatus: ${if(isRepoPrivate) "Privat" else "Publik"}\nPemilik: $repoOwner").setPositiveButton("OK", null).show()
+    }
+
+    private fun copyLink() {
+        val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText("Repo URL", repoHtmlUrl))
+        Toast.makeText(this, "Tautan disalin", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun shareLink() {
+        val share = Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, repoHtmlUrl) }
+        startActivity(Intent.createChooser(share, "Bagikan via"))
+    }
+
+    private fun openPages() {
+        val pagesUrl = if (repoName.endsWith(".github.io")) "https://$repoName" else "https://$repoOwner.github.io/$repoName"
+        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(pagesUrl)))
     }
 
     private fun showSimpleToast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
