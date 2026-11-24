@@ -10,7 +10,11 @@ object AudioEngineHelper {
         isTabLoudness: Boolean, normLufs: Boolean, normPeak: Boolean, agc: Boolean,
         isTabDinamika: Boolean, compressor: Boolean, compThreshProgress: Int, compRatioProgress: Int, compAttackProgress: Int, compReleaseProgress: Int,
         isTabResample: Boolean, resampleRate: String, soxResample: Boolean,
-        isTabStereoPro: Boolean, stereoEnhancer: Boolean, enhancerIntProgress: Int, stereoWidener: Boolean, widenerMidProgress: Int, widenerSideProgress: Int
+        isTabStereoPro: Boolean, stereoEnhancer: Boolean, enhancerIntProgress: Int, stereoWidener: Boolean, widenerMidProgress: Int, widenerSideProgress: Int,
+        // Parameter Baru:
+        fadeInProgress: Int = 0, fadeOutProgress: Int = 0,
+        noiseReduction: Boolean = false, highPass: Boolean = false,
+        removeVocal: Boolean = false, isolateVocal: Boolean = false, centerCancel: Boolean = false
     ): List<String> {
         val f = mutableListOf<String>()
 
@@ -86,6 +90,20 @@ object AudioEngineHelper {
                 f.add("stereotools=mlev=$mid:slev=$side")
             }
         }
+
+        // ===== FITUR BARU =====
+        // Karaoke / Vokal
+        if (removeVocal || centerCancel) f.add("pan=stereo|c0=c0-c1|c1=c1-c0")
+        if (isolateVocal) f.add("pan=mono|c0=0.5*c0+0.5*c1")
+
+        // Fade In / Out
+        if (fadeInProgress > 0) f.add("afade=t=in:st=0:d=$fadeInProgress")
+        if (fadeOutProgress > 0) f.add("afade=t=out:st=9999:d=$fadeOutProgress") // Akan disesuaikan oleh FFmpeg di akhir audio (butuh durasi asli)
+
+        // Noise & Filter
+        if (noiseReduction) f.add("afftdn")
+        if (highPass) f.add("highpass=f=200")
+
         return f
     }
 
