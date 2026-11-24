@@ -5,7 +5,7 @@
     android:layout_height="match_parent"
     android:background="#121212">
 
-    <!-- TOP BAR (Kembali & Ekspor) -->
+    <!-- TOP BAR -->
     <LinearLayout
         android:id="@+id/topBar"
         android:layout_width="match_parent"
@@ -27,7 +27,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Pembuat Video"
+            android:text="Video Studio"
             android:textColor="#FFFFFF"
             android:textSize="16sp"
             android:textStyle="bold"
@@ -57,14 +57,14 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:scaleType="fitCenter"
-            android:src="@drawable/ic_file" /> <!-- Placeholder -->
+            android:src="@drawable/ic_file" />
             
         <TextView
             android:id="@+id/tvNoImage"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:text="Belum ada gambar dipilih"
+            android:text="Belum ada media dipilih"
             android:textColor="#AAAAAA"
             android:textSize="14sp"/>
     </FrameLayout>
@@ -78,7 +78,7 @@
         android:background="#1E1E1E"
         app:layout_constraintBottom_toBottomOf="parent">
 
-        <!-- Panel Kontrol Dinamis (Muncul sesuai alat yang dipilih) -->
+        <!-- Panel Kontrol Dinamis -->
         <LinearLayout
             android:id="@+id/panelControls"
             android:layout_width="match_parent"
@@ -95,8 +95,8 @@
 
             <!-- Panel Audio -->
             <LinearLayout android:id="@+id/panelAudio" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:visibility="gone" android:gravity="center_vertical">
-                <com.google.android.material.button.MaterialButton android:id="@+id/btnPickAudio" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Pilih Musik"/>
-                <TextView android:id="@+id/tvAudioSelected" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="8dp" android:text="Belum ada musik" android:textColor="#AAAAAA" android:maxLines="1" android:ellipsize="end"/>
+                <com.google.android.material.button.MaterialButton android:id="@+id/btnPickAudio" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Pilih Audio"/>
+                <TextView android:id="@+id/tvAudioSelected" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="8dp" android:text="Belum ada audio" android:textColor="#AAAAAA" android:maxLines="1" android:ellipsize="end"/>
             </LinearLayout>
 
             <!-- Panel Rasio -->
@@ -105,14 +105,43 @@
                 <Spinner android:id="@+id/spinnerRatio" android:layout_width="0dp" android:layout_height="40dp" android:layout_weight="1" android:backgroundTint="#FFFFFF"/>
             </LinearLayout>
 
-            <!-- Panel Filter/Cahaya -->
+            <!-- Panel Filter & Warna -->
             <LinearLayout android:id="@+id/panelFilter" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Kecerahan Gambar" android:textColor="#FFFFFF"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Kecerahan" android:textColor="#FFFFFF"/>
                 <SeekBar android:id="@+id/seekBrightness" android:layout_width="match_parent" android:layout_height="48dp" android:max="200" android:progress="100" android:progressTint="#4CAF50" android:splitTrack="false" android:paddingHorizontal="16dp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Kontras" android:textColor="#FFFFFF"/>
+                <SeekBar android:id="@+id/seekContrast" android:layout_width="match_parent" android:layout_height="48dp" android:max="200" android:progress="100" android:progressTint="#4CAF50" android:splitTrack="false" android:paddingHorizontal="16dp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Saturasi" android:textColor="#FFFFFF"/>
+                <SeekBar android:id="@+id/seekSaturation" android:layout_width="match_parent" android:layout_height="48dp" android:max="200" android:progress="100" android:progressTint="#4CAF50" android:splitTrack="false" android:paddingHorizontal="16dp"/>
             </LinearLayout>
+
+            <!-- Panel Teks / Watermark -->
+            <LinearLayout android:id="@+id/panelText" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+                <EditText android:id="@+id/etWatermark" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Tulis teks watermark..." android:textColor="#FFFFFF" android:textColorHint="#888888"/>
+                <Spinner android:id="@+id/spinnerTextPos" android:layout_width="match_parent" android:layout_height="40dp" android:layout_marginTop="8dp" android:backgroundTint="#FFFFFF"/>
+            </LinearLayout>
+
+            <!-- Panel Kecepatan -->
+            <LinearLayout android:id="@+id/panelSpeed" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Kecepatan Video" android:textColor="#FFFFFF"/>
+                <SeekBar android:id="@+id/seekSpeed" android:layout_width="match_parent" android:layout_height="48dp" android:max="200" android:progress="100" android:progressTint="#4CAF50" android:splitTrack="false" android:paddingHorizontal="16dp"/>
+            </LinearLayout>
+
+            <!-- Panel Volume -->
+            <LinearLayout android:id="@+id/panelVolume" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Volume Audio" android:textColor="#FFFFFF"/>
+                <SeekBar android:id="@+id/seekVolume" android:layout_width="match_parent" android:layout_height="48dp" android:max="200" android:progress="100" android:progressTint="#4CAF50" android:splitTrack="false" android:paddingHorizontal="16dp"/>
+            </LinearLayout>
+
+            <!-- Panel Efek Lainnya -->
+            <LinearLayout android:id="@+id/panelEffects" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Efek Visual &amp; Audio" android:textColor="#FFFFFF" android:textStyle="bold"/>
+                <Spinner android:id="@+id/spinnerEffects" android:layout_width="match_parent" android:layout_height="40dp" android:layout_marginTop="8dp" android:backgroundTint="#FFFFFF"/>
+            </LinearLayout>
+            
         </LinearLayout>
 
-        <!-- Menu Horizontal (Scroll) -->
+        <!-- Menu Horizontal -->
         <HorizontalScrollView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -128,6 +157,11 @@
                 <LinearLayout android:id="@+id/toolAddImage" android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center" android:paddingHorizontal="16dp">
                     <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_add" app:tint="#FFFFFF"/>
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Gambar" android:textColor="#FFFFFF" android:textSize="11sp" android:layout_marginTop="4dp"/>
+                </LinearLayout>
+
+                <LinearLayout android:id="@+id/toolAddVideo" android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center" android:paddingHorizontal="16dp">
+                    <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_file" app:tint="#FFFFFF"/>
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Video" android:textColor="#FFFFFF" android:textSize="11sp" android:layout_marginTop="4dp"/>
                 </LinearLayout>
 
                 <LinearLayout android:id="@+id/toolDuration" android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center" android:paddingHorizontal="16dp">
@@ -150,10 +184,44 @@
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Warna" android:textColor="#FFFFFF" android:textSize="11sp" android:layout_marginTop="4dp"/>
                 </LinearLayout>
 
-                <!-- Tombol Putar Layar (Landscape/Portrait) -->
+                <LinearLayout android:id="@+id/toolText" android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center" android:paddingHorizontal="16dp">
+                    <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_file" app:tint="#FFFFFF"/>
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Teks" android:textColor="#FFFFFF" android:textSize="11sp" android:layout_marginTop="4dp"/>
+                </LinearLayout>
+
+                <LinearLayout android:id="@+id/toolSpeed" android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center" android:paddingHorizontal="16dp">
+                    <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_sort" app:tint="#FFFFFF"/>
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Kecepatan" android:textColor="#FFFFFF" android:textSize="11sp" android:layout_marginTop="4dp"/>
+                </LinearLayout>
+
+                <LinearLayout android:id="@+id/toolVolume" android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center" android:paddingHorizontal="16dp">
+                    <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_music_note" app:tint="#FFFFFF"/>
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Volume" android:textColor="#FFFFFF" android:textSize="11sp" android:layout_marginTop="4dp"/>
+                </LinearLayout>
+
+                <LinearLayout android:id="@+id/toolEffects" android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center" android:paddingHorizontal="16dp">
+                    <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_star" app:tint="#FFFFFF"/>
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Efek" android:textColor="#FFFFFF" android:textSize="11sp" android:layout_marginTop="4dp"/>
+                </LinearLayout>
+
                 <LinearLayout android:id="@+id/toolRotateScreen" android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center" android:paddingHorizontal="16dp">
                     <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_more" app:tint="#FFFFFF"/>
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Putar" android:textColor="#FFFFFF" android:textSize="11sp" android:layout_marginTop="4dp"/>
+                </LinearLayout>
+
+                <LinearLayout android:id="@+id/toolReverse" android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center" android:paddingHorizontal="16dp">
+                    <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_more" app:tint="#FFFFFF"/>
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Balik" android:textColor="#FFFFFF" android:textSize="11sp" android:layout_marginTop="4dp"/>
+                </LinearLayout>
+
+                <LinearLayout android:id="@+id/toolMute" android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center" android:paddingHorizontal="16dp">
+                    <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_music_note" app:tint="#FFFFFF"/>
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Mute" android:textColor="#FFFFFF" android:textSize="11sp" android:layout_marginTop="4dp"/>
+                </LinearLayout>
+
+                <LinearLayout android:id="@+id/toolGif" android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center" android:paddingHorizontal="16dp">
+                    <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_file" app:tint="#FFFFFF"/>
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Jadikan GIF" android:textColor="#FFFFFF" android:textSize="11sp" android:layout_marginTop="4dp"/>
                 </LinearLayout>
 
             </LinearLayout>
