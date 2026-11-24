@@ -77,13 +77,15 @@ class FileManagerActivity : AppCompatActivity() {
         b.recycler.layoutManager = LinearLayoutManager(this)
         b.recycler.adapter = adapter
 
-        // Sembunyikan tombol yang tidak perlu secara default
+        // Atur visibilitas tombol di awal
         b.btnSelectAllTop.visibility = View.GONE
-        b.btnTopNew.visibility = View.GONE
-        b.btnSort.visibility = View.GONE
+        b.btnTopNew.visibility = View.VISIBLE // Buat folder selalu muncul
+        b.btnSort.visibility = View.VISIBLE   // Sortir selalu muncul
 
         b.btnTopBack.setOnClickListener { finish() }
-        b.btnTopUp.setOnClickListener { currentDir.parentFile?.let { load(it) } }
+        
+        b.btnTopNew.setOnClickListener { showCreateDialog() }
+        b.btnSort.setOnClickListener { showSortDialog() }
         b.fabPaste.setOnClickListener { pasteHere() }
 
         b.btnDeleteSelected.setOnClickListener {
@@ -279,8 +281,8 @@ class FileManagerActivity : AppCompatActivity() {
         val active = adapter.selectedFiles.isNotEmpty()
         b.selectionToolbar.visibility = if (active) View.VISIBLE else View.GONE
         b.btnSelectAllTop.visibility = if (active) View.VISIBLE else View.GONE
-        b.btnTopNew.visibility = if (!active) View.VISIBLE else View.GONE
-        b.btnSort.visibility = if (!active) View.VISIBLE else View.GONE
+        b.btnTopNew.visibility = if (!active) View.VISIBLE else View.GONE // Sembunyikan buat folder saat milih
+        b.btnSort.visibility = if (!active) View.VISIBLE else View.GONE    // Sembunyikan sortir saat milih
     }
 
     private fun open(f: File) {
@@ -339,9 +341,11 @@ class FileManagerActivity : AppCompatActivity() {
 
     private fun refreshList() {
         val q = b.etSearch.text?.toString()?.lowercase() ?: ""
-        val filtered = if (q.isEmpty()) allFiles else allFiles.filter { it.name.lowercase().contains(q) }
+        // Saring file tersembunyi (berawalan titik)
+        val visibleFiles = allFiles.filter { !it.name.startsWith(".") }
         
-        // KUNCI: Folder selalu di atas (true), File di bawah (false). Lalu diurutkan sesuai sortMode.
+        val filtered = if (q.isEmpty()) visibleFiles else visibleFiles.filter { it.name.lowercase().contains(q) }
+        
         val sorted = if (prefs.sortMode == 2 || prefs.sortMode == 4 || prefs.sortMode == 5) {
             filtered.sortedWith(compareBy<File> { !it.isDirectory }.thenByDescending { if (prefs.sortMode == 2) it.lastModified() else it.length() })
         } else if (prefs.sortMode == 3) {
