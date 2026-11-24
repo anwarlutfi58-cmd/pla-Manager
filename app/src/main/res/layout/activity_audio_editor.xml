@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?android:attr/colorBackground"
+    android:background="#0D0D0D"
     android:orientation="vertical">
 
     <LinearLayout
@@ -18,6 +18,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="Nama File"
+            android:textColor="#FFFFFF"
             android:textSize="16sp"
             android:textStyle="bold"
             android:maxLines="1"
@@ -27,6 +28,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Putar"
+            app:backgroundTint="#4CAF50"
             app:icon="@android:drawable/ic_media_play" />
     </LinearLayout>
 
@@ -35,7 +37,9 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         app:tabMode="scrollable"
-        app:tabIndicatorColor="?attr/colorPrimary">
+        app:tabIndicatorColor="#4CAF50"
+        app:tabTextColor="#AAAAAA"
+        app:tabSelectedTextColor="#FFFFFF">
 
         <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Potong" />
         <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Format" />
@@ -46,7 +50,9 @@
         <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Dinamika" />
         <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Resample" />
         <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Stereo Pro" />
-        <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Vokal &amp; Karaoke" />
+        <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Vokal Pro" />
+        <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Efek Spesial" />
+        <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Echo &amp; Reverb" />
         <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Fade &amp; Noise" />
     </com.google.android.material.tabs.TabLayout>
 
@@ -65,17 +71,17 @@
 
             <!-- TAB 1: POTONG -->
             <LinearLayout android:id="@+id/layoutTabTrim" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="visible">
-                <CheckBox android:id="@+id/cbTabTrim" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Aktifkan Tab Potong" android:checked="true"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Waktu Mulai:" android:textStyle="bold"/>
+                <CheckBox android:id="@+id/cbTabTrim" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Aktifkan Tab Potong" android:textColor="#FFFFFF" android:checked="true"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Waktu Mulai:" android:textColor="#FFFFFF" android:textStyle="bold"/>
                 <com.google.android.material.button.MaterialButton android:id="@+id/btnPickStartTime" android:layout_width="match_parent" android:layout_height="50dp" android:text="00:00:00" android:layout_marginBottom="16dp"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Waktu Selesai:" android:textStyle="bold"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Waktu Selesai:" android:textColor="#FFFFFF" android:textStyle="bold"/>
                 <com.google.android.material.button.MaterialButton android:id="@+id/btnPickEndTime" android:layout_width="match_parent" android:layout_height="50dp" android:text="00:00:00"/>
             </LinearLayout>
 
             <!-- TAB 2: FORMAT -->
             <LinearLayout android:id="@+id/layoutTabFormat" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
-                <CheckBox android:id="@+id/cbTabFormat" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Aktifkan Tab Format" android:checked="true"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Format &amp; Kualitas:" android:textStyle="bold"/>
+                <CheckBox android:id="@+id/cbTabFormat" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Aktifkan Tab Format" android:textColor="#FFFFFF" android:checked="true"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Format &amp; Kualitas:" android:textColor="#FFFFFF" android:textStyle="bold"/>
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="8dp">
                     <Spinner android:id="@+id/spinnerFormat" android:layout_width="0dp" android:layout_height="40dp" android:layout_weight="1"/>
                     <Spinner android:id="@+id/spinnerBitrate" android:layout_width="0dp" android:layout_height="40dp" android:layout_weight="1" android:layout_marginStart="8dp"/>
@@ -85,127 +91,163 @@
                     <Spinner android:id="@+id/spinnerQuality" android:layout_width="0dp" android:layout_height="40dp" android:layout_weight="1" android:layout_marginStart="8dp"/>
                 </LinearLayout>
                 <Spinner android:id="@+id/spinnerSaveAs" android:layout_width="match_parent" android:layout_height="40dp" android:layout_marginTop="8dp"/>
-                <CheckBox android:id="@+id/cbRemoveWatermark" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="Hapus Watermark Suno (Lowpass)"/>
-                <CheckBox android:id="@+id/cbRemoveMetadata" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Hapus Metadata Privasi"/>
+                <CheckBox android:id="@+id/cbRemoveWatermark" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="Hapus Watermark Suno (Lowpass)" android:textColor="#FFFFFF"/>
+                <CheckBox android:id="@+id/cbRemoveMetadata" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Hapus Metadata Privasi" android:textColor="#FFFFFF"/>
             </LinearLayout>
 
             <!-- TAB 3: KECEPATAN & NADA -->
             <LinearLayout android:id="@+id/layoutTabSpeed" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
-                <CheckBox android:id="@+id/cbTabSpeed" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Aktifkan Tab Kecepatan &amp; Nada" android:checked="true"/>
-                <TextView android:id="@+id/tvTempoLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Kecepatan: 1.00x" android:textStyle="bold"/>
+                <CheckBox android:id="@+id/cbTabSpeed" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Aktifkan Tab Kecepatan &amp; Nada" android:textColor="#FFFFFF" android:checked="true"/>
+                <TextView android:id="@+id/tvTempoLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Kecepatan: 1.00x" android:textColor="#FFFFFF" android:textStyle="bold"/>
                 <SeekBar android:id="@+id/seekTempo" android:layout_width="match_parent" android:layout_height="48dp" android:max="100" android:progress="50" android:layout_marginBottom="16dp" android:splitTrack="false" android:paddingHorizontal="16dp"/>
-                <TextView android:id="@+id/tvPitchLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Nada: 0 (Tetap)" android:textStyle="bold"/>
+                <TextView android:id="@+id/tvPitchLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Nada: 0 (Tetap)" android:textColor="#FFFFFF" android:textStyle="bold"/>
                 <SeekBar android:id="@+id/seekPitch" android:layout_width="match_parent" android:layout_height="48dp" android:max="100" android:progress="50" android:splitTrack="false" android:paddingHorizontal="16dp"/>
             </LinearLayout>
 
             <!-- TAB 4: EQ & MASTER -->
             <LinearLayout android:id="@+id/layoutTabEq" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
-                <CheckBox android:id="@+id/cbTabEq" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Aktifkan Tab EQ &amp; Master" android:checked="true"/>
-                <TextView android:id="@+id/tvVolumeLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Volume: 100%" android:textStyle="bold"/>
+                <CheckBox android:id="@+id/cbTabEq" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Aktifkan Tab EQ &amp; Master" android:textColor="#FFFFFF" android:checked="true"/>
+                <TextView android:id="@+id/tvVolumeLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Volume: 100%" android:textColor="#FFFFFF" android:textStyle="bold"/>
                 <SeekBar android:id="@+id/seekVolume" android:layout_width="match_parent" android:layout_height="48dp" android:max="200" android:progress="100" android:layout_marginBottom="8dp" android:splitTrack="false" android:paddingHorizontal="16dp"/>
                 
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="31Hz" android:textSize="10sp"/><SeekBar android:id="@+id/eq31" android:layout_width="match_parent" android:layout_height="32dp" android:max="20" android:progress="10" android:splitTrack="false" android:paddingHorizontal="16dp"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="44Hz" android:textSize="10sp"/><SeekBar android:id="@+id/eq44" android:layout_width="match_parent" android:layout_height="32dp" android:max="20" android:progress="10" android:splitTrack="false" android:paddingHorizontal="16dp"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="60Hz" android:textSize="10sp"/><SeekBar android:id="@+id/eq60" android:layout_width="match_parent" android:layout_height="32dp" android:max="20" android:progress="10" android:splitTrack="false" android:paddingHorizontal="16dp"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="80Hz" android:textSize="10sp"/><SeekBar android:id="@+id/eq80" android:layout_width="match_parent" android:layout_height="32dp" android:max="20" android:progress="10" android:splitTrack="false" android:paddingHorizontal="16dp"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="150Hz" android:textSize="10sp"/><SeekBar android:id="@+id/eq150" android:layout_width="match_parent" android:layout_height="32dp" android:max="20" android:progress="10" android:splitTrack="false" android:paddingHorizontal="16dp"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="250Hz" android:textSize="10sp"/><SeekBar android:id="@+id/eq250" android:layout_width="match_parent" android:layout_height="32dp" android:max="20" android:progress="10" android:splitTrack="false" android:paddingHorizontal="16dp"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="360Hz" android:textSize="10sp"/><SeekBar android:id="@+id/eq360" android:layout_width="match_parent" android:layout_height="32dp" android:max="20" android:progress="10" android:splitTrack="false" android:paddingHorizontal="16dp"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="460Hz" android:textSize="10sp"/><SeekBar android:id="@+id/eq460" android:layout_width="match_parent" android:layout_height="32dp" android:max="20" android:progress="10" android:splitTrack="false" android:paddingHorizontal="16dp"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="700Hz" android:textSize="10sp"/><SeekBar android:id="@+id/eq700" android:layout_width="match_parent" android:layout_height="32dp" android:max="20" android:progress="10" android:splitTrack="false" android:paddingHorizontal="16dp"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="900Hz" android:textSize="10sp"/><SeekBar android:id="@+id/eq900" android:layout_width="match_parent" android:layout_height="32dp" android:max="20" android:progress="10" android:splitTrack="false" android:paddingHorizontal="16dp"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="1.5kHz" android:textSize="10sp"/><SeekBar android:id="@+id/eq1500" android:layout_width="match_parent" android:layout_height="32dp" android:max="20" android:progress="10" android:splitTrack="false" android:paddingHorizontal="16dp"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="2.5kHz" android:textSize="10sp"/><SeekBar android:id="@+id/eq2500" android:layout_width="match_parent" android:layout_height="32dp" android:max="20" android:progress="10" android:splitTrack="false" android:paddingHorizontal="16dp"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="4kHz" android:textSize="10sp"/><SeekBar android:id="@+id/eq4000" android:layout_width="match_parent" android:layout_height="32dp" android:max="20" android:progress="10" android:splitTrack="false" android:paddingHorizontal="16dp"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="6kHz" android:textSize="10sp"/><SeekBar android:id="@+id/eq6000" android:layout_width="match_parent" android:layout_height="32dp" android:max="20" android:progress="10" android:splitTrack="false" android:paddingHorizontal="16dp"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="8kHz" android:textSize="10sp"/><SeekBar android:id="@+id/eq8000" android:layout_width="match_parent" android:layout_height="32dp" android:max="20" android:progress="10" android:splitTrack="false" android:paddingHorizontal="16dp"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="12kHz" android:textSize="10sp"/><SeekBar android:id="@+id/eq12000" android:layout_width="match_parent" android:layout_height="32dp" android:max="20" android:progress="10" android:splitTrack="false" android:paddingHorizontal="16dp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="31Hz" android:textColor="#FFFFFF" android:textSize="10sp"/><SeekBar android:id="@+id/eq31" android:layout_width="match_parent" android:layout_height="32dp" android:max="20" android:progress="10" android:splitTrack="false" android:paddingHorizontal="16dp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="44Hz" android:textColor="#FFFFFF" android:textSize="10sp"/><SeekBar android:id="@+id/eq44" android:layout_width="match_parent" android:layout_height="32dp" android:max="20" android:progress="10" android:splitTrack="false" android:paddingHorizontal="16dp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="60Hz" android:textColor="#FFFFFF" android:textSize="10sp"/><SeekBar android:id="@+id/eq60" android:layout_width="match_parent" android:layout_height="32dp" android:max="20" android:progress="10" android:splitTrack="false" android:paddingHorizontal="16dp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="80Hz" android:textColor="#FFFFFF" android:textSize="10sp"/><SeekBar android:id="@+id/eq80" android:layout_width="match_parent" android:layout_height="32dp" android:max="20" android:progress="10" android:splitTrack="false" android:paddingHorizontal="16dp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="150Hz" android:textColor="#FFFFFF" android:textSize="10sp"/><SeekBar android:id="@+id/eq150" android:layout_width="match_parent" android:layout_height="32dp" android:max="20" android:progress="10" android:splitTrack="false" android:paddingHorizontal="16dp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="250Hz" android:textColor="#FFFFFF" android:textSize="10sp"/><SeekBar android:id="@+id/eq250" android:layout_width="match_parent" android:layout_height="32dp" android:max="20" android:progress="10" android:splitTrack="false" android:paddingHorizontal="16dp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="360Hz" android:textColor="#FFFFFF" android:textSize="10sp"/><SeekBar android:id="@+id/eq360" android:layout_width="match_parent" android:layout_height="32dp" android:max="20" android:progress="10" android:splitTrack="false" android:paddingHorizontal="16dp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="460Hz" android:textColor="#FFFFFF" android:textSize="10sp"/><SeekBar android:id="@+id/eq460" android:layout_width="match_parent" android:layout_height="32dp" android:max="20" android:progress="10" android:splitTrack="false" android:paddingHorizontal="16dp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="700Hz" android:textColor="#FFFFFF" android:textSize="10sp"/><SeekBar android:id="@+id/eq700" android:layout_width="match_parent" android:layout_height="32dp" android:max="20" android:progress="10" android:splitTrack="false" android:paddingHorizontal="16dp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="900Hz" android:textColor="#FFFFFF" android:textSize="10sp"/><SeekBar android:id="@+id/eq900" android:layout_width="match_parent" android:layout_height="32dp" android:max="20" android:progress="10" android:splitTrack="false" android:paddingHorizontal="16dp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="1.5kHz" android:textColor="#FFFFFF" android:textSize="10sp"/><SeekBar android:id="@+id/eq1500" android:layout_width="match_parent" android:layout_height="32dp" android:max="20" android:progress="10" android:splitTrack="false" android:paddingHorizontal="16dp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="2.5kHz" android:textColor="#FFFFFF" android:textSize="10sp"/><SeekBar android:id="@+id/eq2500" android:layout_width="match_parent" android:layout_height="32dp" android:max="20" android:progress="10" android:splitTrack="false" android:paddingHorizontal="16dp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="4kHz" android:textColor="#FFFFFF" android:textSize="10sp"/><SeekBar android:id="@+id/eq4000" android:layout_width="match_parent" android:layout_height="32dp" android:max="20" android:progress="10" android:splitTrack="false" android:paddingHorizontal="16dp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="6kHz" android:textColor="#FFFFFF" android:textSize="10sp"/><SeekBar android:id="@+id/eq6000" android:layout_width="match_parent" android:layout_height="32dp" android:max="20" android:progress="10" android:splitTrack="false" android:paddingHorizontal="16dp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="8kHz" android:textColor="#FFFFFF" android:textSize="10sp"/><SeekBar android:id="@+id/eq8000" android:layout_width="match_parent" android:layout_height="32dp" android:max="20" android:progress="10" android:splitTrack="false" android:paddingHorizontal="16dp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="12kHz" android:textColor="#FFFFFF" android:textSize="10sp"/><SeekBar android:id="@+id/eq12000" android:layout_width="match_parent" android:layout_height="32dp" android:max="20" android:progress="10" android:splitTrack="false" android:paddingHorizontal="16dp"/>
                 
-                <TextView android:id="@+id/tvMasterLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Mastering: 0%" android:textStyle="bold" android:layout_marginTop="8dp"/>
+                <TextView android:id="@+id/tvMasterLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Mastering: 0%" android:textColor="#FFFFFF" android:textStyle="bold" android:layout_marginTop="8dp"/>
                 <SeekBar android:id="@+id/seekMaster" android:layout_width="match_parent" android:layout_height="48dp" android:max="100" android:progress="0" android:splitTrack="false" android:paddingHorizontal="16dp"/>
-                <TextView android:id="@+id/tvLimiterLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Limiter: 0%" android:textStyle="bold"/>
+                <TextView android:id="@+id/tvLimiterLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Limiter: 0%" android:textColor="#FFFFFF" android:textStyle="bold"/>
                 <SeekBar android:id="@+id/seekLimiter" android:layout_width="match_parent" android:layout_height="48dp" android:max="100" android:progress="0" android:splitTrack="false" android:paddingHorizontal="16dp"/>
             </LinearLayout>
 
-            <!-- TAB 5: STEREO (LAMA) -->
+            <!-- TAB 5: STEREO -->
             <LinearLayout android:id="@+id/layoutTabStereo" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
-                <CheckBox android:id="@+id/cbTabStereo" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Aktifkan Tab Stereo" android:checked="true"/>
-                <TextView android:id="@+id/tvPanningLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Panning (Kiri/Kanan): 0" android:textStyle="bold"/>
+                <CheckBox android:id="@+id/cbTabStereo" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Aktifkan Tab Stereo" android:textColor="#FFFFFF" android:checked="true"/>
+                <TextView android:id="@+id/tvPanningLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Panning (Kiri/Kanan): 0" android:textColor="#FFFFFF" android:textStyle="bold"/>
                 <SeekBar android:id="@+id/seekPanning" android:layout_width="match_parent" android:layout_height="48dp" android:max="200" android:progress="100" android:layout_marginBottom="16dp" android:splitTrack="false" android:paddingHorizontal="16dp"/>
-                <TextView android:id="@+id/tvStereoLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Stereo Width (Pelebaran): 0%" android:textStyle="bold"/>
+                <TextView android:id="@+id/tvStereoLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Stereo Width (Pelebaran): 0%" android:textColor="#FFFFFF" android:textStyle="bold"/>
                 <SeekBar android:id="@+id/seekStereo" android:layout_width="match_parent" android:layout_height="48dp" android:max="200" android:progress="0" android:layout_marginBottom="16dp" android:splitTrack="false" android:paddingHorizontal="16dp"/>
-                <TextView android:id="@+id/tvEchoLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Echo / Reverb: 0%" android:textStyle="bold"/>
-                <SeekBar android:id="@+id/seekEcho" android:layout_width="match_parent" android:layout_height="48dp" android:max="100" android:progress="0" android:splitTrack="false" android:paddingHorizontal="16dp"/>
             </LinearLayout>
 
             <!-- TAB 6: LOUDNESS -->
             <LinearLayout android:id="@+id/layoutTabLoudness" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
-                <CheckBox android:id="@+id/cbTabLoudness" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Aktifkan Tab Loudness" android:checked="true"/>
-                <CheckBox android:id="@+id/cbNormalizeLufs" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Normalisasi Loudness -14 LUFS (standar Spotify/YouTube)"/>
-                <CheckBox android:id="@+id/cbNormalizePeak" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Peak Normalize -1 dBTP (volume maksimal tanpa pecah)"/>
-                <CheckBox android:id="@+id/cbAgc" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="AGC (Auto Gain Control — ratakan volume)"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Ukur Loudness Audio Asli:" android:textStyle="bold" android:layout_marginTop="16dp"/>
+                <CheckBox android:id="@+id/cbTabLoudness" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Aktifkan Tab Loudness" android:textColor="#FFFFFF" android:checked="true"/>
+                <CheckBox android:id="@+id/cbNormalizeLufs" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Normalisasi Loudness -14 LUFS (standar Spotify/YouTube)" android:textColor="#FFFFFF"/>
+                <CheckBox android:id="@+id/cbNormalizePeak" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Peak Normalize -1 dBTP (volume maksimal tanpa pecah)" android:textColor="#FFFFFF"/>
+                <CheckBox android:id="@+id/cbAgc" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="AGC (Auto Gain Control — ratakan volume)" android:textColor="#FFFFFF"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Ukur Loudness Audio Asli:" android:textColor="#FFFFFF" android:textStyle="bold" android:layout_marginTop="16dp"/>
                 <com.google.android.material.button.MaterialButton android:id="@+id/btnMeasureLoudness" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Ukur Loudness"/>
-                <TextView android:id="@+id/tvLoudnessResult" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Belum diukur" android:layout_marginTop="8dp" android:gravity="center"/>
+                <TextView android:id="@+id/tvLoudnessResult" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Belum diukur" android:textColor="#FFFFFF" android:layout_marginTop="8dp" android:gravity="center"/>
             </LinearLayout>
 
             <!-- TAB 7: DINAMIKA -->
             <LinearLayout android:id="@+id/layoutTabDinamika" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
-                <CheckBox android:id="@+id/cbTabDinamika" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Aktifkan Tab Dinamika" android:checked="true"/>
-                <CheckBox android:id="@+id/cbCompressor" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Compressor (kontrol dinamika)" android:textStyle="bold"/>
-                <TextView android:id="@+id/tvCompThresholdLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Threshold: -30 dB"/>
+                <CheckBox android:id="@+id/cbTabDinamika" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Aktifkan Tab Dinamika" android:textColor="#FFFFFF" android:checked="true"/>
+                <CheckBox android:id="@+id/cbCompressor" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Compressor (kontrol dinamika)" android:textColor="#FFFFFF" android:textStyle="bold"/>
+                <TextView android:id="@+id/tvCompThresholdLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Threshold: -30 dB" android:textColor="#FFFFFF"/>
                 <SeekBar android:id="@+id/seekCompThreshold" android:layout_width="match_parent" android:layout_height="48dp" android:max="100" android:progress="50" android:splitTrack="false" android:paddingHorizontal="16dp"/>
-                <TextView android:id="@+id/tvCompRatioLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Ratio: 5.5:1"/>
+                <TextView android:id="@+id/tvCompRatioLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Ratio: 5.5:1" android:textColor="#FFFFFF"/>
                 <SeekBar android:id="@+id/seekCompRatio" android:layout_width="match_parent" android:layout_height="48dp" android:max="100" android:progress="50" android:splitTrack="false" android:paddingHorizontal="16dp"/>
-                <TextView android:id="@+id/tvCompAttackLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Attack: 100 ms"/>
+                <TextView android:id="@+id/tvCompAttackLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Attack: 100 ms" android:textColor="#FFFFFF"/>
                 <SeekBar android:id="@+id/seekCompAttack" android:layout_width="match_parent" android:layout_height="48dp" android:max="100" android:progress="50" android:splitTrack="false" android:paddingHorizontal="16dp"/>
-                <TextView android:id="@+id/tvCompReleaseLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Release: 500 ms"/>
+                <TextView android:id="@+id/tvCompReleaseLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Release: 500 ms" android:textColor="#FFFFFF"/>
                 <SeekBar android:id="@+id/seekCompRelease" android:layout_width="match_parent" android:layout_height="48dp" android:max="100" android:progress="50" android:splitTrack="false" android:paddingHorizontal="16dp"/>
-                <CheckBox android:id="@+id/cbMultiband" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Multiband Compressor (3-band)" android:textStyle="bold" android:layout_marginTop="16dp"/>
-                <TextView android:id="@+id/tvMbIntensityLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Intensitas: 50%"/>
+                <CheckBox android:id="@+id/cbMultiband" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Multiband Compressor (3-band)" android:textColor="#FFFFFF" android:textStyle="bold" android:layout_marginTop="16dp"/>
+                <TextView android:id="@+id/tvMbIntensityLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Intensitas: 50%" android:textColor="#FFFFFF"/>
                 <SeekBar android:id="@+id/seekMbIntensity" android:layout_width="match_parent" android:layout_height="48dp" android:max="100" android:progress="50" android:splitTrack="false" android:paddingHorizontal="16dp"/>
             </LinearLayout>
 
             <!-- TAB 8: RESAMPLE -->
             <LinearLayout android:id="@+id/layoutTabResample" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
-                <CheckBox android:id="@+id/cbTabResample" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Aktifkan Tab Resample" android:checked="true"/>
-                <CheckBox android:id="@+id/cbSoxResample" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Gunakan SoX High Quality Resampler"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Target Sample Rate:" android:textStyle="bold" android:layout_marginTop="16dp"/>
+                <CheckBox android:id="@+id/cbTabResample" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Aktifkan Tab Resample" android:textColor="#FFFFFF" android:checked="true"/>
+                <CheckBox android:id="@+id/cbSoxResample" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Gunakan SoX High Quality Resampler" android:textColor="#FFFFFF"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Target Sample Rate:" android:textColor="#FFFFFF" android:textStyle="bold" android:layout_marginTop="16dp"/>
                 <Spinner android:id="@+id/spinnerResampleRate" android:layout_width="match_parent" android:layout_height="40dp"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Bit Depth (untuk WAV/FLAC/AIFF):" android:textStyle="bold" android:layout_marginTop="16dp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Bit Depth (untuk WAV/FLAC/AIFF):" android:textColor="#FFFFFF" android:textStyle="bold" android:layout_marginTop="16dp"/>
                 <Spinner android:id="@+id/spinnerBitDepth" android:layout_width="match_parent" android:layout_height="40dp"/>
             </LinearLayout>
 
             <!-- TAB 9: STEREO PRO -->
             <LinearLayout android:id="@+id/layoutTabStereoPro" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
-                <CheckBox android:id="@+id/cbTabStereoPro" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Aktifkan Tab Stereo Pro" android:checked="true"/>
-                <CheckBox android:id="@+id/cbStereoEnhancer" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Stereo Enhancer (pertegas stereo)" android:textStyle="bold"/>
-                <TextView android:id="@+id/tvEnhancerIntensityLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Intensitas Enhancer: 50%"/>
+                <CheckBox android:id="@+id/cbTabStereoPro" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Aktifkan Tab Stereo Pro" android:textColor="#FFFFFF" android:checked="true"/>
+                <CheckBox android:id="@+id/cbStereoEnhancer" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Stereo Enhancer (pertegas stereo)" android:textColor="#FFFFFF" android:textStyle="bold"/>
+                <TextView android:id="@+id/tvEnhancerIntensityLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Intensitas Enhancer: 50%" android:textColor="#FFFFFF"/>
                 <SeekBar android:id="@+id/seekEnhancerIntensity" android:layout_width="match_parent" android:layout_height="48dp" android:max="100" android:progress="50" android:splitTrack="false" android:paddingHorizontal="16dp"/>
-                <CheckBox android:id="@+id/cbStereoWidener" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Stereo Widener (Mid/Side)" android:textStyle="bold" android:layout_marginTop="16dp"/>
-                <TextView android:id="@+id/tvWidenerMidLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Mid Level: 100%"/>
+                <CheckBox android:id="@+id/cbStereoWidener" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Stereo Widener (Mid/Side)" android:textColor="#FFFFFF" android:textStyle="bold" android:layout_marginTop="16dp"/>
+                <TextView android:id="@+id/tvWidenerMidLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Mid Level: 100%" android:textColor="#FFFFFF"/>
                 <SeekBar android:id="@+id/seekWidenerMid" android:layout_width="match_parent" android:layout_height="48dp" android:max="100" android:progress="50" android:splitTrack="false" android:paddingHorizontal="16dp"/>
-                <TextView android:id="@+id/tvWidenerSideLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Side Level: 100%"/>
+                <TextView android:id="@+id/tvWidenerSideLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Side Level: 100%" android:textColor="#FFFFFF"/>
                 <SeekBar android:id="@+id/seekWidenerSide" android:layout_width="match_parent" android:layout_height="48dp" android:max="100" android:progress="50" android:splitTrack="false" android:paddingHorizontal="16dp"/>
             </LinearLayout>
 
-            <!-- TAB 10: VOKAL & KARAOKE (BARU) -->
+            <!-- TAB 10: VOKAL PRO (MENGGANTIKAN KARAOKE YANG GAGAL) -->
             <LinearLayout android:id="@+id/layoutTabVokal" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
-                <CheckBox android:id="@+id/cbTabVokal" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Aktifkan Tab Vokal &amp; Karaoke" android:checked="true"/>
-                <CheckBox android:id="@+id/cbRemoveVocal" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Hapus Vokal (Karaoke Mode)" android:textStyle="bold"/>
-                <CheckBox android:id="@+id/cbIsolateVocal" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Isolasi Vokal Saja (Acapella)" android:textStyle="bold"/>
-                <CheckBox android:id="@+id/cbCenterCancel" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Hapus Suara Tengah (Center Cancel)"/>
+                <CheckBox android:id="@+id/cbTabVokal" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Aktifkan Tab Vokal Pro" android:textColor="#FFFFFF" android:checked="true"/>
+                <CheckBox android:id="@+id/cbVocalDoubler" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Vocal Doubler (Suara Berlipat Lembut)" android:textColor="#FFFFFF" android:textStyle="bold"/>
+                <CheckBox android:id="@+id/cbWhisper" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Whisper Effect (Suara Bisik)" android:textColor="#FFFFFF"/>
+                <CheckBox android:id="@+id/cbBreathControl" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Breath Control (Kurangi Suara Napas)" android:textColor="#FFFFFF"/>
+                <CheckBox android:id="@+id/cbDeEsser" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="De-esser (Hilangkan Suara 'Sss' Menusuk)" android:textColor="#FFFFFF"/>
+                <CheckBox android:id="@+id/cbChorus" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Chorus (Suara Bergema Lembut)" android:textColor="#FFFFFF"/>
+                <TextView android:id="@+id/tvAutoTuneLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Auto-Tune Ringan: 0%" android:textColor="#FFFFFF" android:textStyle="bold" android:layout_marginTop="16dp"/>
+                <SeekBar android:id="@+id/seekAutoTune" android:layout_width="match_parent" android:layout_height="48dp" android:max="100" android:progress="0" android:splitTrack="false" android:paddingHorizontal="16dp"/>
             </LinearLayout>
 
-            <!-- TAB 11: FADE & NOISE (BARU) -->
+            <!-- TAB 11: EFEK SPESIAL (MENGGANTIKAN KARAOKE) -->
+            <LinearLayout android:id="@+id/layoutTabEfekSpesial" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+                <CheckBox android:id="@+id/cbTabEfekSpesial" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Aktifkan Tab Efek Spesial" android:textColor="#FFFFFF" android:checked="true"/>
+                <CheckBox android:id="@+id/cbRobotVoice" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Robot Voice (Suara Robot)" android:textColor="#FFFFFF" android:textStyle="bold"/>
+                <CheckBox android:id="@+id/cbChipmunk" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Chipmunk (Suara Melengking)" android:textColor="#FFFFFF"/>
+                <CheckBox android:id="@+id/cbDeepVoice" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Deep Voice (Suara Berat/Raksasa)" android:textColor="#FFFFFF"/>
+                <CheckBox android:id="@+id/cbTelephone" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Telephone Effect (Suara Telepon)" android:textColor="#FFFFFF"/>
+                <CheckBox android:id="@+id/cbRadio" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Radio Effect (Suara Siaran Radio)" android:textColor="#FFFFFF"/>
+                <CheckBox android:id="@+id/cb8DAudio" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="8D Audio (Suara Berputar 360°)" android:textColor="#FFFFFF"/>
+                <CheckBox android:id="@+id/cbTapeStop" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Tape Stop (Efek Kaset Berhenti)" android:textColor="#FFFFFF"/>
+                <CheckBox android:id="@+id/cbVinylCrackle" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Vinyl Crackle (Suara Piringan Hitam)" android:textColor="#FFFFFF"/>
+            </LinearLayout>
+
+            <!-- TAB 12: ECHO & REVERB (DIPISAH) -->
+            <LinearLayout android:id="@+id/layoutTabEchoReverb" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+                <CheckBox android:id="@+id/cbTabEchoReverb" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Aktifkan Tab Echo &amp; Reverb" android:textColor="#FFFFFF" android:checked="true"/>
+                
+                <!-- Echo -->
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--- ECHO (Mengulang) ---" android:textColor="#4CAF50" android:textStyle="bold" android:layout_marginTop="8dp"/>
+                <TextView android:id="@+id/tvEchoDelayLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Delay (Jeda): 1000 ms" android:textColor="#FFFFFF"/>
+                <SeekBar android:id="@+id/seekEchoDelay" android:layout_width="match_parent" android:layout_height="48dp" android:max="2000" android:progress="1000" android:splitTrack="false" android:paddingHorizontal="16dp"/>
+                <TextView android:id="@+id/tvEchoFeedbackLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Feedback (Ulangan): 0%" android:textColor="#FFFFFF"/>
+                <SeekBar android:id="@+id/seekEchoFeedback" android:layout_width="match_parent" android:layout_height="48dp" android:max="100" android:progress="0" android:splitTrack="false" android:paddingHorizontal="16dp"/>
+                
+                <!-- Reverb -->
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--- REVERB (Gema Ruangan) ---" android:textColor="#2196F3" android:textStyle="bold" android:layout_marginTop="16dp"/>
+                <TextView android:id="@+id/tvReverbRoomLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Ukuran Ruangan: 50%" android:textColor="#FFFFFF"/>
+                <SeekBar android:id="@+id/seekReverbRoom" android:layout_width="match_parent" android:layout_height="48dp" android:max="100" android:progress="50" android:splitTrack="false" android:paddingHorizontal="16dp"/>
+                <TextView android:id="@+id/tvReverbDampingLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Kelembutan Gema: 50%" android:textColor="#FFFFFF"/>
+                <SeekBar android:id="@+id/seekReverbDamping" android:layout_width="match_parent" android:layout_height="48dp" android:max="100" android:progress="50" android:splitTrack="false" android:paddingHorizontal="16dp"/>
+            </LinearLayout>
+
+            <!-- TAB 13: FADE & NOISE -->
             <LinearLayout android:id="@+id/layoutTabFade" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
-                <CheckBox android:id="@+id/cbTabFade" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Aktifkan Tab Fade &amp; Noise" android:checked="true"/>
-                <TextView android:id="@+id/tvFadeInLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Fade In: 0 Detik" android:textStyle="bold"/>
+                <CheckBox android:id="@+id/cbTabFade" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Aktifkan Tab Fade &amp; Noise" android:textColor="#FFFFFF" android:checked="true"/>
+                <TextView android:id="@+id/tvFadeInLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Fade In: 0 Detik" android:textColor="#FFFFFF" android:textStyle="bold"/>
                 <SeekBar android:id="@+id/seekFadeIn" android:layout_width="match_parent" android:layout_height="48dp" android:max="10" android:progress="0" android:splitTrack="false" android:paddingHorizontal="16dp"/>
-                <TextView android:id="@+id/tvFadeOutLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Fade Out: 0 Detik" android:textStyle="bold"/>
+                <TextView android:id="@+id/tvFadeOutLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Fade Out: 0 Detik" android:textColor="#FFFFFF" android:textStyle="bold"/>
                 <SeekBar android:id="@+id/seekFadeOut" android:layout_width="match_parent" android:layout_height="48dp" android:max="10" android:progress="0" android:splitTrack="false" android:paddingHorizontal="16dp"/>
-                <CheckBox android:id="@+id/cbNoiseReduction" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Noise Reduction (Kurangi Desis)" android:textStyle="bold" android:layout_marginTop="16dp"/>
-                <CheckBox android:id="@+id/cbHighPass" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="High Pass Filter (Hilangkan Gemuruh)"/>
+                <CheckBox android:id="@+id/cbNoiseReduction" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Noise Reduction (Kurangi Desis)" android:textColor="#FFFFFF" android:textStyle="bold" android:layout_marginTop="16dp"/>
+                <CheckBox android:id="@+id/cbHighPass" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="High Pass Filter (Hilangkan Gemuruh)" android:textColor="#FFFFFF"/>
+                <CheckBox android:id="@+id/cbDeClick" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="De-click (Hilangkan Bunyi Klik)" android:textColor="#FFFFFF"/>
+                <CheckBox android:id="@+id/cbSilenceRemove" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Silence Remover (Otomatis Hapus Hening)" android:textColor="#FFFFFF"/>
             </LinearLayout>
 
         </LinearLayout>
@@ -217,7 +259,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:padding="16dp"
-            android:text="Proses &amp; Simpan Audio"/>
+            android:text="Proses &amp; Simpan Audio"
+            app:backgroundTint="#4CAF50"/>
     </LinearLayout>
 
     <TextView
