@@ -10,9 +10,7 @@ import android.provider.MediaStore
 import android.view.MotionEvent
 import android.view.View
 import android.widget.ArrayAdapter
-import android.widget.Button
 import android.widget.EditText
-import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.tabs.TabLayout
@@ -28,14 +26,13 @@ class ImageEditorActivity : AppCompatActivity() {
     private lateinit var canvas: Canvas
     private lateinit var notif: NotificationHelper
 
-    // Mode Kuas & Bentuk
     private var currentMode = 0 // 0 = Normal, 1 = Eraser, 2 = Brush, 3 = Shape
     private var lastX = 0f
     private var lastY = 0f
     private var startX = 0f
     private var startY = 0f
     private var currentColor = Color.RED
-    private var shapeType = 0 // 0=Garis, 1=Kotak, 2=Lingkaran, 3=Panah
+    private var shapeType = 0
 
     override fun onCreate(s: Bundle?) {
         super.onCreate(s)
@@ -63,11 +60,15 @@ class ImageEditorActivity : AppCompatActivity() {
                 b.layoutTabPutar.visibility = View.GONE
                 b.layoutTabWarna.visibility = View.GONE
                 b.layoutTabLainnya.visibility = View.GONE
+                b.layoutTabFilter.visibility = View.GONE
+                b.layoutTabEfek.visibility = View.GONE
                 when(tab?.position) {
                     0 -> b.layoutTabUkuran.visibility = View.VISIBLE
                     1 -> b.layoutTabPutar.visibility = View.VISIBLE
                     2 -> b.layoutTabWarna.visibility = View.VISIBLE
                     3 -> b.layoutTabLainnya.visibility = View.VISIBLE
+                    4 -> b.layoutTabFilter.visibility = View.VISIBLE
+                    5 -> b.layoutTabEfek.visibility = View.VISIBLE
                 }
             }
             override fun onTabUnselected(tab: TabLayout.Tab?) {}
@@ -87,21 +88,23 @@ class ImageEditorActivity : AppCompatActivity() {
         val formats = arrayOf("JPG", "PNG", "WEBP")
         b.spinnerFormat.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, formats)
 
+        // Spinner Filter & Efek menggunakan ImageProHelper
+        b.spinnerFilters.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, ImageProHelper.filters)
+        b.spinnerEfek.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, arrayOf(
+            "Normal", "Sketch", "Cartoon", "Oil Painting", "Pixelate", "Vignette", "Film Grain"
+        ))
+
         b.btnRotateLeft.setOnClickListener { rotateImage(-90f) }
         b.btnRotateRight.setOnClickListener { rotateImage(90f) }
         b.btnFlip.setOnClickListener { flipImage() }
-
-        // Teks 20 Warna
         b.btnAddText.setOnClickListener { showTextColorDialog() }
 
-        // Mode Eraser
         b.btnMagicEraser.setOnClickListener {
             currentMode = if (currentMode == 1) 0 else 1
             b.btnMagicEraser.text = if (currentMode == 1) "MODE HAPUS AKTIF" else "Gosok Hapus Watermark"
             Toast.makeText(this, if(currentMode == 1) "Mode Hapus Aktif" else "Mode Normal", Toast.LENGTH_SHORT).show()
         }
 
-        // Listener Sentuhan (Untuk Eraser, Kuas, dan Bentuk)
         b.ivImage.setOnTouchListener { _, event ->
             if (currentMode == 0) return@setOnTouchListener false
             
@@ -128,8 +131,7 @@ class ImageEditorActivity : AppCompatActivity() {
                     } else if (currentMode == 2) { // Kuas
                         ImageDrawHelper.drawBrush(canvas, lastX, lastY, bmpX, bmpY, currentColor, 15f)
                         lastX = bmpX; lastY = bmpY
-                    } else if (currentMode == 3) { // Bentuk (Preview)
-                        // Hapus coretan sebelumnya dengan me-redraw bitmap asli
+                    } else if (currentMode == 3) { // Bentuk
                         canvas.drawBitmap(mutableBitmap, 0f, 0f, null)
                         ImageDrawHelper.drawShape(canvas, shapeType, startX, startY, bmpX, bmpY, currentColor, false)
                     }
@@ -146,68 +148,8 @@ class ImageEditorActivity : AppCompatActivity() {
             true
         }
 
-        // --- MENU EFEK TAMBAHAN DI TAB LAINNYA ---
-        val extraBtn1 = Button(this).apply {
-            text = "Buka Alat EFEK & FILTER Lanjutan"
-            setOnClickListener { showExtraEffectsMenu() }
-        }
-        val extraBtn2 = Button(this).apply {
-            text = "Buka Alat GAMBAR (Kuas/Bentuk)"
-            setOnClickListener { showDrawMenu() }
-        }
-        val extraBtn3 = Button(this).apply {
-            text = "Buka Efek UNIK (Mosaik/Kartun/Sketsa)"
-            setOnClickListener { showUniqueEffectsMenu() }
-        }
-        (b.layoutTabLainnya as? LinearLayout)?.apply {
-            addView(extraBtn1)
-            addView(extraBtn2)
-            addView(extraBtn3)
-        }
-
         b.btnApplyEffects.setOnClickListener { applyColorAndSizeEffects() }
         b.btnSaveImage.setOnClickListener { saveImageToGallery() }
-    }
-
-    private fun showDrawMenu() {
-        val options = arrayOf("Kuas (Brush)", "Garis", "Kotak", "Lingkaran", "Panah", "Ambil Warna (Pipet)")
-        AlertDialog.Builder(this).setTitle("Alat Gambar").setItems(options) { _, which ->
-            when(which) {
-                0 -> { currentMode = 2; Toast.makeText(this, "Kuas Aktif. Gosok layar untuk menggambar.", Toast.LENGTH_SHORT).show() }
-                1 -> { currentMode = 3; shapeType = 0; Toast.makeText(this, "Garis Aktif", Toast.LENGTH_SHORT).show() }
-                2 -> { currentMode = 3; shapeType = 1; Toast.makeText(this, "Kotak Aktif", Toast.LENGTH_SHORT).show() }
-                3 -> { currentMode = 3; shapeType = 2; Toast.makeText(this, "Lingkaran Aktif", Toast.LENGTH_SHORT).show() }
-                4 -> { currentMode = 3; shapeType = 3; Toast.makeText(this, "Panah Aktif", Toast.LENGTH_SHORT).show() }
-                5 -> { // Pipet (Ambil Warna)
-                    Toast.makeText(this, "Ketuk gambar untuk mengambil warna!", Toast.LENGTH_SHORT).show()
-                    // Logika pipet bisa disesuaikan di ACTION_DOWN
-                }
-            }
-            // Tanya warna
-            if (which in 0..4) showColorPickerForDrawing()
-        }.show()
-    }
-
-    private fun showColorPickerForDrawing() {
-        val colors = ImageFilterHelper.get20Colors()
-        val colorNames = colors.map { it.first }.toTypedArray()
-        AlertDialog.Builder(this).setTitle("Pilih Warna Alat").setItems(colorNames) { _, which ->
-            currentColor = colors[which].second
-        }.show()
-    }
-
-    private fun showUniqueEffectsMenu() {
-        val options = arrayOf("Mosaik (Pixelate)", "Sketsa Pensil", "Kartun (Posterize)", "Tilt-Shift (Miniatur)")
-        AlertDialog.Builder(this).setTitle("Efek Unik").setItems(options) { _, which ->
-            when(which) {
-                0 -> mutableBitmap = ImageEffectHelper.applyMosaic(mutableBitmap)
-                1 -> mutableBitmap = ImageEffectHelper.applySketch(mutableBitmap)
-                2 -> mutableBitmap = ImageEffectHelper.applyCartoon(mutableBitmap)
-                3 -> mutableBitmap = ImageEffectHelper.applyTiltShift(mutableBitmap)
-            }
-            b.ivImage.setImageBitmap(mutableBitmap)
-            Toast.makeText(this, "Efek diterapkan!", Toast.LENGTH_SHORT).show()
-        }.show()
     }
 
     private fun showTextColorDialog() {
@@ -237,22 +179,6 @@ class ImageEditorActivity : AppCompatActivity() {
                 }
             }
             .setNegativeButton("Batal", null).show()
-    }
-
-    private fun showExtraEffectsMenu() {
-        val options = arrayOf("Efek 3D (Emboss)", "Filter Hitam Putih (Grayscale)", "Filter Sepia (Jadul)", "Filter Negatif (Invert)", "Efek Vignette (Pinggir Gelap)", "Efek Blur")
-        AlertDialog.Builder(this).setTitle("Pilih Efek Tambahan").setItems(options) { _, which ->
-            when(which) {
-                0 -> mutableBitmap = ImageFilterHelper.apply3D(mutableBitmap)
-                1 -> mutableBitmap = ImageFilterHelper.applyGrayscale(mutableBitmap)
-                2 -> mutableBitmap = ImageFilterHelper.applySepia(mutableBitmap)
-                3 -> mutableBitmap = ImageFilterHelper.applyInvert(mutableBitmap)
-                4 -> mutableBitmap = ImageFilterHelper.applyVignette(mutableBitmap)
-                5 -> mutableBitmap = ImageFilterHelper.applyBlur(mutableBitmap)
-            }
-            b.ivImage.setImageBitmap(mutableBitmap)
-            Toast.makeText(this, "Efek diterapkan!", Toast.LENGTH_SHORT).show()
-        }.show()
     }
 
     private fun rotateImage(degrees: Float) {
@@ -299,6 +225,18 @@ class ImageEditorActivity : AppCompatActivity() {
 
             mutableBitmap = filteredBitmap
 
+            // Terapkan Filter Warna dari Spinner
+            val filterName = b.spinnerFilters.selectedItem.toString()
+            if (filterName != "Normal") {
+                mutableBitmap = ImageProHelper.applyFilter(mutableBitmap, filterName)
+            }
+
+            // Terapkan Efek Foto dari Spinner
+            val efekName = b.spinnerEfek.selectedItem.toString()
+            if (efekName != "Normal") {
+                mutableBitmap = ImageProHelper.applyFilter(mutableBitmap, efekName)
+            }
+
             val w = b.spinnerWidth.selectedItem.toString().toInt()
             val h = b.spinnerHeight.selectedItem.toString().toInt()
 
@@ -314,7 +252,7 @@ class ImageEditorActivity : AppCompatActivity() {
             mutableBitmap = Bitmap.createScaledBitmap(mutableBitmap, finalW, finalH, true)
             canvas = Canvas(mutableBitmap)
             b.ivImage.setImageBitmap(mutableBitmap)
-            Toast.makeText(this, "Efek dan Ukuran Diterapkan!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Filter dan Efek Diterapkan!", Toast.LENGTH_SHORT).show()
         } finally {
             notif.hideEdit()
         }
