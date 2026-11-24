@@ -2,7 +2,9 @@ package com.pla.manajer
 
 import android.app.AlertDialog
 import android.content.ContentValues
+import android.content.Intent
 import android.media.MediaPlayer
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
@@ -25,6 +27,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.FileOutputStream
 
 class AudioEditorActivity : AppCompatActivity() {
     private lateinit var b: ActivityAudioEditorBinding
@@ -52,8 +55,27 @@ class AudioEditorActivity : AppCompatActivity() {
         setContentView(b.root)
         notif = NotificationHelper(this)
 
-        val path = intent.getStringExtra("file_path") ?: run { finish(); return }
+        // --- PENANGKAP SHARE INTENT DARI LUAR ---
+        var path = intent.getStringExtra("file_path")
+        if (path == null && intent?.action == Intent.ACTION_SEND) {
+            val uri = if (Build.VERSION.SDK_INT >= 33) {
+                intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                intent.getParcelableExtra(Intent.EXTRA_STREAM)
+            }
+            if (uri != null) {
+                val tempFile = File(cacheDir, "shared_edit_audio.mp3")
+                contentResolver.openInputStream(uri)?.use { input ->
+                    FileOutputStream(tempFile).use { output -> input.copyTo(output) }
+                }
+                path = tempFile.absolutePath
+            }
+        }
+        if (path == null) { finish(); return }
         inputFile = File(path)
+        // ----------------------------------------
+
         b.tvFileName.text = inputFile.name
 
         detectSampleRate()
@@ -446,17 +468,4 @@ class AudioEditorActivity : AppCompatActivity() {
             val values = ContentValues().apply {
                 put(MediaStore.Audio.Media.DISPLAY_NAME, file.name)
                 put(MediaStore.Audio.Media.MIME_TYPE, if (ext == "aiff") "audio/aiff" else "audio/$ext")
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) put(MediaStore.Audio.Media.RELATIVE_PATH, "PlaProjects/Edit_Audio")
-                else put(MediaStore.Audio.Media.DATA, file.absolutePath)
-            }
-            contentResolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values)
-        } catch (_: Exception) {}
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        previewPlayer?.release()
-        previewFile?.delete()
-        notif.hideEdit()
-    }
-}
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) put(MediaStore.Audio.Media.RELATIVE_PATH, "PlaProjects/
