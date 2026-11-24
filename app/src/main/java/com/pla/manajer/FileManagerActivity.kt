@@ -43,6 +43,7 @@ class FileManagerActivity : AppCompatActivity() {
     private var allFiles: List<File> = emptyList()
     private var currentSortedFiles: List<File> = emptyList()
     private var showDateTime = false
+    private var initialPath: String? = null
 
     private var clipboard: File? = null
     private var isCut = false
@@ -64,7 +65,8 @@ class FileManagerActivity : AppCompatActivity() {
         prefs = Prefs(this)
         notif = NotificationHelper(this)
 
-        currentDir = File(intent.getStringExtra("initial_path") ?: prefs.lastPath)
+        initialPath = intent.getStringExtra("initial_path")
+        currentDir = File(initialPath ?: prefs.lastPath)
         showDateTime = prefs.showDateTime
 
         adapter = FileAdapter(
@@ -77,10 +79,13 @@ class FileManagerActivity : AppCompatActivity() {
         b.recycler.layoutManager = LinearLayoutManager(this)
         b.recycler.adapter = adapter
 
-        // Atur visibilitas tombol di awal
+        // Cek apakah ini folder root (Memori Internal / Kartu SD)
+        val isRootFolder = isRootDirectory(currentDir)
+        adapter.hideCheckboxAndMore = isRootFolder
+
         b.btnSelectAllTop.visibility = View.GONE
-        b.btnTopNew.visibility = View.VISIBLE // Buat folder selalu muncul
-        b.btnSort.visibility = View.VISIBLE   // Sortir selalu muncul
+        b.btnTopNew.visibility = View.VISIBLE
+        b.btnSort.visibility = View.VISIBLE
 
         b.btnTopBack.setOnClickListener { finish() }
         
@@ -110,6 +115,12 @@ class FileManagerActivity : AppCompatActivity() {
 
         b.etSearch.doAfterTextChanged { refreshList() }
         ensurePermission()
+    }
+
+    private fun isRootDirectory(dir: File): Boolean {
+        val internal = Environment.getExternalStorageDirectory().absolutePath
+        val sd = getSdCard()?.absolutePath
+        return dir.absolutePath == internal || (sd != null && dir.absolutePath == sd)
     }
 
     override fun onResume() {
@@ -281,8 +292,8 @@ class FileManagerActivity : AppCompatActivity() {
         val active = adapter.selectedFiles.isNotEmpty()
         b.selectionToolbar.visibility = if (active) View.VISIBLE else View.GONE
         b.btnSelectAllTop.visibility = if (active) View.VISIBLE else View.GONE
-        b.btnTopNew.visibility = if (!active) View.VISIBLE else View.GONE // Sembunyikan buat folder saat milih
-        b.btnSort.visibility = if (!active) View.VISIBLE else View.GONE    // Sembunyikan sortir saat milih
+        b.btnTopNew.visibility = if (!active) View.VISIBLE else View.GONE
+        b.btnSort.visibility = if (!active) View.VISIBLE else View.GONE
     }
 
     private fun open(f: File) {
@@ -341,7 +352,6 @@ class FileManagerActivity : AppCompatActivity() {
 
     private fun refreshList() {
         val q = b.etSearch.text?.toString()?.lowercase() ?: ""
-        // Saring file tersembunyi (berawalan titik)
         val visibleFiles = allFiles.filter { !it.name.startsWith(".") }
         
         val filtered = if (q.isEmpty()) visibleFiles else visibleFiles.filter { it.name.lowercase().contains(q) }
@@ -381,6 +391,11 @@ class FileManagerActivity : AppCompatActivity() {
         if (!dir.exists()) dir.mkdirs()
         currentDir = dir; prefs.lastPath = dir.absolutePath
         b.tvPath.text = getSimplePath(dir.absolutePath)
+        
+        // Cek root folder, kalau iya sembunyikan tombol centang/titik tiga
+        val isRootFolder = isRootDirectory(dir)
+        adapter.hideCheckboxAndMore = isRootFolder
+
         try {
             val stat = StatFs(dir.absolutePath)
             val used = (stat.blockSizeLong * stat.blockCountLong) - (stat.blockSizeLong * stat.availableBlocksLong)
