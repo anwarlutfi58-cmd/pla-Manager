@@ -27,7 +27,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Video Studio"
+            android:text="Video Studio Pro"
             android:textColor="#FFFFFF"
             android:textSize="16sp"
             android:textStyle="bold"
@@ -67,6 +67,32 @@
             android:text="Belum ada media dipilih"
             android:textColor="#AAAAAA"
             android:textSize="14sp"/>
+            
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom"
+            android:background="#80000000"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:padding="8dp"
+            android:visibility="gone"
+            android:id="@+id/videoControls">
+            
+            <ImageButton
+                android:id="@+id/btnPlayPause"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@android:drawable/ic_media_play"
+                app:tint="#FFFFFF"/>
+            <SeekBar
+                android:id="@+id/seekVideo"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:paddingHorizontal="8dp"/>
+        </LinearLayout>
     </FrameLayout>
 
     <!-- BOTTOM TOOLS & PANELS -->
@@ -87,25 +113,21 @@
             android:padding="16dp"
             android:visibility="gone">
             
-            <!-- Panel Durasi -->
             <LinearLayout android:id="@+id/panelDuration" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Durasi per Gambar (Detik):" android:textColor="#FFFFFF"/>
                 <EditText android:id="@+id/etDuration" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="number" android:text="3" android:textColor="#FFFFFF" android:backgroundTint="#4CAF50"/>
             </LinearLayout>
 
-            <!-- Panel Audio -->
             <LinearLayout android:id="@+id/panelAudio" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:visibility="gone" android:gravity="center_vertical">
                 <com.google.android.material.button.MaterialButton android:id="@+id/btnPickAudio" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Pilih Audio"/>
                 <TextView android:id="@+id/tvAudioSelected" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="8dp" android:text="Belum ada audio" android:textColor="#AAAAAA" android:maxLines="1" android:ellipsize="end"/>
             </LinearLayout>
 
-            <!-- Panel Rasio -->
             <LinearLayout android:id="@+id/panelRatio" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:visibility="gone" android:gravity="center_vertical">
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Rasio: " android:textColor="#FFFFFF"/>
                 <Spinner android:id="@+id/spinnerRatio" android:layout_width="0dp" android:layout_height="40dp" android:layout_weight="1" android:backgroundTint="#FFFFFF"/>
             </LinearLayout>
 
-            <!-- Panel Filter & Warna -->
             <LinearLayout android:id="@+id/panelFilter" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Kecerahan" android:textColor="#FFFFFF"/>
                 <SeekBar android:id="@+id/seekBrightness" android:layout_width="match_parent" android:layout_height="48dp" android:max="200" android:progress="100" android:progressTint="#4CAF50" android:splitTrack="false" android:paddingHorizontal="16dp"/>
@@ -115,25 +137,22 @@
                 <SeekBar android:id="@+id/seekSaturation" android:layout_width="match_parent" android:layout_height="48dp" android:max="200" android:progress="100" android:progressTint="#4CAF50" android:splitTrack="false" android:paddingHorizontal="16dp"/>
             </LinearLayout>
 
-            <!-- Panel Teks / Watermark -->
             <LinearLayout android:id="@+id/panelText" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
                 <EditText android:id="@+id/etWatermark" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Tulis teks watermark..." android:textColor="#FFFFFF" android:textColorHint="#888888"/>
                 <Spinner android:id="@+id/spinnerTextPos" android:layout_width="match_parent" android:layout_height="40dp" android:layout_marginTop="8dp" android:backgroundTint="#FFFFFF"/>
+                <Spinner android:id="@+id/spinnerTextColor" android:layout_width="match_parent" android:layout_height="40dp" android:layout_marginTop="8dp" android:backgroundTint="#FFFFFF"/>
             </LinearLayout>
 
-            <!-- Panel Kecepatan -->
             <LinearLayout android:id="@+id/panelSpeed" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Kecepatan Video" android:textColor="#FFFFFF"/>
                 <SeekBar android:id="@+id/seekSpeed" android:layout_width="match_parent" android:layout_height="48dp" android:max="200" android:progress="100" android:progressTint="#4CAF50" android:splitTrack="false" android:paddingHorizontal="16dp"/>
             </LinearLayout>
 
-            <!-- Panel Volume -->
             <LinearLayout android:id="@+id/panelVolume" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Volume Audio" android:textColor="#FFFFFF"/>
                 <SeekBar android:id="@+id/seekVolume" android:layout_width="match_parent" android:layout_height="48dp" android:max="200" android:progress="100" android:progressTint="#4CAF50" android:splitTrack="false" android:paddingHorizontal="16dp"/>
             </LinearLayout>
 
-            <!-- Panel Efek Lainnya -->
             <LinearLayout android:id="@+id/panelEffects" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Efek Visual &amp; Audio" android:textColor="#FFFFFF" android:textStyle="bold"/>
                 <Spinner android:id="@+id/spinnerEffects" android:layout_width="match_parent" android:layout_height="40dp" android:layout_marginTop="8dp" android:backgroundTint="#FFFFFF"/>
