@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#F5F5F5">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:id="@+id/tvRepoName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Repo: nama-repo"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:textColor="#000000"
+            android:layout_marginBottom="8dp"/>
+
+        <TextView
+            android:id="@+id/tvRepoStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Status: publik\nNama lengkap: user/repo"
+            android:textSize="14sp"
+            android:textColor="#333333"
+            android:layout_marginBottom="16dp"/>
+
+        <Button android:id="@+id/btn1" android:layout_width="match_parent" android:layout_height="60dp" android:text="1. Buka berkas" android:backgroundTint="#0D47A1" android:textColor="#FFFFFF" android:layout_marginBottom="8dp"/>
+        <Button android:id="@+id/btn2" android:layout_width="match_parent" android:layout_height="60dp" android:text="2. Tambah berkas (ketik teks)" android:backgroundTint="#0D47A1" android:textColor="#FFFFFF" android:layout_marginBottom="8dp"/>
+        <Button android:id="@+id/btn3" android:layout_width="match_parent" android:layout_height="60dp" android:text="3. Pindah Arah / Unggah berkas dari HP" android:backgroundTint="#4CAF50" android:textColor="#FFFFFF" android:layout_marginBottom="8dp"/>
+        <Button android:id="@+id/btn4" android:layout_width="match_parent" android:layout_height="60dp" android:text="4. Bangun APK dari repo ini" android:backgroundTint="#0D47A1" android:textColor="#FFFFFF" android:layout_marginBottom="8dp"/>
+        <Button android:id="@+id/btn5" android:layout_width="match_parent" android:layout_height="60dp" android:text="5. Cek status pembangunan APK" android:backgroundTint="#0D47A1" android:textColor="#FFFFFF" android:layout_marginBottom="8dp"/>
+        <Button android:id="@+id/btn6" android:layout_width="match_parent" android:layout_height="60dp" android:text="6. Riwayat pembangunan" android:backgroundTint="#0D47A1" android:textColor="#FFFFFF" android:layout_marginBottom="8dp"/>
+        <Button android:id="@+id/btn7" android:layout_width="match_parent" android:layout_height="60dp" android:text="7. Unduh APK terbaru" android:backgroundTint="#0D47A1" android:textColor="#FFFFFF" android:layout_marginBottom="8dp"/>
+        <Button android:id="@+id/btn8" android:layout_width="match_parent" android:layout_height="60dp" android:text="8. Lihat workflow dan log" android:backgroundTint="#0D47A1" android:textColor="#FFFFFF" android:layout_marginBottom="8dp"/>
+        <Button android:id="@+id/btn9" android:layout_width="match_parent" android:layout_height="60dp" android:text="9. Hapus artefak" android:backgroundTint="#0D47A1" android:textColor="#FFFFFF" android:layout_marginBottom="8dp"/>
+        <Button android:id="@+id/btn10" android:layout_width="match_parent" android:layout_height="60dp" android:text="10. Lindungi dari tanda tangan ulang" android:backgroundTint="#0D47A1" android:textColor="#FFFFFF" android:layout_marginBottom="8dp"/>
+        <Button android:id="@+id/btn11" android:layout_width="match_parent" android:layout_height="60dp" android:text="11. Kunci terikat tanda tangan" android:backgroundTint="#0D47A1" android:textColor="#FFFFFF" android:layout_marginBottom="8dp"/>
+        <Button android:id="@+id/btn12" android:layout_width="match_parent" android:layout_height="60dp" android:text="12. Buat rilis & unggah APK" android:backgroundTint="#0D47A1" android:textColor="#FFFFFF" android:layout_marginBottom="8dp"/>
+        <Button android:id="@+id/btn13" android:layout_width="match_parent" android:layout_height="60dp" android:text="13. Daftar rilis & hapus rilis" android:backgroundTint="#0D47A1" android:textColor="#FFFFFF" android:layout_marginBottom="8dp"/>
+        <Button android:id="@+id/btn14" android:layout_width="match_parent" android:layout_height="60dp" android:text="14. Riwayat commit (lihat & kembalikan)" android:backgroundTint="#0D47A1" android:textColor="#FFFFFF" android:layout_marginBottom="8dp"/>
+        <Button android:id="@+id/btn15" android:layout_width="match_parent" android:layout_height="60dp" android:text="15. Secrets dan Variables" android:backgroundTint="#0D47A1" android:textColor="#FFFFFF" android:layout_marginBottom="8dp"/>
+        <Button android:id="@+id/btn16" android:layout_width="match_parent" android:layout_height="60dp" android:text="16. Info repositori" android:backgroundTint="#0D47A1" android:textColor="#FFFFFF" android:layout_marginBottom="8dp"/>
+        <Button android:id="@+id/btn17" android:layout_width="match_parent" android:layout_height="60dp" android:text="17. Unduh repositori (ZIP)" android:backgroundTint="#0D47A1" android:textColor="#FFFFFF" android:layout_marginBottom="8dp"/>
+        <Button android:id="@+id/btn18" android:layout_width="match_parent" android:layout_height="60dp" android:text="18. Ubah status privasi" android:backgroundTint="#0D47A1" android:textColor="#FFFFFF" android:layout_marginBottom="8dp"/>
+        <Button android:id="@+id/btn19" android:layout_width="match_parent" android:layout_height="60dp" android:text="19. Ganti nama repositori" android:backgroundTint="#0D47A1" android:textColor="#FFFFFF" android:layout_marginBottom="8dp"/>
+        <Button android:id="@+id/btn20" android:layout_width="match_parent" android:layout_height="60dp" android:text="20. Salin tautan repositori" android:backgroundTint="#0D47A1" android:textColor="#FFFFFF" android:layout_marginBottom="8dp"/>
+        <Button android:id="@+id/btn21" android:layout_width="match_parent" android:layout_height="60dp" android:text="21. Bagikan tautan repositori" android:backgroundTint="#0D47A1" android:textColor="#FFFFFF" android:layout_marginBottom="8dp"/>
+        <Button android:id="@+id/btn22" android:layout_width="match_parent" android:layout_height="60dp" android:text="22. Situs web (GitHub Pages)" android:backgroundTint="#0D47A1" android:textColor="#FFFFFF" android:layout_marginBottom="8dp"/>
+        <Button android:id="@+id/btn23" android:layout_width="match_parent" android:layout_height="60dp" android:text="23. Buka di browser" android:backgroundTint="#0D47A1" android:textColor="#FFFFFF" android:layout_marginBottom="8dp"/>
+        <Button android:id="@+id/btn24" android:layout_width="match_parent" android:layout_height="60dp" android:text="24. Hapus repositori" android:backgroundTint="#B71C1C" android:textColor="#FFFFFF" android:layout_marginBottom="16dp"/>
+
+        <Button android:id="@+id/btnBack" android:layout_width="match_parent" android:layout_height="60dp" android:text="Kembali" android:backgroundTint="#757575" android:textColor="#FFFFFF"/>
+    </LinearLayout>
+</ScrollView>
