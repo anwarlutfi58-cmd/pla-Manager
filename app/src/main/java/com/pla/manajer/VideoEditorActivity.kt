@@ -25,13 +25,12 @@ class VideoEditorActivity : AppCompatActivity() {
     private lateinit var notif: NotificationHelper
     private val imageUris = mutableListOf<Uri>()
     private var audioUri: Uri? = null
-    private var videoUri: Uri? = null // Untuk menyimpan video asli dari HP
+    private var videoUri: Uri? = null
     private var isLandscape = false
     
     private var lastExportedFile: File? = null
-
-    // Filter string untuk video asli
-    private var realVideoOptions = ""
+    private var extraVideoFilter = ""
+    private var extraAudioFilter = ""
 
     private val pickImagesLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == RESULT_OK) {
@@ -44,17 +43,16 @@ class VideoEditorActivity : AppCompatActivity() {
             } else if (data?.data != null) {
                 imageUris.add(data.data!!)
             }
-            videoUri = null // Reset video jika user memilih gambar
+            videoUri = null
             updatePreview()
         }
     }
 
-    // Launcher BARU untuk memilih Video Asli
     private val pickVideoLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri != null) {
             videoUri = uri
-            imageUris.clear() // Reset gambar jika user memilih video
-            b.ivPreview.setImageResource(R.drawable.ic_video_file) // Atau biarkan kosong
+            imageUris.clear()
+            b.ivPreview.setImageResource(android.R.drawable.ic_media_play) // <-- PERBAIKAN: Pakai ikon bawaan Android
             b.tvNoImage.visibility = View.GONE
             val name = getFileName(uri)
             Toast.makeText(this, "Video terpilih: $name", Toast.LENGTH_SHORT).show()
@@ -76,7 +74,6 @@ class VideoEditorActivity : AppCompatActivity() {
 
         b.btnBack.setOnClickListener { finish() }
 
-        // TOMBOL LAMA: Pilih Gambar (Slideshow)
         b.toolAddImage.setOnClickListener {
             val intent = Intent(Intent.ACTION_GET_CONTENT)
             intent.type = "image/*"
@@ -101,13 +98,11 @@ class VideoEditorActivity : AppCompatActivity() {
         b.btnPickAudio.setOnClickListener { pickAudioLauncher.launch("audio/*") }
         b.spinnerRatio.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, arrayOf("16:9 (Lanskap)", "9:16 (Potret/TikTok)", "1:1 (Persegi)"))
 
-        // --- TOMBOL BARU: PILIH VIDEO ASLI ---
         val btnPickRealVideo = Button(this).apply {
             text = "Pilih Video Asli (.mp4) dari HP"
             setOnClickListener { pickVideoLauncher.launch("video/*") }
         }
 
-        // --- TOMBOL PUTAR HASIL VIDEO ---
         val btnPlay = Button(this).apply {
             text = "Putar Hasil Video"
             setOnClickListener {
@@ -126,13 +121,11 @@ class VideoEditorActivity : AppCompatActivity() {
             }
         }
         
-        // --- TOMBOL MENU TAMBAHAN (Fitur Lanjutan) ---
         val btnAdvanced = Button(this).apply {
             text = "Buka Alat Video Asli (Potong, Mute, dll)"
             setOnClickListener { showRealVideoTools() }
         }
 
-        // Susun tombol-tombol baru di layout
         val parent = b.btnExport.parent as? LinearLayout
         if (parent != null) {
             val index = parent.indexOfChild(b.btnExport)
@@ -150,7 +143,6 @@ class VideoEditorActivity : AppCompatActivity() {
         }
     }
 
-    // --- LOGIKA UNTUK MEMOTONG VIDEO ASLI ---
     private fun showRealVideoTools() {
         if (videoUri == null) {
             Toast.makeText(this, "Pilih Video Asli terlebih dahulu (tombol paling atas)!", Toast.LENGTH_LONG).show()
@@ -164,15 +156,15 @@ class VideoEditorActivity : AppCompatActivity() {
                 when(which) {
                     0 -> showTrimDialog()
                     1 -> {
-                        realVideoOptions = RealVideoHelper.getMuteCommand()
+                        extraVideoFilter = RealVideoHelper.getMuteCommand()
                         Toast.makeText(this, "Suara akan dihapus saat ekspor", Toast.LENGTH_SHORT).show()
                     }
                     2 -> {
-                        realVideoOptions = RealVideoHelper.getSpeedUpCommand(2.0f)
+                        extraVideoFilter = RealVideoHelper.getSpeedUpCommand(2.0f)
                         Toast.makeText(this, "Video akan dipercepat saat ekspor", Toast.LENGTH_SHORT).show()
                     }
                     3 -> {
-                        realVideoOptions = RealVideoHelper.getToGifCommand()
+                        extraVideoFilter = RealVideoHelper.getToGifCommand()
                         Toast.makeText(this, "Video akan diubah jadi GIF saat ekspor", Toast.LENGTH_SHORT).show()
                     }
                 }
@@ -196,7 +188,7 @@ class VideoEditorActivity : AppCompatActivity() {
                 val start = etStart.text.toString()
                 val end = etEnd.text.toString()
                 if (start.isNotEmpty() && end.isNotEmpty()) {
-                    realVideoOptions = RealVideoHelper.getTrimCommand(start, end)
+                    extraVideoFilter = RealVideoHelper.getTrimCommand(start, end)
                     Toast.makeText(this, "Video akan dipotong saat ekspor", Toast.LENGTH_SHORT).show()
                 }
             }.setNegativeButton("Batal", null).show()
@@ -247,7 +239,6 @@ class VideoEditorActivity : AppCompatActivity() {
             .show()
     }
 
-    // --- RENDER VIDEO ASLI DARI HP (BUKAN FOTO) ---
     private fun renderRealVideo(resolution: String, fps: String) {
         b.btnExport.isEnabled = false
         b.btnExport.text = "Memproses Video..."
@@ -265,21 +256,13 @@ class VideoEditorActivity : AppCompatActivity() {
             }
 
             val cmd = StringBuilder()
-            // Jika ada opsi trim, taruh sebelum -i
-            if (realVideoOptions.contains("-ss")) {
-                cmd.append("${realVideoOptions} ")
-            }
+            if (extraVideoFilter.contains("-ss")) cmd.append("${extraVideoFilter} ")
             
             cmd.append("-i \"${tempVideo.absolutePath}\" ")
             cmd.append("-vf scale=$resolution,setsar=1,fps=$fps ")
             
-            if (realVideoOptions.isNotEmpty() && !realVideoOptions.contains("-ss")) {
-                // Tambahkan filter khusus (seperti mute atau gif)
-                if (realVideoOptions == RealVideoHelper.getToGifCommand()) {
-                    cmd.append("${realVideoOptions} ")
-                } else {
-                    cmd.append("${realVideoOptions} ")
-                }
+            if (extraVideoFilter.isNotEmpty() && !extraVideoFilter.contains("-ss")) {
+                cmd.append("${extraVideoFilter} ")
             } else {
                 cmd.append("-c:v libx264 -pix_fmt yuv420p -c:a aac ")
             }
@@ -294,7 +277,7 @@ class VideoEditorActivity : AppCompatActivity() {
                     if (ReturnCode.isSuccess(session.returnCode)) {
                         registerVideoToMediaStore(outputFile)
                         Toast.makeText(this, "Berhasil! Tekan 'Putar Hasil Video'", Toast.LENGTH_LONG).show()
-                        realVideoOptions = ""
+                        extraVideoFilter = ""
                     } else {
                         Toast.makeText(this, "Gagal memproses video.", Toast.LENGTH_LONG).show()
                     }
@@ -309,7 +292,6 @@ class VideoEditorActivity : AppCompatActivity() {
         }
     }
 
-    // --- RENDER SLIDESHOW FOTO (KODE LAMA ANDA) ---
     private fun renderSlideshow(resolution: String, fps: String) {
         b.btnExport.isEnabled = false
         b.btnExport.text = "Memproses..."
