@@ -41,11 +41,13 @@
             <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Putar" />
             <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Warna" />
             <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Lainnya" />
+            <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Filter" />
+            <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Efek" />
         </com.google.android.material.tabs.TabLayout>
 
         <ScrollView
             android:layout_width="match_parent"
-            android:layout_height="200dp">
+            android:layout_height="220dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -96,6 +98,18 @@
 
                     <CheckBox android:id="@+id/cbRemoveExif" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Hapus Metadata Privasi (Lokasi GPS &amp; Kamera)" android:textColor="#FFFFFF" android:layout_marginTop="8dp"/>
                     <com.google.android.material.button.MaterialButton android:id="@+id/btnMagicEraser" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="Gosok Hapus Watermark" app:backgroundTint="#F44336" />
+                </LinearLayout>
+
+                <!-- TAB 5: FILTER WARNA -->
+                <LinearLayout android:id="@+id/layoutTabFilter" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Pilih Filter Warna:" android:textColor="#FFFFFF" android:textStyle="bold" android:layout_marginBottom="8dp"/>
+                    <Spinner android:id="@+id/spinnerFilters" android:layout_width="match_parent" android:layout_height="48dp" android:backgroundTint="#FFFFFF"/>
+                </LinearLayout>
+
+                <!-- TAB 6: EFEK FOTO -->
+                <LinearLayout android:id="@+id/layoutTabEfek" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Pilih Efek Foto:" android:textColor="#FFFFFF" android:textStyle="bold" android:layout_marginBottom="8dp"/>
+                    <Spinner android:id="@+id/spinnerEfek" android:layout_width="match_parent" android:layout_height="48dp" android:backgroundTint="#FFFFFF"/>
                 </LinearLayout>
 
             </LinearLayout>
