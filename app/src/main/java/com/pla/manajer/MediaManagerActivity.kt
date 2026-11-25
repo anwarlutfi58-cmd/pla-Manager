@@ -7,7 +7,6 @@ import android.os.Bundle
 import android.os.Environment
 import android.view.View
 import android.webkit.MimeTypeMap
-import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -19,6 +18,7 @@ import com.pla.manajer.databinding.ActivityMediaManagerBinding
 import com.pla.manajer.util.FileUtils
 import com.pla.manajer.util.NotificationHelper
 import com.pla.manajer.util.Prefs
+import com.pla.manajer.util.ShareHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -48,8 +48,8 @@ class MediaManagerActivity : AppCompatActivity() {
 
         adapter = FileAdapter(
             onOpen = { f -> open(f) },
-            onLong = { f -> enableSelectionMode(f) },
-            onSelectToggle = { f -> toggleSelection(f) },
+            onLong = { f -> /* Abaikan tekan lama untuk folder */ },
+            onSelectToggle = { /* Abaikan checkbox */ },
             onMoreOptions = { f -> showMoreMenu(f) }
         ).apply { setDateTimeMode(prefs.showDateTime) }
 
@@ -57,30 +57,17 @@ class MediaManagerActivity : AppCompatActivity() {
         b.recyclerMedia.adapter = adapter
 
         b.btnTopBack.setOnClickListener { handleBack() }
-        b.selectionToolbar.visibility = View.GONE
+        b.selectionToolbar.visibility = View.GONE // Sembunyikan toolbar centang
         b.miniPlayerLayout.visibility = View.GONE
         b.btnSort.setOnClickListener { showSortDialog() }
         setupSearchBar()
-
-        b.btnDeleteSelected.setOnClickListener { deleteSelectedFiles() }
-        b.btnCopySelected.setOnClickListener {
-            val f = adapter.selectedFiles.firstOrNull()
-            if (f != null) showCopyMoveDialog(f, false)
-            closeSelectionMode()
-        }
-        b.btnMoveSelected.setOnClickListener {
-            val f = adapter.selectedFiles.firstOrNull()
-            if (f != null) showCopyMoveDialog(f, true)
-            closeSelectionMode()
-        }
-        b.btnRenameSelected.setOnClickListener {
-            adapter.selectedFiles.firstOrNull()?.let { renameDialog(it) }
-            closeSelectionMode()
-        }
-        b.btnMoreSelected.setOnClickListener {
-            adapter.selectedFiles.firstOrNull()?.let { showMoreMenu(it) }
-            closeSelectionMode()
-        }
+        
+        // Sembunyikan tombol hapus/salin massal di bawah
+        b.btnDeleteSelected.visibility = View.GONE
+        b.btnCopySelected.visibility = View.GONE
+        b.btnMoveSelected.visibility = View.GONE
+        b.btnRenameSelected.visibility = View.GONE
+        b.btnMoreSelected.visibility = View.GONE
 
         loadRoots()
     }
@@ -138,7 +125,8 @@ class MediaManagerActivity : AppCompatActivity() {
             allItems = withContext(Dispatchers.IO) {
                 val files = dir.listFiles() ?: return@withContext emptyList<File>()
                 val exts = when(mediaType) { "AUDIO" -> audioExts; "VIDEO" -> videoExts; "IMAGE" -> imageExts; else -> emptyList() }
-                files.filter { (it.isDirectory && !it.name.startsWith(".")) || (it.isFile && it.extension.lowercase() in exts) }
+                // Hanya tampilkan file (bukan folder)
+                files.filter { it.isFile && it.extension.lowercase() in exts }
             }
             applyFilter("")
         }
@@ -151,12 +139,12 @@ class MediaManagerActivity : AppCompatActivity() {
 
     private fun sortFiles(files: List<File>): List<File> {
         return when (prefs.sortMode) {
-            1 -> files.sortedWith(compareBy<File> { !it.isDirectory }.thenByDescending { it.name.lowercase() })
-            2 -> files.sortedWith(compareBy<File> { !it.isDirectory }.thenByDescending { it.lastModified() })
-            3 -> files.sortedWith(compareBy<File> { !it.isDirectory }.thenBy { it.lastModified() })
-            4 -> files.sortedWith(compareBy<File> { !it.isDirectory }.thenByDescending { it.length() })
-            5 -> files.sortedWith(compareBy<File> { !it.isDirectory }.thenBy { it.length() })
-            else -> files.sortedWith(compareBy<File> { !it.isDirectory }.thenBy { it.name.lowercase() })
+            1 -> files.sortedByDescending { it.name.lowercase() }
+            2 -> files.sortedByDescending { it.lastModified() }
+            3 -> files.sortedBy { it.lastModified() }
+            4 -> files.sortedByDescending { it.length() }
+            5 -> files.sortedBy { it.length() }
+            else -> files.sortedBy { it.name.lowercase() }
         }
     }
 
@@ -168,7 +156,9 @@ class MediaManagerActivity : AppCompatActivity() {
     }
 
     private fun open(f: File) {
-        if (f.isDirectory) { loadDir(f) } else {
+        if (f.isDirectory) {
+            loadDir(f)
+        } else {
             val ext = f.extension.lowercase()
             if (ext in audioExts) {
                 val audioList = allItems.filter { it.isFile && it.extension.lowercase() in audioExts }.map { it.absolutePath }
@@ -194,93 +184,27 @@ class MediaManagerActivity : AppCompatActivity() {
 
     override fun onBackPressed() { handleBack() }
 
-    private fun enableSelectionMode(f: File) { adapter.isSelectionMode = true; adapter.selectedFiles.add(f); adapter.notifyDataSetChanged(); b.selectionToolbar.visibility = View.VISIBLE }
-    private fun toggleSelection(f: File) { if (adapter.selectedFiles.contains(f)) adapter.selectedFiles.remove(f) else adapter.selectedFiles.add(f); adapter.isSelectionMode = adapter.selectedFiles.isNotEmpty(); if (adapter.selectedFiles.isEmpty()) closeSelectionMode() else adapter.notifyDataSetChanged() }
-    private fun closeSelectionMode() { adapter.isSelectionMode = false; adapter.selectedFiles.clear(); adapter.notifyDataSetChanged(); b.selectionToolbar.visibility = View.GONE }
-
     private fun showMoreMenu(f: File) {
-        val options = mutableListOf("Bagikan", "Ganti Nama")
-        if (mediaType == "AUDIO" && f.isFile) options.add(0, "Edit Audio")
-        if (mediaType == "IMAGE" && f.isFile) options.add(0, "Edit Gambar")
-        AlertDialog.Builder(this).setTitle(f.name).setItems(options.toTypedArray()) { _, which ->
+        // JIKA YANG DIKLIK ADALAH FOLDER, TIDAK ADA MENU OPSI
+        if (f.isDirectory) return
+        
+        // JIKA FILE, HANYA BAGIKAN DAN ZIP
+        val options = arrayOf("Bagikan ke Aplikasi Lain", "Jadikan File ZIP")
+        AlertDialog.Builder(this).setTitle(f.name).setItems(options) { _, which ->
             when (options[which]) {
-                "Edit Audio" -> startActivity(Intent(this, AudioEditorActivity::class.java).putExtra("file_path", f.absolutePath))
-                "Edit Gambar" -> startActivity(Intent(this, ImageEditorActivity::class.java).putExtra("file_path", f.absolutePath))
-                "Bagikan" -> shareFile(f)
-                "Ganti Nama" -> renameDialog(f)
+                "Bagikan ke Aplikasi Lain" -> ShareHelper.shareFile(this, f)
+                "Jadikan File ZIP" -> zipFile(f)
             }
         }.show()
     }
 
-    private fun shareFile(f: File) {
-        try {
-            val uri = FileProvider.getUriForFile(this, "$packageName.provider", f)
-            startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
-                type = MimeTypeMap.getSingleton().getMimeTypeFromExtension(f.extension) ?: "*/*"
-                putExtra(Intent.EXTRA_STREAM, uri); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }, "Bagikan via"))
-        } catch (e: Exception) { Toast.makeText(this, "Gagal", Toast.LENGTH_SHORT).show() }
-    }
-
-    private fun renameDialog(f: File) {
-        val input = EditText(this).apply { setText(f.name) }
-        AlertDialog.Builder(this).setTitle("Ganti Nama").setView(input).setPositiveButton("OK") { _, _ ->
-            if (f.renameTo(File(f.parentFile, input.text.toString()))) { if (currentDir != null) currentDir?.let { loadDir(it) } else loadRoots() }
-            else Toast.makeText(this, "Gagal", Toast.LENGTH_SHORT).show()
-        }.setNegativeButton("Batal", null).show()
-    }
-
-    private fun deleteSelectedFiles() {
-        val files = adapter.selectedFiles.toList()
-        if (files.isEmpty()) return
-        val cb = CheckBox(this).apply { text = "Pindah ke Sampah"; isChecked = true }
-        AlertDialog.Builder(this).setTitle("Hapus ${files.size} item?").setView(cb).setPositiveButton("Hapus") { _, _ ->
-            if (cb.isChecked) deleteToTrash(files) else deletePermanent(files); closeSelectionMode()
-        }.setNegativeButton("Batal", null).show()
-    }
-
-    private fun deleteToTrash(files: List<File>) {
+    private fun zipFile(f: File) {
         lifecycleScope.launch {
-            notif.showFile("Menghapus", "Memindah ke Sampah...")
-            val dao = (application as PlaApp).database.trashDao()
-            withContext(Dispatchers.IO) {
-                val trashDir = File(prefs.trashFolder).apply { mkdirs() }
-                files.forEach { f ->
-                    val target = File(trashDir, "${System.currentTimeMillis()}_${f.name}")
-                    FileUtils.move(f, target)
-                    dao.add(com.pla.manajer.data.TrashItem(originalPath = f.absolutePath, trashPath = target.absolutePath, name = f.name, isDir = f.isDirectory))
-                }
-            }
+            notif.showFile("Kompres ZIP", "Mengompres ${f.name}...")
+            val out = File(f.parentFile, f.name + ".zip")
+            withContext(Dispatchers.IO) { FileUtils.zip(f, out) }
             if (currentDir != null) currentDir?.let { loadDir(it) } else loadRoots()
-            notif.showFile("Selesai", "Dipindah")
-        }
-    }
-
-    private fun deletePermanent(files: List<File>) {
-        lifecycleScope.launch {
-            notif.showFile("Menghapus", "Menghapus permanen...")
-            withContext(Dispatchers.IO) { files.forEach { if (it.isDirectory) it.deleteRecursively() else it.delete() } }
-            if (currentDir != null) currentDir?.let { loadDir(it) } else loadRoots()
-            notif.showFile("Selesai", "Dihapus")
-        }
-    }
-
-    private fun showCopyMoveDialog(f: File, isMove: Boolean) {
-        val options = arrayOf("Memori Internal", "Kartu SD")
-        AlertDialog.Builder(this).setTitle(if (isMove) "Pindah ke..." else "Salin ke...").setItems(options) { _, which ->
-            val destRoot = if (which == 0) Environment.getExternalStorageDirectory() else getSdCard()
-            if (destRoot != null) performCopyMove(f, File(destRoot, f.name), isMove) else Toast.makeText(this, "SD tidak ada", Toast.LENGTH_SHORT).show()
-        }.show()
-    }
-
-    private fun performCopyMove(src: File, dst: File, isMove: Boolean) {
-        lifecycleScope.launch {
-            notif.showFile(if (isMove) "Memindah" else "Menyalin", "${src.name} → ${dst.parentFile?.name}")
-            try {
-                withContext(Dispatchers.IO) { if (isMove) FileUtils.move(src, dst) else FileUtils.copy(src, dst) }
-                if (currentDir != null) currentDir?.let { loadDir(it) } else loadRoots()
-                notif.showFile("Selesai", "Berhasil")
-            } catch (e: Exception) { Toast.makeText(this@MediaManagerActivity, "Gagal: ${e.message}", Toast.LENGTH_SHORT).show() }
+            notif.showFile("Kompres selesai", "Berhasil")
         }
     }
 
