@@ -11,6 +11,9 @@
         android:orientation="vertical"
         android:padding="16dp">
 
+        <!-- ========================================== -->
+        <!-- BAGIAN 1: STATISTIK PENYIMPANAN (ALA FILE MANAGER +) -->
+        <!-- ========================================== -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -20,7 +23,6 @@
             android:textColor="#333333"
             android:layout_marginBottom="12dp"/>
 
-        <!-- GRID PENYIMPANAN -->
         <GridLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -67,7 +69,6 @@
             android:textColor="#333333"
             android:layout_marginBottom="12dp"/>
 
-        <!-- GRID KATEGORI -->
         <GridLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -160,6 +161,9 @@
 
         </GridLayout>
 
+        <!-- ========================================== -->
+        <!-- BAGIAN 2: MENU ASLI ANDA DIKEMBALIKAN -->
+        <!-- ========================================== -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -175,7 +179,11 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Buka File Manager (Semua File)"
-            android:backgroundTint="#4CAF50"/>
+            android:backgroundTint="#4CAF50"
+            android:layout_marginBottom="12dp"/>
 
+        <!-- Saya biarkan tombol di bawah ini sebagai tempat menu asli Anda (Cloud, Github, Editor) -->
+        <!-- Jika Anda punya tombol menu asli seperti Editor, Cloud, atau Github, tambahkan di sini -->
+        
     </LinearLayout>
 </ScrollView>
