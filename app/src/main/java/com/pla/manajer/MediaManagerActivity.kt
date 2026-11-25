@@ -48,8 +48,8 @@ class MediaManagerActivity : AppCompatActivity() {
 
         adapter = FileAdapter(
             onOpen = { f -> open(f) },
-            onLong = { f -> /* Abaikan tekan lama untuk folder */ },
-            onSelectToggle = { /* Abaikan checkbox */ },
+            onLong = { /* Abaikan centang untuk folder */ },
+            onSelectToggle = { /* Abaikan */ },
             onMoreOptions = { f -> showMoreMenu(f) }
         ).apply { setDateTimeMode(prefs.showDateTime) }
 
@@ -57,11 +57,11 @@ class MediaManagerActivity : AppCompatActivity() {
         b.recyclerMedia.adapter = adapter
 
         b.btnTopBack.setOnClickListener { handleBack() }
-        b.selectionToolbar.visibility = View.GONE // Sembunyikan toolbar centang
+        b.selectionToolbar.visibility = View.GONE
         b.miniPlayerLayout.visibility = View.GONE
         b.btnSort.setOnClickListener { showSortDialog() }
         setupSearchBar()
-        
+
         // Sembunyikan tombol hapus/salin massal di bawah
         b.btnDeleteSelected.visibility = View.GONE
         b.btnCopySelected.visibility = View.GONE
@@ -83,9 +83,6 @@ class MediaManagerActivity : AppCompatActivity() {
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) { applyFilter(s?.toString() ?: "") }
                 override fun afterTextChanged(s: android.text.Editable?) {}
             })
-            setOnEditorActionListener { v, actionId, event ->
-                if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH) { v.text = null; true } else false
-            }
         }
         (parent as android.widget.LinearLayout).addView(searchBar, 1)
     }
@@ -125,7 +122,7 @@ class MediaManagerActivity : AppCompatActivity() {
             allItems = withContext(Dispatchers.IO) {
                 val files = dir.listFiles() ?: return@withContext emptyList<File>()
                 val exts = when(mediaType) { "AUDIO" -> audioExts; "VIDEO" -> videoExts; "IMAGE" -> imageExts; else -> emptyList() }
-                // Hanya tampilkan file (bukan folder)
+                // Hanya menampilkan FILE, bukan folder di dalamnya
                 files.filter { it.isFile && it.extension.lowercase() in exts }
             }
             applyFilter("")
@@ -185,10 +182,9 @@ class MediaManagerActivity : AppCompatActivity() {
     override fun onBackPressed() { handleBack() }
 
     private fun showMoreMenu(f: File) {
-        // JIKA YANG DIKLIK ADALAH FOLDER, TIDAK ADA MENU OPSI
+        // Folder tidak ada titik 3
         if (f.isDirectory) return
         
-        // JIKA FILE, HANYA BAGIKAN DAN ZIP
         val options = arrayOf("Bagikan ke Aplikasi Lain", "Jadikan File ZIP")
         AlertDialog.Builder(this).setTitle(f.name).setItems(options) { _, which ->
             when (options[which]) {
