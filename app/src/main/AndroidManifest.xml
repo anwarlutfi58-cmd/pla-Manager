@@ -16,6 +16,7 @@
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" tools:targetApi="s" />
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+    <uses-permission android:name="com.android.launcher.permission.INSTALL_SHORTCUT" />
 
     <queries>
         <intent><action android:name="android.intent.action.MAIN" /></intent>
@@ -40,48 +41,44 @@
             </intent-filter>
         </activity>
 
-        <!-- 1. PLA EDIT FOTO -->
+        <!-- FileManagerActivity bisa menerima perintah buat Shortcut -->
+        <activity 
+            android:name=".FileManagerActivity" 
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.CREATE_SHORTCUT" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
         <activity android:name=".ImageEditorActivity" android:label="PLA Edit Foto" android:exported="true">
             <intent-filter>
-                <action android:name="android.intent.action.SEND" />
-                <action android:name="android.intent.action.EDIT" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="image/*" />
+                <action android:name="android.intent.action.SEND" /><action android:name="android.intent.action.EDIT" />
+                <category android:name="android.intent.category.DEFAULT" /><data android:mimeType="image/*" />
             </intent-filter>
         </activity>
 
-        <!-- 2. PLA EDIT VIDEO -->
         <activity android:name=".VideoEditorActivity" android:label="PLA Edit Video" android:exported="true" android:configChanges="orientation|screenSize|keyboardHidden">
             <intent-filter>
-                <action android:name="android.intent.action.SEND" />
-                <action android:name="android.intent.action.EDIT" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="video/*" />
+                <action android:name="android.intent.action.SEND" /><action android:name="android.intent.action.EDIT" />
+                <category android:name="android.intent.category.DEFAULT" /><data android:mimeType="video/*" />
             </intent-filter>
         </activity>
 
-        <!-- 3. PLA MUSIC (Pemutar Musik) -->
         <activity android:name=".AudioPlayerActivity" android:label="PLA Music" android:launchMode="singleTop" android:exported="true">
             <intent-filter>
-                <action android:name="android.intent.action.SEND" />
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="audio/*" />
+                <action android:name="android.intent.action.SEND" /><action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" /><data android:mimeType="audio/*" />
             </intent-filter>
         </activity>
 
-        <!-- 4. PLA EDIT AUDIO (Editor Audio) -->
         <activity android:name=".AudioEditorActivity" android:label="PLA Edit Audio" android:exported="true">
             <intent-filter>
-                <action android:name="android.intent.action.SEND" />
-                <action android:name="android.intent.action.EDIT" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="audio/*" />
+                <action android:name="android.intent.action.SEND" /><action android:name="android.intent.action.EDIT" />
+                <category android:name="android.intent.category.DEFAULT" /><data android:mimeType="audio/*" />
             </intent-filter>
         </activity>
 
-        <!-- AKTIVITAS LAINNYA -->
-        <activity android:name=".FileManagerActivity" />
         <activity android:name=".ProjectManagerActivity" />
         <activity android:name=".CodeEditorActivity" />
         <activity android:name=".FavoritesActivity" />
@@ -95,6 +92,9 @@
         <activity android:name=".CollageActivity" />
         <activity android:name=".VideoAdvancedActivity" />
         <activity android:name=".GithubBuilderActivity" />
+        <activity android:name=".GithubRepoListActivity" />
+        <activity android:name=".GithubRepoDetailActivity" />
+        <activity android:name=".GithubFileListActivity" />
 
         <provider
             android:name="androidx.core.content.FileProvider"
