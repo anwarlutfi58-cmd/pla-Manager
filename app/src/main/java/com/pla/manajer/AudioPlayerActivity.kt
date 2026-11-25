@@ -68,7 +68,6 @@ class AudioPlayerActivity : AppCompatActivity() {
 
         notif = NotificationHelper(this)
 
-        // --- PENANGKAP SHARE INTENT DARI LUAR ---
         var startPath: String? = intent.getStringExtra("start_path")
         var pathsList = intent.getStringArrayListExtra("file_paths")
 
@@ -88,7 +87,6 @@ class AudioPlayerActivity : AppCompatActivity() {
                 pathsList = arrayListOf(tempFile.absolutePath)
             }
         }
-        // ------------------------------------------
 
         filePaths = pathsList ?: emptyList()
 
@@ -156,7 +154,8 @@ class AudioPlayerActivity : AppCompatActivity() {
             addAction(NotificationHelper.ACTION_NEXT)
             addAction(NotificationHelper.ACTION_CLOSE)
         }
-        ContextCompat.registerReceiver(this, actionReceiver, f, ContextCompat.RECEIVER_NOT_EXPORTED)
+        // PERBAIKAN: RECEIVER_EXPORTED agar notifikasi bisa menembus sistem
+        ContextCompat.registerReceiver(this, actionReceiver, f, ContextCompat.RECEIVER_EXPORTED)
     }
 
     private fun setupMediaSession() {
