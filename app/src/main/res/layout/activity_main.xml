@@ -11,9 +11,7 @@
         android:orientation="vertical"
         android:padding="16dp">
 
-        <!-- ========================================== -->
         <!-- BAGIAN 1: STATISTIK PENYIMPANAN -->
-        <!-- ========================================== -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -60,9 +58,7 @@
 
         </GridLayout>
 
-        <!-- ========================================== -->
-        <!-- BAGIAN 2: KATEGORI MEDIA (DENGAN UKURAN) -->
-        <!-- ========================================== -->
+        <!-- BAGIAN 2: KATEGORI MEDIA -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -164,9 +160,7 @@
 
         </GridLayout>
 
-        <!-- ========================================== -->
-        <!-- BAGIAN 3: MENU ASLI (DIKEMBALIKAN) -->
-        <!-- ========================================== -->
+        <!-- BAGIAN 3: MENU ASLI (DIKEMBALIKAN + NAMA BARU) -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -210,22 +204,22 @@
 
             <LinearLayout android:id="@+id/cardGithub" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:orientation="vertical" android:gravity="center" android:padding="8dp" android:background="?attr/selectableItemBackground">
                 <ImageView android:layout_width="40dp" android:layout_height="40dp" android:src="@android:drawable/ic_menu_edit" app:tint="#333333"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="GitHub" android:textSize="12sp" android:textColor="#333333" android:layout_marginTop="4dp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="PLA Buat APK" android:textSize="12sp" android:textColor="#333333" android:layout_marginTop="4dp"/>
             </LinearLayout>
 
             <LinearLayout android:id="@+id/cardEditImage" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:orientation="vertical" android:gravity="center" android:padding="8dp" android:background="?attr/selectableItemBackground">
                 <ImageView android:layout_width="40dp" android:layout_height="40dp" android:src="@android:drawable/ic_menu_crop" app:tint="#9C27B0"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Edit Foto" android:textSize="12sp" android:textColor="#333333" android:layout_marginTop="4dp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="PLA Edit Foto" android:textSize="12sp" android:textColor="#333333" android:layout_marginTop="4dp"/>
             </LinearLayout>
 
             <LinearLayout android:id="@+id/cardEditAudio" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:orientation="vertical" android:gravity="center" android:padding="8dp" android:background="?attr/selectableItemBackground">
                 <ImageView android:layout_width="40dp" android:layout_height="40dp" android:src="@android:drawable/ic_btn_speak_now" app:tint="#4CAF50"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Edit Audio" android:textSize="12sp" android:textColor="#333333" android:layout_marginTop="4dp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="PLA Edit Audio" android:textSize="12sp" android:textColor="#333333" android:layout_marginTop="4dp"/>
             </LinearLayout>
 
             <LinearLayout android:id="@+id/cardEditVideo" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:orientation="vertical" android:gravity="center" android:padding="8dp" android:background="?attr/selectableItemBackground">
                 <ImageView android:layout_width="40dp" android:layout_height="40dp" android:src="@android:drawable/ic_media_play" app:tint="#F44336"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Edit Video" android:textSize="12sp" android:textColor="#333333" android:layout_marginTop="4dp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="PLA Edit Video" android:textSize="12sp" android:textColor="#333333" android:layout_marginTop="4dp"/>
             </LinearLayout>
 
         </GridLayout>
