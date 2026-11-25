@@ -8,6 +8,7 @@ import android.view.View
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.pla.manajer.util.Prefs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -24,6 +25,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvDownloadStats: TextView
     private lateinit var tvAppStats: TextView
 
+    private lateinit var cardGithub: View
+    private lateinit var cardEditImage: View
+    private lateinit var cardEditAudio: View
+    private lateinit var cardEditVideo: View
+
     override fun onCreate(s: Bundle?) {
         super.onCreate(s)
         setContentView(R.layout.activity_main)
@@ -36,6 +42,11 @@ class MainActivity : AppCompatActivity() {
         tvDocStats = findViewById(R.id.tvDocStats)
         tvDownloadStats = findViewById(R.id.tvDownloadStats)
         tvAppStats = findViewById(R.id.tvAppStats)
+
+        cardGithub = findViewById(R.id.cardGithub)
+        cardEditImage = findViewById(R.id.cardEditImage)
+        cardEditAudio = findViewById(R.id.cardEditAudio)
+        cardEditVideo = findViewById(R.id.cardEditVideo)
 
         // Statistik Klik
         findViewById<View>(R.id.cardInternal).setOnClickListener {
@@ -71,19 +82,30 @@ class MainActivity : AppCompatActivity() {
         findViewById<View>(R.id.cardTrash).setOnClickListener { startActivity(Intent(this, TrashActivity::class.java)) }
         findViewById<View>(R.id.cardSettings).setOnClickListener { startActivity(Intent(this, SettingsActivity::class.java)) }
         findViewById<View>(R.id.cardCloud).setOnClickListener { startActivity(Intent(this, CloudActivity::class.java)) }
-        findViewById<View>(R.id.cardGithub).setOnClickListener { startActivity(Intent(this, GithubBuilderActivity::class.java)) }
+        cardGithub.setOnClickListener { startActivity(Intent(this, GithubBuilderActivity::class.java)) }
         
-        findViewById<View>(R.id.cardEditImage).setOnClickListener { 
+        cardEditImage.setOnClickListener { 
             startActivity(Intent(this, ImageEditorActivity::class.java)) 
         }
-        findViewById<View>(R.id.cardEditAudio).setOnClickListener { 
+        cardEditAudio.setOnClickListener { 
             startActivity(Intent(this, AudioEditorActivity::class.java)) 
         }
-        findViewById<View>(R.id.cardEditVideo).setOnClickListener { 
+        cardEditVideo.setOnClickListener { 
             startActivity(Intent(this, VideoEditorActivity::class.java)) 
         }
 
         loadStatistics()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        val prefs = Prefs(this)
+        
+        // Logika Sembunyikan/Tampilkan Berdasarkan Centang Pengaturan
+        cardEditImage.visibility = if (prefs.showImageEditor) View.VISIBLE else View.GONE
+        cardEditAudio.visibility = if (prefs.showAudioEditor) View.VISIBLE else View.GONE
+        cardEditVideo.visibility = if (prefs.showVideoEditor) View.VISIBLE else View.GONE
+        cardGithub.visibility = if (prefs.showGithubBuilder) View.VISIBLE else View.GONE
     }
 
     private fun openMedia(type: String) {
