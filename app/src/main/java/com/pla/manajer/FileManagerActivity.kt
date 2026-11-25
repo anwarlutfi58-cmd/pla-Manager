@@ -43,7 +43,6 @@ class FileManagerActivity : AppCompatActivity() {
     private var allFiles: List<File> = emptyList()
     private var currentSortedFiles: List<File> = emptyList()
     private var showDateTime = false
-    private var initialPath: String? = null
 
     private var clipboard: File? = null
     private var isCut = false
@@ -65,8 +64,7 @@ class FileManagerActivity : AppCompatActivity() {
         prefs = Prefs(this)
         notif = NotificationHelper(this)
 
-        initialPath = intent.getStringExtra("initial_path")
-        currentDir = File(initialPath ?: prefs.lastPath)
+        currentDir = File(intent.getStringExtra("initial_path") ?: prefs.lastPath)
         showDateTime = prefs.showDateTime
 
         adapter = FileAdapter(
@@ -79,16 +77,11 @@ class FileManagerActivity : AppCompatActivity() {
         b.recycler.layoutManager = LinearLayoutManager(this)
         b.recycler.adapter = adapter
 
-        // Cek apakah ini folder root (Memori Internal / Kartu SD)
-        val isRootFolder = isRootDirectory(currentDir)
-        adapter.hideCheckboxAndMore = isRootFolder
-
         b.btnSelectAllTop.visibility = View.GONE
         b.btnTopNew.visibility = View.VISIBLE
         b.btnSort.visibility = View.VISIBLE
 
         b.btnTopBack.setOnClickListener { finish() }
-        
         b.btnTopNew.setOnClickListener { showCreateDialog() }
         b.btnSort.setOnClickListener { showSortDialog() }
         b.fabPaste.setOnClickListener { pasteHere() }
@@ -117,26 +110,14 @@ class FileManagerActivity : AppCompatActivity() {
         ensurePermission()
     }
 
-    private fun isRootDirectory(dir: File): Boolean {
-        val internal = Environment.getExternalStorageDirectory().absolutePath
-        val sd = getSdCard()?.absolutePath
-        return dir.absolutePath == internal || (sd != null && dir.absolutePath == sd)
-    }
-
     override fun onResume() {
         super.onResume()
         if (clipboard != null) b.fabPaste.show() else b.fabPaste.hide()
     }
 
     private fun showDeleteDialog(files: List<File>) {
-        val cb = CheckBox(this).apply {
-            text = "Pindahkan ke Sampah (Hapus centang untuk hapus permanen)"
-            isChecked = true
-            setPadding(50, 20, 50, 20)
-        }
-        AlertDialog.Builder(this)
-            .setTitle("Hapus ${files.size} item?")
-            .setView(cb)
+        val cb = CheckBox(this).apply { text = "Pindah ke Sampah?"; isChecked = true; setPadding(50, 20, 50, 20) }
+        AlertDialog.Builder(this).setTitle("Hapus ${files.size} item?").setView(cb)
             .setPositiveButton("Hapus") { _, _ ->
                 if (cb.isChecked) deleteToTrash(files) else deletePermanent(files)
                 closeSelectionMode()
@@ -162,23 +143,17 @@ class FileManagerActivity : AppCompatActivity() {
     private fun deletePermanent(files: List<File>) {
         lifecycleScope.launch {
             notif.showFile("Menghapus", "Menghapus permanen...")
-            withContext(Dispatchers.IO) {
-                files.forEach { if (it.isDirectory) it.deleteRecursively() else it.delete() }
-            }
+            withContext(Dispatchers.IO) { files.forEach { if (it.isDirectory) it.deleteRecursively() else it.delete() } }
             load(currentDir); notif.showFile("Selesai", "Dihapus permanen")
         }
     }
 
     private fun showCopyMoveDialog(f: File, isMove: Boolean) {
         val options = arrayOf("Memori Internal", "Kartu SD")
-        AlertDialog.Builder(this)
-            .setTitle(if (isMove) "Pindah ke..." else "Salin ke...")
+        AlertDialog.Builder(this).setTitle(if (isMove) "Pindah ke..." else "Salin ke...")
             .setItems(options) { _, which ->
                 val destRoot = if (which == 0) Environment.getExternalStorageDirectory() else getSdCard()
-                if (destRoot != null) {
-                    val dest = File(destRoot, f.name)
-                    performCopyMove(f, dest, isMove)
-                } else toast("Kartu SD tidak ditemukan")
+                if (destRoot != null) performCopyMove(f, File(destRoot, f.name), isMove) else toast("Kartu SD tidak ditemukan")
             }.show()
     }
 
@@ -189,9 +164,7 @@ class FileManagerActivity : AppCompatActivity() {
                 withContext(Dispatchers.IO) { if (isMove) FileUtils.move(src, dst) else FileUtils.copy(src, dst) }
                 if (!dst.exists()) throw Exception("Gagal menulis ke tujuan")
                 load(currentDir); notif.showFile("Selesai", "Berhasil")
-            } catch (e: Exception) {
-                toast("Gagal: ${e.message}")
-            }
+            } catch (e: Exception) { toast("Gagal: ${e.message}") }
         }
     }
 
@@ -219,11 +192,8 @@ class FileManagerActivity : AppCompatActivity() {
     }
 
     private fun showMultiSelectMenu() {
-        AlertDialog.Builder(this)
-            .setTitle("Aksi Lainnya (${adapter.selectedFiles.size} file)")
-            .setItems(arrayOf("Bagikan File Terpilih")) { _, which ->
-                if (which == 0) toast("Fitur bagikan banyak file akan segera hadir")
-            }.show()
+        AlertDialog.Builder(this).setTitle("Aksi Lainnya (${adapter.selectedFiles.size} file)")
+            .setItems(arrayOf("Bagikan File Terpilih")) { _, _ -> toast("Akan hadir") }.show()
     }
 
     private fun showContextMenu(f: File) {
@@ -233,33 +203,30 @@ class FileManagerActivity : AppCompatActivity() {
         else if (ext in listOf("jpg","jpeg","png","webp")) options.add(0, "Edit Gambar")
         else if (ext in listOf("mp4","mkv","avi")) options.add(0, "Edit Video")
 
-        AlertDialog.Builder(this)
-            .setTitle(f.name)
-            .setItems(options.toTypedArray()) { _, which ->
-                when (val selected = options[which]) {
-                    "Edit Audio" -> startActivity(Intent(this, AudioEditorActivity::class.java).putExtra("file_path", f.absolutePath))
-                    "Edit Gambar" -> startActivity(Intent(this, ImageEditorActivity::class.java).putExtra("file_path", f.absolutePath))
-                    "Edit Video" -> startActivity(Intent(this, VideoEditorActivity::class.java))
-                    "Buka" -> open(f)
-                    "Bagikan" -> shareFile(f)
-                    "Ganti Nama" -> renameDialog(f)
-                    "Salin" -> { clipboard = f; isCut = false; b.fabPaste.show(); toast("Disalin: ${f.name}") }
-                    "Pindah" -> { clipboard = f; isCut = true; b.fabPaste.show(); toast("Siap pindah: ${f.name}") }
-                    "Hapus" -> showDeleteDialog(listOf(f))
-                    "Kompres (ZIP)" -> zipFile(f)
-                    "Ekstrak (ZIP)" -> unzipFile(f)
-                }
-                closeSelectionMode()
-            }.setNegativeButton("Tutup", null).show()
+        AlertDialog.Builder(this).setTitle(f.name).setItems(options.toTypedArray()) { _, which ->
+            when (val selected = options[which]) {
+                "Edit Audio" -> startActivity(Intent(this, AudioEditorActivity::class.java).putExtra("file_path", f.absolutePath))
+                "Edit Gambar" -> startActivity(Intent(this, ImageEditorActivity::class.java).putExtra("file_path", f.absolutePath))
+                "Edit Video" -> startActivity(Intent(this, VideoEditorActivity::class.java))
+                "Buka" -> open(f)
+                "Bagikan" -> shareFile(f)
+                "Ganti Nama" -> renameDialog(f)
+                "Salin" -> { clipboard = f; isCut = false; b.fabPaste.show(); toast("Disalin: ${f.name}") }
+                "Pindah" -> { clipboard = f; isCut = true; b.fabPaste.show(); toast("Siap pindah: ${f.name}") }
+                "Hapus" -> showDeleteDialog(listOf(f))
+                "Kompres (ZIP)" -> zipFile(f)
+                "Ekstrak (ZIP)" -> unzipFile(f)
+            }
+            closeSelectionMode()
+        }.setNegativeButton("Tutup", null).show()
     }
 
     private fun shareFile(f: File) {
         try {
             val uri = FileProvider.getUriForFile(this, "$packageName.provider", f)
             var mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(f.extension.lowercase()) ?: "*/*"
-            if (mime == "*/*" && f.extension.lowercase() == "apk") {
-                mime = "application/vnd.android.package-archive"
-            }
+            if (mime == "*/*" && f.extension.lowercase() == "apk") mime = "application/vnd.android.package-archive"
+            
             val intent = Intent(Intent.ACTION_SEND).apply {
                 type = mime
                 putExtra(Intent.EXTRA_STREAM, uri)
@@ -272,22 +239,9 @@ class FileManagerActivity : AppCompatActivity() {
         }
     }
 
-    private fun enableSelectionMode(f: File) {
-        adapter.isSelectionMode = true; adapter.selectedFiles.add(f)
-        adapter.notifyDataSetChanged(); updateSelectionUi()
-    }
-
-    private fun toggleSelection(f: File) {
-        if (adapter.selectedFiles.contains(f)) adapter.selectedFiles.remove(f) else adapter.selectedFiles.add(f)
-        adapter.isSelectionMode = adapter.selectedFiles.isNotEmpty()
-        adapter.notifyDataSetChanged(); updateSelectionUi()
-    }
-
-    private fun closeSelectionMode() {
-        adapter.isSelectionMode = false; adapter.selectedFiles.clear()
-        adapter.notifyDataSetChanged(); updateSelectionUi()
-    }
-
+    private fun enableSelectionMode(f: File) { adapter.isSelectionMode = true; adapter.selectedFiles.add(f); adapter.notifyDataSetChanged(); updateSelectionUi() }
+    private fun toggleSelection(f: File) { if (adapter.selectedFiles.contains(f)) adapter.selectedFiles.remove(f) else adapter.selectedFiles.add(f); adapter.isSelectionMode = adapter.selectedFiles.isNotEmpty(); adapter.notifyDataSetChanged(); updateSelectionUi() }
+    private fun closeSelectionMode() { adapter.isSelectionMode = false; adapter.selectedFiles.clear(); adapter.notifyDataSetChanged(); updateSelectionUi() }
     private fun updateSelectionUi() {
         val active = adapter.selectedFiles.isNotEmpty()
         b.selectionToolbar.visibility = if (active) View.VISIBLE else View.GONE
@@ -319,41 +273,27 @@ class FileManagerActivity : AppCompatActivity() {
     private fun openWith(f: File) {
         try {
             val uri = FileProvider.getUriForFile(this, "$packageName.provider", f)
-            var mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(f.extension.lowercase())
-            if (mime == null || mime == "*/*") {
-                mime = when (f.extension.lowercase()) {
-                    "mp4" -> "video/mp4"; "mkv" -> "video/x-matroska"
-                    "jpg","jpeg" -> "image/jpeg"; "png" -> "image/png"
-                    "apk" -> "application/vnd.android.package-archive"
-                    else -> "*/*"
-                }
-            }
+            var mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(f.extension.lowercase()) ?: "*/*"
+            if (mime == "*/*" && f.extension.lowercase() == "apk") mime = "application/vnd.android.package-archive"
+            
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, mime)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-            }
-            packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY).forEach {
-                grantUriPermission(it.activityInfo.packageName, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
             startActivity(Intent.createChooser(intent, "Buka dengan"))
-        } catch (e: Exception) {
-            toast("Tidak ada aplikasi untuk membuka file ini")
-        }
+        } catch (e: Exception) { toast("Tidak ada aplikasi untuk membuka file ini") }
     }
 
     private fun showSortDialog() {
         val options = arrayOf("Nama (A-Z)","Nama (Z-A)","Tanggal (Terlama)","Tanggal (Terbaru)","Ukuran (Terkecil)","Ukuran (Terbesar)")
-        AlertDialog.Builder(this).setTitle("Sortir Berdasarkan")
-            .setSingleChoiceItems(options, prefs.sortMode) { dialog, which ->
-                prefs.sortMode = which; refreshList(); dialog.dismiss()
-            }.setNegativeButton("Batal", null).show()
+        AlertDialog.Builder(this).setTitle("Sortir Berdasarkan").setSingleChoiceItems(options, prefs.sortMode) { dialog, which ->
+            prefs.sortMode = which; refreshList(); dialog.dismiss()
+        }.setNegativeButton("Batal", null).show()
     }
 
     private fun refreshList() {
         val q = b.etSearch.text?.toString()?.lowercase() ?: ""
         val visibleFiles = allFiles.filter { !it.name.startsWith(".") }
-        
         val filtered = if (q.isEmpty()) visibleFiles else visibleFiles.filter { it.name.lowercase().contains(q) }
         
         val sorted = if (prefs.sortMode == 2 || prefs.sortMode == 4 || prefs.sortMode == 5) {
@@ -363,7 +303,6 @@ class FileManagerActivity : AppCompatActivity() {
         } else {
             filtered.sortedWith(compareBy<File> { !it.isDirectory }.thenBy { it.name.lowercase() })
         }
-        
         currentSortedFiles = sorted
         adapter.submit(sorted)
     }
@@ -372,18 +311,13 @@ class FileManagerActivity : AppCompatActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             if (!Environment.isExternalStorageManager()) {
                 try {
-                    val i = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
-                    i.data = Uri.parse("package:$packageName")
+                    val i = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply { data = Uri.parse("package:$packageName") }
                     allFilesPerm.launch(i)
-                } catch (_: Exception) {
-                    allFilesPerm.launch(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
-                }
+                } catch (_: Exception) { allFilesPerm.launch(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)) }
             } else load(currentDir)
         } else {
             val okRead = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
-            val okWrite = ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
-            if (okRead && okWrite) load(currentDir)
-            else legacyPerm.launch(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE))
+            if (okRead) load(currentDir) else legacyPerm.launch(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE))
         }
     }
 
@@ -391,11 +325,6 @@ class FileManagerActivity : AppCompatActivity() {
         if (!dir.exists()) dir.mkdirs()
         currentDir = dir; prefs.lastPath = dir.absolutePath
         b.tvPath.text = getSimplePath(dir.absolutePath)
-        
-        // Cek root folder, kalau iya sembunyikan tombol centang/titik tiga
-        val isRootFolder = isRootDirectory(dir)
-        adapter.hideCheckboxAndMore = isRootFolder
-
         try {
             val stat = StatFs(dir.absolutePath)
             val used = (stat.blockSizeLong * stat.blockCountLong) - (stat.blockSizeLong * stat.availableBlocksLong)
@@ -409,30 +338,20 @@ class FileManagerActivity : AppCompatActivity() {
     }
 
     private fun showCreateDialog() {
-        val input = EditText(this).apply {
-            hint = "Nama folder / file.kt"
-            setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 14f)
-            val pad = (16 * resources.displayMetrics.density).toInt()
-            setPadding(pad, pad, pad, pad)
-        }
-        AlertDialog.Builder(this).setTitle("Buat Jalur / Berkas Baru").setView(input)
-            .setPositiveButton("Buat") { _, _ ->
-                val path = input.text.toString().trim()
-                if (path.isEmpty()) return@setPositiveButton
-                lifecycleScope.launch {
-                    withContext(Dispatchers.IO) { FileUtils.createSmartPath(currentDir, path) }
-                    load(currentDir); toast("Dibuat: $path")
-                }
-            }.setNegativeButton("Batal", null).show()
+        val input = EditText(this).apply { hint = "Nama folder / file.kt"; setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 14f) }
+        AlertDialog.Builder(this).setTitle("Buat Baru").setView(input).setPositiveButton("Buat") { _, _ ->
+            val path = input.text.toString().trim()
+            if (path.isNotEmpty()) {
+                lifecycleScope.launch { withContext(Dispatchers.IO) { FileUtils.createSmartPath(currentDir, path) }; load(currentDir); toast("Dibuat: $path") }
+            }
+        }.setNegativeButton("Batal", null).show()
     }
 
     private fun renameDialog(f: File) {
         val input = EditText(this).apply { setText(f.name) }
-        AlertDialog.Builder(this).setTitle("Ganti Nama").setView(input)
-            .setPositiveButton("OK") { _, _ ->
-                val newFile = File(f.parentFile, input.text.toString())
-                if (f.renameTo(newFile)) load(currentDir) else toast("Gagal rename")
-            }.setNegativeButton("Batal", null).show()
+        AlertDialog.Builder(this).setTitle("Ganti Nama").setView(input).setPositiveButton("OK") { _, _ ->
+            if (f.renameTo(File(f.parentFile, input.text.toString()))) load(currentDir) else toast("Gagal rename")
+        }.setNegativeButton("Batal", null).show()
     }
 
     private fun zipFile(f: File) {
@@ -440,37 +359,28 @@ class FileManagerActivity : AppCompatActivity() {
             notif.showFile("Kompres ZIP", "Mengompres ${f.name}...")
             val out = File(f.parentFile, f.name + ".zip")
             withContext(Dispatchers.IO) { FileUtils.zip(f, out) }
-            load(currentDir); notif.showFile("Kompres selesai", "Berhasil: ${out.name}")
+            load(currentDir); notif.showFile("Kompres selesai", "Berhasil")
         }
     }
 
     private fun unzipFile(f: File) {
-        if (!f.name.endsWith(".zip")) { toast("Bukan file ZIP"); return }
+        if (!f.name.endsWith(".zip")) { toast("Bukan ZIP"); return }
         lifecycleScope.launch {
-            notif.showFile("Ekstrak ZIP", "Mengekstrak ${f.name}...")
+            notif.showFile("Ekstrak ZIP", "Mengekstrak...")
             val out = File(f.parentFile, f.nameWithoutExtension)
             withContext(Dispatchers.IO) { FileUtils.unzip(f, out) }
-            load(currentDir); notif.showFile("Ekstrak selesai", "Berhasil ke folder: ${out.name}")
+            load(currentDir); notif.showFile("Ekstrak selesai", "Berhasil")
         }
     }
 
     private fun pasteHere() {
-        val src = clipboard ?: run { toast("Clipboard kosong"); return }
-        if (!src.exists()) { clipboard = null; isCut = false; b.fabPaste.hide(); toast("File sumber sudah tidak ada"); return }
+        val src = clipboard ?: return
+        if (!src.exists()) { clipboard = null; b.fabPaste.hide(); return }
         lifecycleScope.launch {
-            try {
-                val dst = File(currentDir, src.name)
-                notif.showFile(if (isCut) "Memindah" else "Menyalin", "${src.name} → ${currentDir.name}")
-                withContext(Dispatchers.IO) { if (isCut) FileUtils.move(src, dst) else FileUtils.copy(src, dst) }
-                if (!dst.exists()) throw Exception("Gagal menulis ke folder tujuan")
-                if (isCut) { clipboard = null; isCut = false; b.fabPaste.hide() }
-                load(currentDir)
-                notif.showFile(if (isCut) "Selesai dipindah" else "Selesai disalin", "${dst.name} → ${currentDir.name}")
-                toast("Ditempel di: ${currentDir.name}")
-            } catch (e: Exception) {
-                notif.showFile("Gagal", e.message ?: "Tidak bisa menulis ke folder ini")
-                toast("Gagal tempel: ${e.message ?: "Tidak bisa menulis ke folder ini"}")
-            }
+            val dst = File(currentDir, src.name)
+            withContext(Dispatchers.IO) { if (isCut) FileUtils.move(src, dst) else FileUtils.copy(src, dst) }
+            if (isCut) { clipboard = null; b.fabPaste.hide() }
+            load(currentDir); toast("Selesai")
         }
     }
 
