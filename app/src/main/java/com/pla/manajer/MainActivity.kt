@@ -2,6 +2,7 @@ package com.pla.manajer
 
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.OpenableColumns
@@ -11,6 +12,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.pla.manajer.databinding.ActivityMainBinding
+import com.pla.manajer.service.GlobalEqualizerService
+import com.pla.manajer.ui.GlobalEqualizerActivity
 import com.pla.manajer.util.Prefs
 import com.pla.manajer.util.StorageHelper
 import kotlinx.coroutines.Dispatchers
@@ -34,7 +37,6 @@ class MainActivity : AppCompatActivity() {
         b = ActivityMainBinding.inflate(layoutInflater)
         setContentView(b.root)
 
-        // 1. SETUP TOMBOL KLIK
         b.cardInternal.setOnClickListener { openFileManager(Environment.getExternalStorageDirectory().absolutePath) }
         b.cardSdCard.setOnClickListener { openSdCard() }
         b.cardImages.setOnClickListener { openMedia("IMAGE") }
@@ -53,7 +55,23 @@ class MainActivity : AppCompatActivity() {
         b.cardEditAudio.setOnClickListener { pickAudioLauncher.launch("audio/*") }
         b.cardEditVideo.setOnClickListener { startActivity(Intent(this, VideoEditorActivity::class.java)) }
 
-        // 2. LOGIKA CERDAS: SEMBUNYIKAN TEKS 0 MB SAAT MEMUAT
+        // TOMBOL BARU UNTUK GLOBAL EQUALIZER
+        // (Jika cardGlobalEq belum ada di layout, tombol ini akan error, 
+        // jadi pastikan Anda menambahkan ID cardGlobalEq ke activity_main.xml)
+        try {
+            b.cardGlobalEq.setOnClickListener {
+                val intent = Intent(this, GlobalEqualizerService::class.java)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    startForegroundService(intent)
+                } else {
+                    startService(intent)
+                }
+                startActivity(Intent(this, GlobalEqualizerActivity::class.java))
+            }
+        } catch (e: Exception) {
+            // Abaikan jika tombol belum ada di layout
+        }
+
         b.tvImageStats.text = ""
         b.tvAudioStats.text = ""
         b.tvVideoStats.text = ""
@@ -61,20 +79,15 @@ class MainActivity : AppCompatActivity() {
         b.tvDownloadStats.text = ""
         b.tvAppStats.text = ""
 
-        // 3. PENYIMPANAN: INSTAN (TANPA MEMINDAI)
         b.tvInternalSize.text = StorageHelper.getInternalStorageInfo()
         b.tvSdSize.text = StorageHelper.getSdCardStorageInfo(this)
 
-        // 4. KATEGORI: PINDAI DI LATAR BELAKANG (BARU MUNCUL SETELAH SELESAI)
         loadCategoryStats()
     }
 
-    // FUNGSI BARU: OTOMATIS MENYEMBUNYIKAN/MENAMPILKAN TOMBOL SAAT KEMBALI DARI PENGATURAN
     override fun onResume() {
         super.onResume()
         val prefs = Prefs(this)
-
-        // Hanya sembunyikan di beranda. Menu di dalam Aplikasi tetap aman.
         if (prefs.showImageEditor) b.cardEditImage.visibility = View.VISIBLE else b.cardEditImage.visibility = View.GONE
         if (prefs.showAudioEditor) b.cardEditAudio.visibility = View.VISIBLE else b.cardEditAudio.visibility = View.GONE
         if (prefs.showVideoEditor) b.cardEditVideo.visibility = View.VISIBLE else b.cardEditVideo.visibility = View.GONE
