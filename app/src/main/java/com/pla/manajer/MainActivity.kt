@@ -69,6 +69,18 @@ class MainActivity : AppCompatActivity() {
         loadCategoryStats()
     }
 
+    // FUNGSI BARU: OTOMATIS MENYEMBUNYIKAN/MENAMPILKAN TOMBOL SAAT KEMBALI DARI PENGATURAN
+    override fun onResume() {
+        super.onResume()
+        val prefs = Prefs(this)
+
+        // Hanya sembunyikan di beranda. Menu di dalam Aplikasi tetap aman.
+        if (prefs.showImageEditor) b.cardEditImage.visibility = View.VISIBLE else b.cardEditImage.visibility = View.GONE
+        if (prefs.showAudioEditor) b.cardEditAudio.visibility = View.VISIBLE else b.cardEditAudio.visibility = View.GONE
+        if (prefs.showVideoEditor) b.cardEditVideo.visibility = View.VISIBLE else b.cardEditVideo.visibility = View.GONE
+        if (prefs.showGithubBuilder) b.cardGithub.visibility = View.VISIBLE else b.cardGithub.visibility = View.GONE
+    }
+
     private fun loadCategoryStats() {
         lifecycleScope.launch(Dispatchers.IO) {
             val internal = Environment.getExternalStorageDirectory()
@@ -100,7 +112,6 @@ class MainActivity : AppCompatActivity() {
             sd?.let { if (it.exists()) scan(it) }
 
             withContext(Dispatchers.Main) {
-                // Begitu selesai, baru munculkan angkanya (Tanpa tulisan "Memuat...")
                 b.tvImageStats.text = "${StorageHelper.formatSize(imgSize)} ($imgCount)"
                 b.tvAudioStats.text = "${StorageHelper.formatSize(audSize)} ($audCount)"
                 b.tvVideoStats.text = "${StorageHelper.formatSize(vidSize)} ($vidCount)"
