@@ -11,39 +11,47 @@ import java.io.File
 object ShareHelper {
     fun shareFile(context: Context, file: File) {
         try {
-            // Gunakan authority yang sudah terdaftar di manifest Anda
+            // Gunakan FileProvider untuk mendapatkan URI
             val uri: Uri = FileProvider.getUriForFile(
                 context,
                 "${context.packageName}.provider",
                 file
             )
 
-            // Deteksi tipe file secara otomatis
+            // Deteksi MIME Type
             var mimeType = MimeTypeMap.getSingleton()
                 .getMimeTypeFromExtension(file.extension.lowercase())
-            
             if (mimeType == null) {
                 mimeType = when (file.extension.lowercase()) {
                     "zip" -> "application/zip"
                     "apk" -> "application/vnd.android.package-archive"
-                    "rar" -> "application/x-rar-compressed"
                     else -> "*/*"
                 }
             }
 
+            // Intent ACTION_SEND dengan izin baca
             val intent = Intent(Intent.ACTION_SEND).apply {
                 type = mimeType
                 putExtra(Intent.EXTRA_STREAM, uri)
-                // Tambahkan ClipData agar kompatibel dengan aplikasi lain (WhatsApp, Telegram, dll)
-                clipData = ClipData.newRawUri("File", uri)
-                // Berikan izin baca ke aplikasi penerima
+                // Tambahkan ClipData agar kompatibel dengan semua aplikasi (WhatsApp, Gmail, dll)
+                clipData = ClipData.newUri(context.contentResolver, "File", uri)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
             }
             
             context.startActivity(Intent.createChooser(intent, "Bagikan File via"))
         } catch (e: Exception) {
-            android.widget.Toast.makeText(context, "Gagal membagikan: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+            // Jika FileProvider gagal (karena path SD tidak terdaftar), 
+            // kita gunakan fallback Intent dengan ACTION_VIEW atau share manual
+            try {
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = "*/*"
+                    putExtra(Intent.EXTRA_STREAM, Uri.fromFile(file))
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                context.startActivity(Intent.createChooser(intent, "Bagikan File via"))
+            } catch (ex: Exception) {
+                android.widget.Toast.makeText(context, "Gagal membagikan file: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+            }
         }
     }
 }
