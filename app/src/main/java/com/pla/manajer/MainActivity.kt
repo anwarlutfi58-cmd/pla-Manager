@@ -37,6 +37,7 @@ class MainActivity : AppCompatActivity() {
         tvDownloadStats = findViewById(R.id.tvDownloadStats)
         tvAppStats = findViewById(R.id.tvAppStats)
 
+        // Statistik Klik
         findViewById<View>(R.id.cardInternal).setOnClickListener {
             startActivity(Intent(this, FileManagerActivity::class.java).apply {
                 putExtra("initial_path", Environment.getExternalStorageDirectory().absolutePath)
@@ -54,6 +55,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        // Kategori Klik
         findViewById<View>(R.id.cardImages).setOnClickListener { openMedia("IMAGE") }
         findViewById<View>(R.id.cardAudio).setOnClickListener { openMedia("AUDIO") }
         findViewById<View>(R.id.cardVideos).setOnClickListener { openMedia("VIDEO") }
@@ -63,8 +65,22 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(this, AppManagerActivity::class.java))
         }
 
-        findViewById<View>(R.id.btnFileManager).setOnClickListener {
-            startActivity(Intent(this, FileManagerActivity::class.java))
+        // Menu Asli Klik
+        findViewById<View>(R.id.cardProjects).setOnClickListener { startActivity(Intent(this, ProjectManagerActivity::class.java)) }
+        findViewById<View>(R.id.cardFavorites).setOnClickListener { startActivity(Intent(this, FavoritesActivity::class.java)) }
+        findViewById<View>(R.id.cardTrash).setOnClickListener { startActivity(Intent(this, TrashActivity::class.java)) }
+        findViewById<View>(R.id.cardSettings).setOnClickListener { startActivity(Intent(this, SettingsActivity::class.java)) }
+        findViewById<View>(R.id.cardCloud).setOnClickListener { startActivity(Intent(this, CloudActivity::class.java)) }
+        findViewById<View>(R.id.cardGithub).setOnClickListener { startActivity(Intent(this, GithubBuilderActivity::class.java)) }
+        
+        findViewById<View>(R.id.cardEditImage).setOnClickListener { 
+            startActivity(Intent(this, ImageEditorActivity::class.java)) 
+        }
+        findViewById<View>(R.id.cardEditAudio).setOnClickListener { 
+            startActivity(Intent(this, AudioEditorActivity::class.java)) 
+        }
+        findViewById<View>(R.id.cardEditVideo).setOnClickListener { 
+            startActivity(Intent(this, VideoEditorActivity::class.java)) 
         }
 
         loadStatistics()
