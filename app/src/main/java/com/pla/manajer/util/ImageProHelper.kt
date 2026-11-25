@@ -177,7 +177,7 @@ object ImageProHelper {
         val res = Bitmap.createBitmap(src.width, src.height, Bitmap.Config.ARGB_8888)
         val c = Canvas(res)
         val p = Paint()
-        p.maskFilter = BlurMaskFilter(0.5f, BlurMaskFilter.Blur.NORMAL)
+        p.maskFilter = BlurMaskFilter(1f, BlurMaskFilter.Blur.NORMAL)
         c.drawBitmap(src, 0f, 0f, p)
         return res
     }
@@ -186,8 +186,9 @@ object ImageProHelper {
         val res = Bitmap.createBitmap(src.width, src.height, Bitmap.Config.ARGB_8888)
         val c = Canvas(res)
         c.drawBitmap(src, 0f, 0f, null)
+        val radius = src.width.toFloat().coerceAtLeast(src.height.toFloat()) * 0.7f
         val gradient = RadialGradient(
-            src.width / 2f, src.height / 2f, src.width.coerceAtLeast(src.height) * 0.7f,
+            src.width / 2f, src.height / 2f, radius,
             intArrayOf(0x00000000, 0x88000000), floatArrayOf(0.5f, 1f),
             Shader.TileMode.CLAMP
         )
@@ -229,10 +230,16 @@ object ImageProHelper {
                 val g = Color.red(gray.getPixel(x, y))
                 val b = Color.red(blurred.getPixel(x, y))
                 var pembagi = 255 - b
-                if (pembagi < 1) pembagi = 1
+                if (pembagi < 1) {
+                    pembagi = 1
+                }
                 var v = g * 255 / pembagi
-                if (v > 255) v = 255
-                if (v < 0) v = 0
+                if (v > 255) {
+                    v = 255
+                }
+                if (v < 0) {
+                    v = 0
+                }
                 res.setPixel(x, y, Color.rgb(v, v, v))
             }
         }
@@ -266,7 +273,7 @@ object ImageProHelper {
                     for (dx in -radius..radius) {
                         val nx = x + dx
                         val ny = y + dy
-                        if (nx in 0 until src.width && ny in 0 until src.height) {
+                        if (nx >= 0 && nx < src.width && ny >= 0 && ny < src.height) {
                             val p = src.getPixel(nx, ny)
                             rSum += Color.red(p)
                             gSum += Color.green(p)
