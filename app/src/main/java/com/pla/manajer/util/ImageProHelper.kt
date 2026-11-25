@@ -186,7 +186,13 @@ object ImageProHelper {
         val res = Bitmap.createBitmap(src.width, src.height, Bitmap.Config.ARGB_8888)
         val c = Canvas(res)
         c.drawBitmap(src, 0f, 0f, null)
-        val radius = src.width.toFloat().coerceAtLeast(src.height.toFloat()) * 0.7f
+        
+        var maxSize = src.width
+        if (src.height > maxSize) {
+            maxSize = src.height
+        }
+        val radius = maxSize.toFloat() * 0.7f
+        
         val gradient = RadialGradient(
             src.width / 2f, src.height / 2f, radius,
             intArrayOf(0x00000000, 0x88000000), floatArrayOf(0.5f, 1f),
