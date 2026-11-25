@@ -17,6 +17,8 @@
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
     <uses-permission android:name="com.android.launcher.permission.INSTALL_SHORTCUT" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
     <queries>
         <intent><action android:name="android.intent.action.MAIN" /></intent>
@@ -41,10 +43,7 @@
             </intent-filter>
         </activity>
 
-        <!-- FileManagerActivity bisa menerima perintah buat Shortcut -->
-        <activity 
-            android:name=".FileManagerActivity" 
-            android:exported="true">
+        <activity android:name=".FileManagerActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.CREATE_SHORTCUT" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -78,6 +77,15 @@
                 <category android:name="android.intent.category.DEFAULT" /><data android:mimeType="audio/*" />
             </intent-filter>
         </activity>
+
+        <!-- EQUALIZER SERVICE & ACTIVITY -->
+        <service 
+            android:name=".service.GlobalEqualizerService" 
+            android:foregroundServiceType="mediaPlayback" 
+            android:exported="false" />
+        <activity 
+            android:name=".ui.GlobalEqualizerActivity" 
+            android:exported="false" />
 
         <activity android:name=".ProjectManagerActivity" />
         <activity android:name=".CodeEditorActivity" />
