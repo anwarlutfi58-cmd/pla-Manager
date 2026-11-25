@@ -226,11 +226,11 @@ object ImageProHelper {
         val res = Bitmap.createBitmap(gray.width, gray.height, Bitmap.Config.ARGB_8888)
         for (y in 0 until gray.height) {
             for (x in 0 until gray.width) {
-                val g = Color.red(gray.getPixel(x, y))
-                val b = Color.red(blurred.getPixel(x, y))
+                val g: Int = Color.red(gray.getPixel(x, y))
+                val b: Int = Color.red(blurred.getPixel(x, y))
                 var pembagi: Int = 255 - b
                 if (pembagi < 1) pembagi = 1
-                var v: Int = g * 255 / pembagi
+                var v: Int = (g.toFloat() * 255.0f / pembagi.toFloat()).toInt()
                 if (v > 255) v = 255
                 if (v < 0) v = 0
                 res.setPixel(x, y, Color.rgb(v, v, v))
@@ -244,9 +244,9 @@ object ImageProHelper {
         for (y in 0 until res.height) {
             for (x in 0 until res.width) {
                 val p = res.getPixel(x, y)
-                val r = (Color.red(p) / 64) * 64
-                val g = (Color.green(p) / 64) * 64
-                val b = (Color.blue(p) / 64) * 64
+                val r: Int = (Color.red(p) / 64) * 64
+                val g: Int = (Color.green(p) / 64) * 64
+                val b: Int = (Color.blue(p) / 64) * 64
                 res.setPixel(x, y, Color.rgb(r, g, b))
             }
         }
@@ -258,10 +258,14 @@ object ImageProHelper {
         val radius = 4
         for (y in 0 until src.height) {
             for (x in 0 until src.width) {
-                var rSum = 0; var gSum = 0; var bSum = 0; var count = 0
+                var rSum: Int = 0
+                var gSum: Int = 0
+                var bSum: Int = 0
+                var count: Int = 0
                 for (dy in -radius..radius) {
                     for (dx in -radius..radius) {
-                        val nx = x + dx; val ny = y + dy
+                        val nx = x + dx
+                        val ny = y + dy
                         if (nx in 0 until src.width && ny in 0 until src.height) {
                             val p = src.getPixel(nx, ny)
                             rSum += Color.red(p)
