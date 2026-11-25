@@ -160,7 +160,7 @@
 
         </GridLayout>
 
-        <!-- BAGIAN 3: MENU ASLI (DIKEMBALIKAN + NAMA BARU) -->
+        <!-- BAGIAN 3: MENU ASLI -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -220,6 +220,12 @@
             <LinearLayout android:id="@+id/cardEditVideo" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:orientation="vertical" android:gravity="center" android:padding="8dp" android:background="?attr/selectableItemBackground">
                 <ImageView android:layout_width="40dp" android:layout_height="40dp" android:src="@android:drawable/ic_media_play" app:tint="#F44336"/>
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="PLA Edit Video" android:textSize="12sp" android:textColor="#333333" android:layout_marginTop="4dp"/>
+            </LinearLayout>
+
+            <!-- TOMBOL BARU: EQUALIZER 32 BAND -->
+            <LinearLayout android:id="@+id/cardGlobalEq" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:orientation="vertical" android:gravity="center" android:padding="8dp" android:background="?attr/selectableItemBackground">
+                <ImageView android:layout_width="40dp" android:layout_height="40dp" android:src="@android:drawable/ic_lock_silent_mode_off" app:tint="#E91E63"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Equalizer 32 Band" android:textSize="12sp" android:textColor="#333333" android:layout_marginTop="4dp"/>
             </LinearLayout>
 
         </GridLayout>
