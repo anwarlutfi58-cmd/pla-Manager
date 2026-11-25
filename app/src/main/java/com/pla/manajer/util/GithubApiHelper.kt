@@ -17,8 +17,6 @@ object GithubApiHelper {
         .build()
 
     data class RepoInfo(val name: String, val fullName: String, val isPrivate: Boolean, val htmlUrl: String, val description: String)
-    
-    // Model untuk File (Menu 1)
     data class FileInfo(val name: String, val path: String, val type: String, val size: Long, val sha: String)
 
     suspend fun fetchMyRepos(token: String): List<RepoInfo>? = withContext(Dispatchers.IO) {
@@ -37,7 +35,6 @@ object GithubApiHelper {
         } catch (e: Exception) { null }
     }
 
-    // Fungsi Baru: Ambil File/Folder untuk Menu 1
     suspend fun getRepoContents(token: String, owner: String, repo: String, path: String = ""): List<FileInfo>? = withContext(Dispatchers.IO) {
         try {
             val url = "https://api.github.com/repos/$owner/$repo/contents/$path"
@@ -51,7 +48,7 @@ object GithubApiHelper {
                     list.add(FileInfo(
                         name = obj.getString("name"),
                         path = obj.getString("path"),
-                        type = obj.getString("type"), // "file" atau "dir"
+                        type = obj.getString("type"),
                         size = obj.optLong("size", 0),
                         sha = obj.getString("sha")
                     ))
@@ -61,7 +58,56 @@ object GithubApiHelper {
         } catch (e: Exception) { null }
     }
 
-    // Fungsi Baru: Ambil Riwayat Commit per File (untuk melihat versi lama)
+    // Menghapus File via API (Membutuhkan SHA file saat ini)
+    suspend fun deleteFile(token: String, owner: String, repo: String, path: String, sha: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val json = JSONObject().apply {
+                put("message", "Hapus file via PLA Manajer")
+                put("sha", sha)
+            }
+            val body = json.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
+            val request = Request.Builder()
+                .url("https://api.github.com/repos/$owner/$repo/contents/$path")
+                .header("Authorization", "token $token")
+                .delete(body)
+                .build()
+            client.newCall(request).execute().isSuccessful
+        } catch (e: Exception) { false }
+    }
+
+    // Ganti Nama File (Create baru, lalu hapus yang lama)
+    suspend fun renameFile(token: String, owner: String, repo: String, oldPath: String, oldSha: String, newPath: String, contentBase64: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            // 1. Buat File Baru
+            val createJson = JSONObject().apply {
+                put("message", "Rename file via PLA Manajer")
+                put("content", contentBase64)
+            }
+            val createBody = createJson.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
+            val createReq = Request.Builder()
+                .url("https://api.github.com/repos/$owner/$repo/contents/$newPath")
+                .header("Authorization", "token $token")
+                .put(createBody)
+                .build()
+            
+            if (!client.newCall(createReq).execute().isSuccessful) return@withContext false
+
+            // 2. Hapus File Lama
+            val deleteJson = JSONObject().apply {
+                put("message", "Hapus file lama setelah rename")
+                put("sha", oldSha)
+            }
+            val deleteBody = deleteJson.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
+            val deleteReq = Request.Builder()
+                .url("https://api.github.com/repos/$owner/$repo/contents/$oldPath")
+                .header("Authorization", "token $token")
+                .delete(deleteBody)
+                .build()
+            
+            client.newCall(deleteReq).execute().isSuccessful
+        } catch (e: Exception) { false }
+    }
+
     suspend fun getFileCommits(token: String, owner: String, repo: String, filePath: String): List<Pair<String, String>>? = withContext(Dispatchers.IO) {
         try {
             val url = "https://api.github.com/repos/$owner/$repo/commits?path=$filePath"
@@ -69,13 +115,26 @@ object GithubApiHelper {
             val response = client.newCall(request).execute()
             if (response.isSuccessful) {
                 val arr = JSONArray(response.body?.string() ?: "")
-                val list = mutableListOf<Pair<String, String>>() // SHA to Date
+                val list = mutableListOf<Pair<String, String>>()
                 for (i in 0 until arr.length()) {
                     val obj = arr.getJSONObject(i)
                     val date = obj.getJSONObject("commit").getJSONObject("author").getString("date")
                     list.add(obj.getString("sha") to date)
                 }
                 list
+            } else null
+        } catch (e: Exception) { null }
+    }
+
+    // Mendapatkan isi konten base64 dari file (untuk rename)
+    suspend fun getFileContentBase64(token: String, owner: String, repo: String, path: String): String? = withContext(Dispatchers.IO) {
+        try {
+            val url = "https://api.github.com/repos/$owner/$repo/contents/$path"
+            val request = Request.Builder().url(url).header("Authorization", "token $token").build()
+            val response = client.newCall(request).execute()
+            if (response.isSuccessful) {
+                val obj = JSONObject(response.body?.string() ?: "")
+                obj.optString("content", null)?.replace("\n", "")
             } else null
         } catch (e: Exception) { null }
     }
