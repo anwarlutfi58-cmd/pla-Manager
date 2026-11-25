@@ -228,9 +228,9 @@ object ImageProHelper {
             for (x in 0 until gray.width) {
                 val g = Color.red(gray.getPixel(x, y))
                 val b = Color.red(blurred.getPixel(x, y))
-                var pembagi = 255 - b
+                var pembagi: Int = 255 - b
                 if (pembagi < 1) pembagi = 1
-                var v = g * 255 / pembagi
+                var v: Int = g * 255 / pembagi
                 if (v > 255) v = 255
                 if (v < 0) v = 0
                 res.setPixel(x, y, Color.rgb(v, v, v))
