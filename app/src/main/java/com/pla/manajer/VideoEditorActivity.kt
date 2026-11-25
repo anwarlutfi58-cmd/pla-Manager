@@ -34,6 +34,9 @@ class VideoEditorActivity : AppCompatActivity() {
     private var useChromaKey = false
     private var useCinematicBars = false
     private var useAutoEnhance = false
+    private var useReverse = false
+    private var useMute = false
+    private var useGif = false
 
     private val pickImagesLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == RESULT_OK) {
@@ -87,6 +90,7 @@ class VideoEditorActivity : AppCompatActivity() {
             intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
             pickImagesLauncher.launch(intent)
         }
+        b.toolAddVideo.setOnClickListener { pickVideoLauncher.launch("video/*") }
 
         b.toolDuration.setOnClickListener { showPanel(b.panelDuration) }
         b.toolAudio.setOnClickListener { showPanel(b.panelAudio) }
@@ -94,6 +98,22 @@ class VideoEditorActivity : AppCompatActivity() {
         b.toolFilter.setOnClickListener { showPanel(b.panelFilter) }
         b.toolText.setOnClickListener { showPanel(b.panelText) }
         b.toolEffects.setOnClickListener { showPanel(b.panelEffects) }
+
+        // === TOMBOL YANG TADI MATI SUDAH DISAMBUNGKAN ===
+        b.toolSpeed.setOnClickListener { showPanel(b.panelSpeed) }
+        b.toolVolume.setOnClickListener { showPanel(b.panelVolume) }
+        b.toolReverse.setOnClickListener {
+            useReverse = !useReverse
+            Toast.makeText(this, if (useReverse) "Reverse Aktif" else "Reverse Dimatikan", Toast.LENGTH_SHORT).show()
+        }
+        b.toolMute.setOnClickListener {
+            useMute = !useMute
+            Toast.makeText(this, if (useMute) "Mute Aktif" else "Mute Dimatikan", Toast.LENGTH_SHORT).show()
+        }
+        b.toolGif.setOnClickListener {
+            useGif = !useGif
+            Toast.makeText(this, if (useGif) "Mode GIF Aktif" else "Mode GIF Dimatikan", Toast.LENGTH_SHORT).show()
+        }
 
         b.toolRotateScreen.setOnClickListener {
             isLandscape = !isLandscape
@@ -106,6 +126,22 @@ class VideoEditorActivity : AppCompatActivity() {
 
         b.btnPickAudio.setOnClickListener { pickAudioLauncher.launch("audio/*") }
         b.spinnerRatio.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, arrayOf("16:9 (Lanskap)", "9:16 (Potret/TikTok)", "1:1 (Persegi)"))
+
+        // Slider Speed & Volume Listener (Update label)
+        b.seekSpeed.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
+                Toast.makeText(this@VideoEditorActivity, "Kecepatan: ${progress/100f}x", Toast.LENGTH_SHORT).show()
+            }
+            override fun onStartTrackingTouch(sb: SeekBar?) {}
+            override fun onStopTrackingTouch(sb: SeekBar?) {}
+        })
+        b.seekVolume.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
+                Toast.makeText(this@VideoEditorActivity, "Volume: $progress%", Toast.LENGTH_SHORT).show()
+            }
+            override fun onStartTrackingTouch(sb: SeekBar?) {}
+            override fun onStopTrackingTouch(sb: SeekBar?) {}
+        })
 
         val btnPickRealVideo = Button(this).apply {
             text = "Pilih Video Asli (.mp4) dari HP"
@@ -285,7 +321,8 @@ class VideoEditorActivity : AppCompatActivity() {
 
         val outputDir = File(Environment.getExternalStorageDirectory(), "PlaProjects/Edit_Video")
         if (!outputDir.exists()) outputDir.mkdirs()
-        val outputFile = File(outputDir, "EDIT_VIDEO_${System.currentTimeMillis()}.mp4")
+        val ext = if (useGif) "gif" else "mp4"
+        val outputFile = File(outputDir, "EDIT_VIDEO_${System.currentTimeMillis()}.$ext")
         lastExportedFile = outputFile
 
         try {
@@ -305,6 +342,7 @@ class VideoEditorActivity : AppCompatActivity() {
             if (useChromaKey) vFilter.append(",${VideoProHelper2.getChromaKeyFilter()}")
             if (useCinematicBars) vFilter.append(",${VideoProHelper2.getCinematicBarsFilter()}")
             if (useAutoEnhance) vFilter.append(",${VideoProHelper2.getAutoEnhanceFilter()}")
+            if (useReverse) vFilter.append(",reverse")
             
             val wmText = b.etWatermark.text.toString()
             if (wmText.isNotEmpty()) {
@@ -316,7 +354,8 @@ class VideoEditorActivity : AppCompatActivity() {
             }
             cmd.append("-vf \"$vFilter\" ")
             
-            if (extraVideoFilter.isNotEmpty() && !extraVideoFilter.contains("-ss")) {
+            if (useMute) cmd.append("-an ")
+            else if (extraVideoFilter.isNotEmpty() && !extraVideoFilter.contains("-ss")) {
                 cmd.append("${extraVideoFilter} ")
             } else {
                 cmd.append("-c:v libx264 -pix_fmt yuv420p -c:a aac ")
@@ -334,6 +373,7 @@ class VideoEditorActivity : AppCompatActivity() {
                         Toast.makeText(this, "Berhasil! Tekan 'Putar Hasil Video'", Toast.LENGTH_LONG).show()
                         extraVideoFilter = ""
                         useChromaKey = false; useCinematicBars = false; useAutoEnhance = false
+                        useReverse = false; useMute = false; useGif = false
                     } else {
                         Toast.makeText(this, "Gagal memproses video.", Toast.LENGTH_LONG).show()
                     }
@@ -393,6 +433,7 @@ class VideoEditorActivity : AppCompatActivity() {
             if (effectFilter.isNotEmpty()) vFilter.append(",$effectFilter")
             if (useCinematicBars) vFilter.append(",${VideoProHelper2.getCinematicBarsFilter()}")
             if (useAutoEnhance) vFilter.append(",${VideoProHelper2.getAutoEnhanceFilter()}")
+            if (useReverse) vFilter.append(",reverse")
             
             val wmText = b.etWatermark.text.toString()
             if (wmText.isNotEmpty()) {
@@ -405,7 +446,8 @@ class VideoEditorActivity : AppCompatActivity() {
             cmd.append("-vf \"$vFilter\" ")
             
             cmd.append("-c:v libx264 -pix_fmt yuv420p ")
-            if (audioUri != null) cmd.append("-c:a aac -shortest ")
+            if (useMute) cmd.append("-an ")
+            else if (audioUri != null) cmd.append("-c:a aac -shortest ")
             cmd.append("\"${outputFile.absolutePath}\"")
 
             FFmpegKit.executeAsync(cmd.toString(), { session ->
@@ -416,6 +458,7 @@ class VideoEditorActivity : AppCompatActivity() {
                     if (ReturnCode.isSuccess(session.returnCode)) {
                         registerVideoToMediaStore(outputFile)
                         Toast.makeText(this, "Berhasil! Tekan 'Putar Hasil Video'", Toast.LENGTH_LONG).show()
+                        useMute = false; useGif = false; useReverse = false
                     } else {
                         Toast.makeText(this, "Gagal membuat video.", Toast.LENGTH_LONG).show()
                     }
