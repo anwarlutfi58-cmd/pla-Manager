@@ -4,17 +4,14 @@ import android.content.Context
 import android.content.SharedPreferences
 
 class Prefs(context: Context) {
-    private val ctx: Context = context.applicationContext
-    private val prefs: SharedPreferences =
-        ctx.getSharedPreferences("pla_prefs", Context.MODE_PRIVATE)
+    private val prefs: SharedPreferences = context.getSharedPreferences("pla_prefs", Context.MODE_PRIVATE)
 
     var lastPath: String
-        get() = prefs.getString("last_path", ctx.getExternalFilesDir(null)?.absolutePath ?: "/") ?: "/"
+        get() = prefs.getString("last_path", context.getExternalFilesDir(null)?.absolutePath ?: "/") ?: "/"
         set(value) = prefs.edit().putString("last_path", value).apply()
 
     var trashFolder: String
-        get() = prefs.getString("trash_folder", "${ctx.filesDir.absolutePath}/.trash")
-            ?: "${ctx.filesDir.absolutePath}/.trash"
+        get() = prefs.getString("trash_folder", "${context.filesDir.absolutePath}/.trash") ?: "${context.filesDir.absolutePath}/.trash"
         set(value) = prefs.edit().putString("trash_folder", value).apply()
 
     var sortMode: Int
@@ -37,15 +34,16 @@ class Prefs(context: Context) {
         get() = prefs.getBoolean("show_github_builder", true)
         set(value) = prefs.edit().putBoolean("show_github_builder", value).apply()
 
-    var editorFontSize: Int
-        get() = prefs.getInt("editor_font_size", 14)
-        set(value) = prefs.edit().putInt("editor_font_size", value).apply()
-
-    var screenReaderHints: Boolean
-        get() = prefs.getBoolean("screen_reader_hints", true)
-        set(value) = prefs.edit().putBoolean("screen_reader_hints", value).apply()
-
     var showDateTime: Boolean
         get() = prefs.getBoolean("show_date_time", false)
         set(value) = prefs.edit().putBoolean("show_date_time", value).apply()
+
+    // FUNGSI BARU UNTUK 32 BAND EQ
+    fun setEqLevel(bandIndex: Int, db: Int) {
+        prefs.edit().putInt("eq_band_$bandIndex", db).apply()
+    }
+
+    fun getEqLevel(bandIndex: Int): Int {
+        return prefs.getInt("eq_band_$bandIndex", 0)
+    }
 }
