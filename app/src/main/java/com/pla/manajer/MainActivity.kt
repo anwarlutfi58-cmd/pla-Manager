@@ -158,13 +158,11 @@ class MainActivity : AppCompatActivity() {
                     tvVideoStats.text = "${formatSize(videoSize)} ($videoCount)"
                     tvDocStats.text = "${formatSize(docSize)} ($docCount)"
                     tvDownloadStats.text = "${formatSize(dlSize)} ($dlCount)"
-                    tvAppStats.text = "${formatSize(apkSizeToDisplay(appSize, appCount))} ($appCount)"
+                    tvAppStats.text = "${formatSize(appSize)} ($appCount)"
                 }
             }
         }
     }
-
-    private fun apkSizeToDisplay(size: Long, count: Int): Long = size
 
     private fun formatSize(bytes: Long): String {
         if (bytes <= 0) return "0 B"
