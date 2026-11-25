@@ -17,7 +17,6 @@ import java.io.FileOutputStream
 class MainActivity : AppCompatActivity() {
     private lateinit var b: ActivityMainBinding
 
-    // Launcher untuk memilih file dari HP saat tombol Edit ditekan
     private val pickImageLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let { handleSelectedFile(it, ImageEditorActivity::class.java) }
     }
@@ -31,50 +30,37 @@ class MainActivity : AppCompatActivity() {
         b = ActivityMainBinding.inflate(layoutInflater)
         setContentView(b.root)
 
-        // --- MENU UTAMA ---
-        b.cardStorage.setOnClickListener { 
-            val intent = Intent(this, FileManagerActivity::class.java)
-            intent.putExtra("initial_path", Environment.getExternalStorageDirectory().absolutePath)
-            startActivity(intent) 
+        // --- 1. BAGIAN PENYIMPANAN ---
+        b.cardInternal.setOnClickListener { 
+            openFileManager(Environment.getExternalStorageDirectory().absolutePath) 
         }
+        b.cardSdCard.setOnClickListener { openSdCard() }
 
-        b.cardProjects.setOnClickListener  { startActivity(Intent(this, ProjectManagerActivity::class.java)) }
+        // --- 2. BAGIAN KATEGORI MEDIA ---
+        b.cardImages.setOnClickListener { openMedia("IMAGE") }
+        b.cardAudio.setOnClickListener { openMedia("AUDIO") }
+        b.cardVideos.setOnClickListener { openMedia("VIDEO") }
+        b.cardDocuments.setOnClickListener { openFileManager(Environment.DIRECTORY_DOCUMENTS) }
+        b.cardDownloads.setOnClickListener { openFileManager(Environment.DIRECTORY_DOWNLOADS) }
+        b.cardApps.setOnClickListener { startActivity(Intent(this, AppManagerActivity::class.java)) }
+
+        // --- 3. BAGIAN FITUR UTAMA ---
+        b.cardProjects.setOnClickListener { startActivity(Intent(this, ProjectManagerActivity::class.java)) }
         b.cardFavorites.setOnClickListener { startActivity(Intent(this, FavoritesActivity::class.java)) }
-        b.cardTrash.setOnClickListener     { startActivity(Intent(this, TrashActivity::class.java)) }
-        b.cardSettings.setOnClickListener  { startActivity(Intent(this, SettingsActivity::class.java)) }
-        b.cardImages.setOnClickListener    { openMedia("IMAGE") }
-        b.cardVideos.setOnClickListener    { openMedia("VIDEO") }
-        b.cardAudio.setOnClickListener     { openMedia("AUDIO") }
-        b.cardDocuments.setOnClickListener { openCategory(Environment.DIRECTORY_DOCUMENTS) }
-        b.cardDownloads.setOnClickListener { openCategory(Environment.DIRECTORY_DOWNLOADS) }
-        b.cardApps.setOnClickListener      { startActivity(Intent(this, AppManagerActivity::class.java)) }
-        b.cardCloud.setOnClickListener     { startActivity(Intent(this, CloudActivity::class.java)) }
-        b.cardSdCard.setOnClickListener    { openSdCard() }
+        b.cardTrash.setOnClickListener { startActivity(Intent(this, TrashActivity::class.java)) }
+        b.cardSettings.setOnClickListener { startActivity(Intent(this, SettingsActivity::class.java)) }
+        b.cardCloud.setOnClickListener { startActivity(Intent(this, CloudActivity::class.java)) }
+        b.cardGithub.setOnClickListener { startActivity(Intent(this, GithubBuilderActivity::class.java)) }
 
-        // --- TOMBOL EDIT FOTO (MEMBUKA GALERI) ---
+        // --- 4. BAGIAN EDIT (PLA Edit Foto, Audio, Video) ---
         b.cardEditImage.setOnClickListener { 
             pickImageLauncher.launch("image/*") 
         }
-
-        // --- TOMBOL EDIT AUDIO (MEMBUKA PENYIMPANAN) ---
         b.cardEditAudio.setOnClickListener { 
             pickAudioLauncher.launch("audio/*") 
         }
-
-        // --- TOMBOL EDIT VIDEO (LANGSUNG MASUK KE EDITOR) ---
         b.cardEditVideo.setOnClickListener { 
             startActivity(Intent(this, VideoEditorActivity::class.java)) 
-        }
-
-        // --- TOMBOL GITHUB ---
-        b.cardGithub.setOnClickListener { 
-            startActivity(Intent(this, GithubBuilderActivity::class.java)) 
-        }
-
-        // Tekan lama untuk Mixer Audio
-        b.cardEditAudio.setOnLongClickListener {
-            startActivity(Intent(this, AudioMixerActivity::class.java))
-            true
         }
     }
 
@@ -82,25 +68,37 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         val prefs = Prefs(this)
 
-        // Sembunyikan semua dulu (Reset)
-        b.tvToolsTitle.visibility = View.GONE
-        b.gridTools.visibility = View.GONE
-        b.cardEditImage.visibility = View.GONE
-        b.cardEditAudio.visibility = View.GONE
-        b.cardEditVideo.visibility = View.GONE
-        b.cardGithub.visibility = View.GONE
+        // Logika Sembunyikan/Tampilkan Tombol Berdasarkan Pengaturan
+        if (prefs.showImageEditor) b.cardEditImage.visibility = View.VISIBLE else b.cardEditImage.visibility = View.GONE
+        if (prefs.showAudioEditor) b.cardEditAudio.visibility = View.VISIBLE else b.cardEditAudio.visibility = View.GONE
+        if (prefs.showVideoEditor) b.cardEditVideo.visibility = View.VISIBLE else b.cardEditVideo.visibility = View.GONE
+        if (prefs.showGithubBuilder) b.cardGithub.visibility = View.VISIBLE else b.cardGithub.visibility = View.GONE
+    }
 
-        // Cek apakah pengguna mengaktifkan fitur ini di Pengaturan
-        if (prefs.showImageEditor || prefs.showAudioEditor || prefs.showVideoEditor || prefs.showGithubBuilder) {
-            b.tvToolsTitle.visibility = View.VISIBLE
-            b.gridTools.visibility = View.VISIBLE
+    // --- FUNGSI PENDUKUNG ---
+
+    private fun openFileManager(path: String) {
+        val intent = Intent(this, FileManagerActivity::class.java)
+        intent.putExtra("initial_path", path)
+        startActivity(intent)
+    }
+
+    private fun openMedia(type: String) {
+        val intent = Intent(this, MediaManagerActivity::class.java)
+        intent.putExtra("media_type", type)
+        startActivity(intent)
+    }
+
+    private fun openSdCard() {
+        val dirs = getExternalFilesDirs(null)
+        if (dirs.size > 1 && dirs[1] != null) {
+            var sdPath = dirs[1]!!.absolutePath
+            val idx = sdPath.indexOf("/Android")
+            if (idx != -1) sdPath = sdPath.substring(0, idx)
+            openFileManager(sdPath)
+        } else {
+            Toast.makeText(this, "Kartu SD tidak terdeteksi", Toast.LENGTH_SHORT).show()
         }
-
-        // Tampilkan sesuai pengaturan
-        if (prefs.showImageEditor) b.cardEditImage.visibility = View.VISIBLE
-        if (prefs.showAudioEditor) b.cardEditAudio.visibility = View.VISIBLE
-        if (prefs.showVideoEditor) b.cardEditVideo.visibility = View.VISIBLE
-        if (prefs.showGithubBuilder) b.cardGithub.visibility = View.VISIBLE
     }
 
     private fun handleSelectedFile(uri: Uri, targetActivity: Class<*>) {
@@ -119,34 +117,6 @@ class MainActivity : AppCompatActivity() {
             startActivity(intent)
         } catch (e: Exception) {
             Toast.makeText(this, "Gagal membaca file: ${e.message}", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    private fun openMedia(type: String) {
-        val intent = Intent(this, MediaManagerActivity::class.java)
-        intent.putExtra("media_type", type)
-        startActivity(intent)
-    }
-
-    private fun openCategory(dirName: String) {
-        val rootPath = Environment.getExternalStorageDirectory().absolutePath
-        val intent = Intent(this, FileManagerActivity::class.java)
-        intent.putExtra("initial_path", "$rootPath/$dirName")
-        startActivity(intent)
-    }
-
-    private fun openSdCard() {
-        val dirs = getExternalFilesDirs(null)
-        if (dirs.size > 1 && dirs[1] != null) {
-            var sdPath = dirs[1]!!.absolutePath
-            val idx = sdPath.indexOf("/Android")
-            if (idx != -1) sdPath = sdPath.substring(0, idx)
-            
-            val intent = Intent(this, FileManagerActivity::class.java)
-            intent.putExtra("initial_path", sdPath)
-            startActivity(intent)
-        } else {
-            Toast.makeText(this, "Kartu SD tidak terdeteksi", Toast.LENGTH_SHORT).show()
         }
     }
 }
