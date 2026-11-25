@@ -12,7 +12,7 @@
         android:padding="16dp">
 
         <!-- ========================================== -->
-        <!-- BAGIAN 1: STATISTIK PENYIMPANAN (ALA FILE MANAGER +) -->
+        <!-- BAGIAN 1: STATISTIK PENYIMPANAN -->
         <!-- ========================================== -->
         <TextView
             android:layout_width="wrap_content"
@@ -60,6 +60,9 @@
 
         </GridLayout>
 
+        <!-- ========================================== -->
+        <!-- BAGIAN 2: KATEGORI MEDIA (DENGAN UKURAN) -->
+        <!-- ========================================== -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -73,7 +76,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:columnCount="3"
-            android:rowCount="3">
+            android:rowCount="2">
 
             <LinearLayout
                 android:id="@+id/cardImages"
@@ -162,28 +165,70 @@
         </GridLayout>
 
         <!-- ========================================== -->
-        <!-- BAGIAN 2: MENU ASLI ANDA DIKEMBALIKAN -->
+        <!-- BAGIAN 3: MENU ASLI (DIKEMBALIKAN) -->
         <!-- ========================================== -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Fitur Lainnya"
+            android:text="Fitur Utama"
             android:textSize="18sp"
             android:textStyle="bold"
             android:textColor="#333333"
             android:layout_marginTop="24dp"
             android:layout_marginBottom="12dp"/>
 
-        <Button
-            android:id="@+id/btnFileManager"
+        <GridLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Buka File Manager (Semua File)"
-            android:backgroundTint="#4CAF50"
-            android:layout_marginBottom="12dp"/>
+            android:columnCount="3"
+            android:rowCount="4">
 
-        <!-- Saya biarkan tombol di bawah ini sebagai tempat menu asli Anda (Cloud, Github, Editor) -->
-        <!-- Jika Anda punya tombol menu asli seperti Editor, Cloud, atau Github, tambahkan di sini -->
-        
+            <LinearLayout android:id="@+id/cardProjects" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:orientation="vertical" android:gravity="center" android:padding="8dp" android:background="?attr/selectableItemBackground">
+                <ImageView android:layout_width="40dp" android:layout_height="40dp" android:src="@android:drawable/ic_menu_myplaces" app:tint="#2196F3"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Proyek" android:textSize="12sp" android:textColor="#333333" android:layout_marginTop="4dp"/>
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/cardFavorites" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:orientation="vertical" android:gravity="center" android:padding="8dp" android:background="?attr/selectableItemBackground">
+                <ImageView android:layout_width="40dp" android:layout_height="40dp" android:src="@android:drawable/btn_star" app:tint="#FFC107"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Favorit" android:textSize="12sp" android:textColor="#333333" android:layout_marginTop="4dp"/>
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/cardTrash" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:orientation="vertical" android:gravity="center" android:padding="8dp" android:background="?attr/selectableItemBackground">
+                <ImageView android:layout_width="40dp" android:layout_height="40dp" android:src="@android:drawable/ic_menu_delete" app:tint="#F44336"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Sampah" android:textSize="12sp" android:textColor="#333333" android:layout_marginTop="4dp"/>
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/cardSettings" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:orientation="vertical" android:gravity="center" android:padding="8dp" android:background="?attr/selectableItemBackground">
+                <ImageView android:layout_width="40dp" android:layout_height="40dp" android:src="@android:drawable/ic_menu_preferences" app:tint="#607D8B"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Pengaturan" android:textSize="12sp" android:textColor="#333333" android:layout_marginTop="4dp"/>
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/cardCloud" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:orientation="vertical" android:gravity="center" android:padding="8dp" android:background="?attr/selectableItemBackground">
+                <ImageView android:layout_width="40dp" android:layout_height="40dp" android:src="@android:drawable/ic_menu_compass" app:tint="#03A9F4"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Cloud" android:textSize="12sp" android:textColor="#333333" android:layout_marginTop="4dp"/>
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/cardGithub" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:orientation="vertical" android:gravity="center" android:padding="8dp" android:background="?attr/selectableItemBackground">
+                <ImageView android:layout_width="40dp" android:layout_height="40dp" android:src="@android:drawable/ic_menu_edit" app:tint="#333333"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="GitHub" android:textSize="12sp" android:textColor="#333333" android:layout_marginTop="4dp"/>
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/cardEditImage" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:orientation="vertical" android:gravity="center" android:padding="8dp" android:background="?attr/selectableItemBackground">
+                <ImageView android:layout_width="40dp" android:layout_height="40dp" android:src="@android:drawable/ic_menu_crop" app:tint="#9C27B0"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Edit Foto" android:textSize="12sp" android:textColor="#333333" android:layout_marginTop="4dp"/>
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/cardEditAudio" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:orientation="vertical" android:gravity="center" android:padding="8dp" android:background="?attr/selectableItemBackground">
+                <ImageView android:layout_width="40dp" android:layout_height="40dp" android:src="@android:drawable/ic_btn_speak_now" app:tint="#4CAF50"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Edit Audio" android:textSize="12sp" android:textColor="#333333" android:layout_marginTop="4dp"/>
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/cardEditVideo" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:orientation="vertical" android:gravity="center" android:padding="8dp" android:background="?attr/selectableItemBackground">
+                <ImageView android:layout_width="40dp" android:layout_height="40dp" android:src="@android:drawable/ic_media_play" app:tint="#F44336"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Edit Video" android:textSize="12sp" android:textColor="#333333" android:layout_marginTop="4dp"/>
+            </LinearLayout>
+
+        </GridLayout>
+
     </LinearLayout>
 </ScrollView>
