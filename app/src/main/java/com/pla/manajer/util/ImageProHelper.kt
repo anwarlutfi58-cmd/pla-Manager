@@ -212,8 +212,8 @@ object ImageProHelper {
 
     private fun applySketch(src: Bitmap): Bitmap {
         val gray = toGrayscale(src)
-        val inverted = Bitmap.createBitmap(gray.width, gray.height, Bitmap.Config.ARGB_8888)
-        val c = Canvas(inverted)
+        val res = gray.copy(Bitmap.Config.ARGB_8888, true)
+        val c = Canvas(res)
         val p = Paint()
         p.colorFilter = ColorMatrixColorFilter(ColorMatrix(floatArrayOf(
             -1f, 0f, 0f, 0f, 255f,
@@ -222,20 +222,6 @@ object ImageProHelper {
             0f, 0f, 0f, 1f, 0f
         )))
         c.drawBitmap(gray, 0f, 0f, p)
-        val blurred = applyBoxBlur(inverted)
-        val res = Bitmap.createBitmap(gray.width, gray.height, Bitmap.Config.ARGB_8888)
-        for (y in 0 until gray.height) {
-            for (x in 0 until gray.width) {
-                val g: Int = Color.red(gray.getPixel(x, y))
-                val b: Int = Color.red(blurred.getPixel(x, y))
-                var pembagi: Int = 255 - b
-                if (pembagi < 1) pembagi = 1
-                var v: Int = (g.toFloat() * 255.0f / pembagi.toFloat()).toInt()
-                if (v > 255) v = 255
-                if (v < 0) v = 0
-                res.setPixel(x, y, Color.rgb(v, v, v))
-            }
-        }
         return res
     }
 
