@@ -212,8 +212,8 @@ object ImageProHelper {
 
     private fun applySketch(src: Bitmap): Bitmap {
         val gray = toGrayscale(src)
-        val res = gray.copy(Bitmap.Config.ARGB_8888, true)
-        val c = Canvas(res)
+        val inverted = Bitmap.createBitmap(gray.width, gray.height, Bitmap.Config.ARGB_8888)
+        val c = Canvas(inverted)
         val p = Paint()
         p.colorFilter = ColorMatrixColorFilter(ColorMatrix(floatArrayOf(
             -1f, 0f, 0f, 0f, 255f,
@@ -222,6 +222,20 @@ object ImageProHelper {
             0f, 0f, 0f, 1f, 0f
         )))
         c.drawBitmap(gray, 0f, 0f, p)
+        val blurred = applyBoxBlur(inverted)
+        val res = Bitmap.createBitmap(gray.width, gray.height, Bitmap.Config.ARGB_8888)
+        for (y in 0 until gray.height) {
+            for (x in 0 until gray.width) {
+                val g = Color.red(gray.getPixel(x, y))
+                val b = Color.red(blurred.getPixel(x, y))
+                var pembagi = 255 - b
+                if (pembagi < 1) pembagi = 1
+                var v = g * 255 / pembagi
+                if (v > 255) v = 255
+                if (v < 0) v = 0
+                res.setPixel(x, y, Color.rgb(v, v, v))
+            }
+        }
         return res
     }
 
@@ -230,9 +244,9 @@ object ImageProHelper {
         for (y in 0 until res.height) {
             for (x in 0 until res.width) {
                 val p = res.getPixel(x, y)
-                val r: Int = (Color.red(p) / 64) * 64
-                val g: Int = (Color.green(p) / 64) * 64
-                val b: Int = (Color.blue(p) / 64) * 64
+                val r = (Color.red(p) / 64) * 64
+                val g = (Color.green(p) / 64) * 64
+                val b = (Color.blue(p) / 64) * 64
                 res.setPixel(x, y, Color.rgb(r, g, b))
             }
         }
@@ -244,10 +258,10 @@ object ImageProHelper {
         val radius = 4
         for (y in 0 until src.height) {
             for (x in 0 until src.width) {
-                var rSum: Int = 0
-                var gSum: Int = 0
-                var bSum: Int = 0
-                var count: Int = 0
+                var rSum = 0
+                var gSum = 0
+                var bSum = 0
+                var count = 0
                 for (dy in -radius..radius) {
                     for (dx in -radius..radius) {
                         val nx = x + dx
