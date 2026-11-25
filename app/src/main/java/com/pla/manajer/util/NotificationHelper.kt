@@ -63,17 +63,29 @@ class NotificationHelper(private val context: Context) {
     }
 
     fun showPlayer(title: String, isPlaying: Boolean) {
-        // PERBAIKAN: Menambahkan tujuan Intent ke AudioPlayerActivity agar tombol bisa bereaksi
-        val prevIntent = Intent(context, AudioPlayerActivity::class.java).setAction(ACTION_PREV)
+        // PERBAIKAN: Tambahkan setPackage agar diizinkan sistem Android
+        val prevIntent = Intent(context, AudioPlayerActivity::class.java).apply {
+            action = ACTION_PREV
+            setPackage(context.packageName)
+        }
         val prevPi  = PendingIntent.getBroadcast(context, 10, prevIntent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
 
-        val playIntent = Intent(context, AudioPlayerActivity::class.java).setAction(ACTION_PLAY_PAUSE)
+        val playIntent = Intent(context, AudioPlayerActivity::class.java).apply {
+            action = ACTION_PLAY_PAUSE
+            setPackage(context.packageName)
+        }
         val playPi  = PendingIntent.getBroadcast(context, 11, playIntent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
 
-        val nextIntent = Intent(context, AudioPlayerActivity::class.java).setAction(ACTION_NEXT)
+        val nextIntent = Intent(context, AudioPlayerActivity::class.java).apply {
+            action = ACTION_NEXT
+            setPackage(context.packageName)
+        }
         val nextPi  = PendingIntent.getBroadcast(context, 12, nextIntent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
 
-        val closeIntent = Intent(context, AudioPlayerActivity::class.java).setAction(ACTION_CLOSE)
+        val closeIntent = Intent(context, AudioPlayerActivity::class.java).apply {
+            action = ACTION_CLOSE
+            setPackage(context.packageName)
+        }
         val closePi = PendingIntent.getBroadcast(context, 13, closeIntent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
 
         val openPi  = PendingIntent.getActivity(
