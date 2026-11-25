@@ -30,12 +30,10 @@ class VideoEditorActivity : AppCompatActivity() {
     
     private var lastExportedFile: File? = null
     private var extraVideoFilter = ""
-    private var extraAudioFilter = ""
     private var useReverse = false
     private var useMute = false
     private var useGif = false
-    
-    private val videoFilters = arrayOf("Normal", "Vintage", "Sepia", "Black & White", "HDR", "Cyberpunk", "Neon", "Retro", "Cinematic", "Cold", "Warm", "Fade", "Dramatic", "Pastel", "Glitch", "Invert", "Oil Painting")
+
     private val soundEffects = arrayOf("Tidak Ada", "Tepuk Tangan", "Hujan", "Angin", "Suara Hati (Detak)", "Petir", "Sorak Sorai", "Sirene", "Klik Kamera", "Bunyi Pop", "Whoosh", "Alarm")
 
     private val pickImagesLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -81,8 +79,8 @@ class VideoEditorActivity : AppCompatActivity() {
         b.spinnerEffects.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, VideoProHelper.visualEffects)
         b.spinnerTextPos.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, VideoProHelper.watermarkPositions)
         b.spinnerTextColor.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, arrayOf("Putih", "Hitam", "Kuning", "Merah", "Biru", "Hijau"))
-        b.spinnerVideoFilters.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, videoFilters)
         b.spinnerSoundEffects.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, soundEffects)
+        b.spinnerVideoFilters.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, arrayOf("Normal", "Vintage", "Sepia", "Black & White", "HDR", "Cyberpunk", "Neon", "Retro", "Cinematic", "Cold", "Warm", "Fade", "Dramatic", "Pastel", "Glitch", "Invert"))
 
         b.btnBack.setOnClickListener { finish() }
 
@@ -127,17 +125,6 @@ class VideoEditorActivity : AppCompatActivity() {
 
         b.btnPickAudio.setOnClickListener { pickAudioLauncher.launch("audio/*") }
         b.spinnerRatio.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, arrayOf("16:9 (Lanskap)", "9:16 (Potret/TikTok)", "1:1 (Persegi)"))
-
-        b.seekSpeed.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {}
-            override fun onStartTrackingTouch(sb: SeekBar?) {}
-            override fun onStopTrackingTouch(sb: SeekBar?) {}
-        })
-        b.seekVolume.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {}
-            override fun onStartTrackingTouch(sb: SeekBar?) {}
-            override fun onStopTrackingTouch(sb: SeekBar?) {}
-        })
 
         val btnPickRealVideo = Button(this).apply {
             text = "Pilih Video Asli (.mp4) dari HP"
@@ -327,7 +314,6 @@ class VideoEditorActivity : AppCompatActivity() {
                 "Pastel" -> vFilter.append(",eq=saturation=0.6:brightness=0.1")
                 "Glitch" -> vFilter.append(",noise=alls=20:allf=t+u")
                 "Invert" -> vFilter.append(",negate")
-                "Oil Painting" -> vFilter.append(",convolution='0 -1 0 -1 5 -1 0 -1 0'")
             }
             
             if (useReverse) vFilter.append(",reverse")
@@ -336,4 +322,173 @@ class VideoEditorActivity : AppCompatActivity() {
             if (wmText.isNotEmpty()) {
                 val pos = VideoProHelper.getWatermarkPosition(b.spinnerTextPos.selectedItem.toString())
                 val color = when(b.spinnerTextColor.selectedItemPosition) {
-                    1 ->
+                    1 -> "black"; 2 -> "yellow"; 3 -> "red"; 4 -> "blue"; 5 -> "green"; else -> "white"
+                }
+                vFilter.append(",drawtext=text='$wmText':fontcolor=$color:fontsize=36:box=1:boxcolor=black@0.5:$pos")
+            }
+            cmd.append("-vf \"$vFilter\" ")
+            
+            if (useMute) cmd.append("-an ")
+            else if (extraVideoFilter.isNotEmpty() && !extraVideoFilter.contains("-ss")) {
+                cmd.append("${extraVideoFilter} ")
+            } else {
+                cmd.append("-c:v libx264 -pix_fmt yuv420p -c:a aac ")
+            }
+
+            cmd.append("\"${outputFile.absolutePath}\"")
+
+            FFmpegKit.executeAsync(cmd.toString(), { session ->
+                runOnUiThread {
+                    b.btnExport.isEnabled = true
+                    b.btnExport.text = "Ekspor"
+                    notif.hideEdit()
+                    if (ReturnCode.isSuccess(session.returnCode)) {
+                        registerVideoToMediaStore(outputFile)
+                        Toast.makeText(this, "Berhasil! Tekan 'Putar Hasil Video'", Toast.LENGTH_LONG).show()
+                        extraVideoFilter = ""
+                        useReverse = false; useMute = false; useGif = false
+                    } else {
+                        Toast.makeText(this, "Gagal memproses video.", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }, { }, { })
+
+        } catch (e: Exception) {
+            b.btnExport.isEnabled = true
+            b.btnExport.text = "Ekspor"
+            notif.hideEdit()
+            Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun renderSlideshow(resolution: String, fps: String) {
+        b.btnExport.isEnabled = false
+        b.btnExport.text = "Memproses..."
+        Toast.makeText(this, "Sedang membuat video... Mohon tunggu.", Toast.LENGTH_LONG).show()
+        notif.showEdit("Membuat Video", "Mengekspor ${imageUris.size} gambar ke MP4...")
+
+        val duration = b.etDuration.text.toString().toIntOrNull() ?: 3
+        val concatFile = File(cacheDir, "concat_list.txt")
+        val outputDir = File(Environment.getExternalStorageDirectory(), "PlaProjects/Edit_Video")
+        if (!outputDir.exists()) outputDir.mkdirs()
+        val outputFile = File(outputDir, "EDIT_${System.currentTimeMillis()}.mp4")
+        lastExportedFile = outputFile
+
+        try {
+            val writer = concatFile.bufferedWriter()
+            imageUris.forEach { uri ->
+                val tempImg = File(cacheDir, "img_${System.currentTimeMillis()}.jpg")
+                contentResolver.openInputStream(uri)?.use { input ->
+                    FileOutputStream(tempImg).use { output -> input.copyTo(output) }
+                }
+                writer.write("file '${tempImg.absolutePath}'\n")
+                writer.write("duration $duration\n")
+            }
+            val lastImg = File(cacheDir, "img_${System.currentTimeMillis()}.jpg")
+            contentResolver.openInputStream(imageUris.last())?.use { input ->
+                FileOutputStream(lastImg).use { output -> input.copyTo(output) }
+            }
+            writer.write("file '${lastImg.absolutePath}'\n")
+            writer.close()
+
+            val cmd = StringBuilder()
+            cmd.append("-y -f concat -safe 0 -i \"${concatFile.absolutePath}\" ")
+            if (audioUri != null) {
+                val tempAudio = File(cacheDir, "bgm.m4a")
+                contentResolver.openInputStream(audioUri!!)?.use { input ->
+                    FileOutputStream(tempAudio).use { output -> input.copyTo(output) }
+                }
+                cmd.append("-i \"${tempAudio.absolutePath}\" ")
+            }
+            
+            val vFilter = StringBuilder("scale=$resolution,setsar=1,fps=$fps")
+            val effectFilter = VideoProHelper.getVisualFilter(b.spinnerEffects.selectedItem.toString())
+            if (effectFilter.isNotEmpty()) vFilter.append(",$effectFilter")
+            
+            val selectedFilter = b.spinnerVideoFilters.selectedItem.toString()
+            when (selectedFilter) {
+                "Vintage" -> vFilter.append(",curves=preset=vintage")
+                "Sepia" -> vFilter.append(",colorchannelmixer=.393:.769:.189:0:.349:.686:.168:0:.272:.534:.131")
+                "Black & White" -> vFilter.append(",hue=s=0")
+                "HDR" -> vFilter.append(",eq=contrast=1.5:saturation=1.5")
+                "Cyberpunk" -> vFilter.append(",colorbalance=rs=0.3:gs=-0.1:bs=0.5")
+                "Neon" -> vFilter.append(",eq=contrast=1.4:brightness=0.1:saturation=2.0")
+                "Retro" -> vFilter.append(",curves=preset=color_negative")
+                "Cinematic" -> vFilter.append(",curves=preset=strong_contrast")
+                "Cold" -> vFilter.append(",colorbalance=bs=0.3:gs=0.1")
+                "Warm" -> vFilter.append(",colorbalance=rs=0.3:gs=0.1")
+                "Fade" -> vFilter.append(",eq=brightness=0.1:contrast=0.8")
+                "Dramatic" -> vFilter.append(",eq=contrast=1.5:brightness=-0.1")
+                "Pastel" -> vFilter.append(",eq=saturation=0.6:brightness=0.1")
+                "Glitch" -> vFilter.append(",noise=alls=20:allf=t+u")
+                "Invert" -> vFilter.append(",negate")
+            }
+            
+            if (useReverse) vFilter.append(",reverse")
+            
+            val wmText = b.etWatermark.text.toString()
+            if (wmText.isNotEmpty()) {
+                val pos = VideoProHelper.getWatermarkPosition(b.spinnerTextPos.selectedItem.toString())
+                val color = when(b.spinnerTextColor.selectedItemPosition) {
+                    1 -> "black"; 2 -> "yellow"; 3 -> "red"; 4 -> "blue"; 5 -> "green"; else -> "white"
+                }
+                vFilter.append(",drawtext=text='$wmText':fontcolor=$color:fontsize=36:box=1:boxcolor=black@0.5:$pos")
+            }
+            cmd.append("-vf \"$vFilter\" ")
+            
+            cmd.append("-c:v libx264 -pix_fmt yuv420p ")
+            if (useMute) cmd.append("-an ")
+            else if (audioUri != null) cmd.append("-c:a aac -shortest ")
+            cmd.append("\"${outputFile.absolutePath}\"")
+
+            FFmpegKit.executeAsync(cmd.toString(), { session ->
+                runOnUiThread {
+                    b.btnExport.isEnabled = true
+                    b.btnExport.text = "Ekspor"
+                    notif.hideEdit()
+                    if (ReturnCode.isSuccess(session.returnCode)) {
+                        registerVideoToMediaStore(outputFile)
+                        Toast.makeText(this, "Berhasil! Tekan 'Putar Hasil Video'", Toast.LENGTH_LONG).show()
+                        useMute = false; useGif = false; useReverse = false
+                    } else {
+                        Toast.makeText(this, "Gagal membuat video.", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }, { }, { })
+        } catch (e: Exception) {
+            b.btnExport.isEnabled = true
+            b.btnExport.text = "Ekspor"
+            notif.hideEdit()
+            Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun registerVideoToMediaStore(file: File) {
+        try {
+            val values = ContentValues().apply {
+                put(MediaStore.Video.Media.DISPLAY_NAME, file.name)
+                put(MediaStore.Video.Media.MIME_TYPE, if(file.extension == "gif") "image/gif" else "video/mp4")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    put(MediaStore.Video.Media.RELATIVE_PATH, "PlaProjects/Edit_Video")
+                } else {
+                    put(MediaStore.Video.Media.DATA, file.absolutePath)
+                }
+            }
+            contentResolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values)
+        } catch (e: Exception) { }
+    }
+
+    private fun getFileName(uri: Uri): String {
+        var name = "File Terpilih"
+        contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            if (cursor.moveToFirst()) name = cursor.getString(nameIndex)
+        }
+        return name
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        notif.hideEdit()
+    }
+}
