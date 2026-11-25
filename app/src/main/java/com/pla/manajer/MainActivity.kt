@@ -4,13 +4,15 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
-import android.os.StatFs
 import android.provider.OpenableColumns
+import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.pla.manajer.databinding.ActivityMainBinding
+import com.pla.manajer.util.Prefs
+import com.pla.manajer.util.StorageHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -32,6 +34,7 @@ class MainActivity : AppCompatActivity() {
         b = ActivityMainBinding.inflate(layoutInflater)
         setContentView(b.root)
 
+        // 1. SETUP TOMBOL KLIK
         b.cardInternal.setOnClickListener { openFileManager(Environment.getExternalStorageDirectory().absolutePath) }
         b.cardSdCard.setOnClickListener { openSdCard() }
         b.cardImages.setOnClickListener { openMedia("IMAGE") }
@@ -50,15 +53,31 @@ class MainActivity : AppCompatActivity() {
         b.cardEditAudio.setOnClickListener { pickAudioLauncher.launch("audio/*") }
         b.cardEditVideo.setOnClickListener { startActivity(Intent(this, VideoEditorActivity::class.java)) }
 
-        loadStorageStats()
+        // 2. LOGIKA CERDAS: SEMBUNYIKAN TEKS 0 MB SAAT MEMUAT
+        b.tvImageStats.text = ""
+        b.tvAudioStats.text = ""
+        b.tvVideoStats.text = ""
+        b.tvDocStats.text = ""
+        b.tvDownloadStats.text = ""
+        b.tvAppStats.text = ""
+
+        // 3. PENYIMPANAN: INSTAN (TANPA MEMINDAI)
+        b.tvInternalSize.text = StorageHelper.getInternalStorageInfo()
+        b.tvSdSize.text = StorageHelper.getSdCardStorageInfo(this)
+
+        // 4. KATEGORI: PINDAI DI LATAR BELAKANG (BARU MUNCUL SETELAH SELESAI)
+        loadCategoryStats()
     }
 
-    private fun loadStorageStats() {
+    private fun loadCategoryStats() {
         lifecycleScope.launch(Dispatchers.IO) {
             val internal = Environment.getExternalStorageDirectory()
             val sd = getSdCard()
-            val imgs = mutableListOf<File>(); val auds = mutableListOf<File>(); val vids = mutableListOf<File>()
-            val docs = mutableListOf<File>(); val dls = mutableListOf<File>()
+            var imgSize = 0L; var imgCount = 0
+            var audSize = 0L; var audCount = 0
+            var vidSize = 0L; var vidCount = 0
+            var docSize = 0L; var docCount = 0
+            var dlSize = 0L; var dlCount = 0
 
             fun scan(dir: File) {
                 val files = dir.listFiles() ?: return
@@ -66,13 +85,14 @@ class MainActivity : AppCompatActivity() {
                     if (f.isDirectory) {
                         if (!f.name.startsWith(".") && f.name != "Android") scan(f)
                     } else {
-                        when (f.extension.lowercase()) {
-                            "jpg","jpeg","png","webp","gif","bmp" -> imgs.add(f)
-                            "mp3","wav","aac","m4a","ogg","flac" -> auds.add(f)
-                            "mp4","mkv","avi","mov","webm" -> vids.add(f)
-                            "pdf","doc","docx","txt","xls","xlsx","ppt","pptx" -> docs.add(f)
+                        val ext = f.extension.lowercase()
+                        when (ext) {
+                            "jpg","jpeg","png","webp","gif","bmp" -> { imgSize += f.length(); imgCount++ }
+                            "mp3","wav","aac","m4a","ogg","flac" -> { audSize += f.length(); audCount++ }
+                            "mp4","mkv","avi","mov","webm" -> { vidSize += f.length(); vidCount++ }
+                            "pdf","doc","docx","txt","xls","xlsx","ppt","pptx" -> { docSize += f.length(); docCount++ }
                         }
-                        if (f.absolutePath.contains("/Download/")) dls.add(f)
+                        if (f.absolutePath.contains("/Download/")) { dlSize += f.length(); dlCount++ }
                     }
                 }
             }
@@ -80,37 +100,13 @@ class MainActivity : AppCompatActivity() {
             sd?.let { if (it.exists()) scan(it) }
 
             withContext(Dispatchers.Main) {
-                fun fmtSize(bytes: Long): String {
-                    if (bytes <= 0) return "0 B"
-                    val units = arrayOf("B", "KB", "MB", "GB", "TB")
-                    val digit = (Math.log10(bytes.toDouble()) / Math.log10(1024.0)).toInt()
-                    return String.format("%.1f %s", bytes / Math.pow(1024.0, digit.toDouble()), units[digit])
-                }
-
-                try {
-                    val stat = StatFs(internal.absolutePath)
-                    val total = stat.blockCountLong * stat.blockSizeLong
-                    val free = stat.availableBlocksLong * stat.blockSizeLong
-                    b.tvInternalSize.text = "${fmtSize(total - free)} / ${fmtSize(total)}"
-                } catch (_: Exception) {}
-
-                if (sd != null) {
-                    try {
-                        val stat = StatFs(sd.absolutePath)
-                        val total = stat.blockCountLong * stat.blockSizeLong
-                        val free = stat.availableBlocksLong * stat.blockSizeLong
-                        b.tvSdSize.text = "${fmtSize(total - free)} / ${fmtSize(total)}"
-                    } catch (_: Exception) {}
-                } else {
-                    b.tvSdSize.text = "Tidak ada SD Card"
-                }
-
-                b.tvImageStats.text = "${fmtSize(imgs.sumOf { it.length() })} (${imgs.size})"
-                b.tvAudioStats.text = "${fmtSize(auds.sumOf { it.length() })} (${auds.size})"
-                b.tvVideoStats.text = "${fmtSize(vids.sumOf { it.length() })} (${vids.size})"
-                b.tvDocStats.text = "${fmtSize(docs.sumOf { it.length() })} (${docs.size})"
-                b.tvDownloadStats.text = "${fmtSize(dls.sumOf { it.length() })} (${dls.size})"
-                b.tvAppStats.text = "0 MB (0)" 
+                // Begitu selesai, baru munculkan angkanya (Tanpa tulisan "Memuat...")
+                b.tvImageStats.text = "${StorageHelper.formatSize(imgSize)} ($imgCount)"
+                b.tvAudioStats.text = "${StorageHelper.formatSize(audSize)} ($audCount)"
+                b.tvVideoStats.text = "${StorageHelper.formatSize(vidSize)} ($vidCount)"
+                b.tvDocStats.text = "${StorageHelper.formatSize(docSize)} ($docCount)"
+                b.tvDownloadStats.text = "${StorageHelper.formatSize(dlSize)} ($dlCount)"
+                b.tvAppStats.text = "Ketuk untuk lihat" 
             }
         }
     }
@@ -122,7 +118,7 @@ class MainActivity : AppCompatActivity() {
         startActivity(Intent(this, MediaManagerActivity::class.java).putExtra("media_type", type))
     }
     private fun openSdCard() {
-        getSdCard()?.let { openFileManager(it.absolutePath) } ?: Toast.makeText(this, "SD tidak ada", Toast.LENGTH_SHORT).show()
+        getSdCard()?.let { openFileManager(it.absolutePath) } ?: Toast.makeText(this, "Kartu SD tidak terdeteksi", Toast.LENGTH_SHORT).show()
     }
     private fun getSdCard(): File? {
         val dirs = getExternalFilesDirs(null)
@@ -147,7 +143,7 @@ class MainActivity : AppCompatActivity() {
             }
             startActivity(Intent(this, targetActivity).putExtra("file_path", tempFile.absolutePath))
         } catch (e: Exception) {
-            Toast.makeText(this, "Gagal: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Gagal membaca file: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 }
