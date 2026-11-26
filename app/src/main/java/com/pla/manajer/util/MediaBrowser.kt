@@ -2,19 +2,19 @@ package com.pla.manajer.util
 
 import android.content.Context
 import android.os.Environment
+import android.provider.MediaStore
 import java.io.File
 
-/** Mesin pemindai folder media ala File Manager+ (gambar, audio, video, dokumen) */
+/**
+ * Penjelajah media berbasis MediaStore (database resmi Android).
+ * Cara kerja sama dengan File Manager+: akurat, cepat, tanpa scan folder manual.
+ */
 object MediaBrowser {
 
     val imageExts = setOf("jpg", "jpeg", "png", "webp", "gif", "bmp")
     val audioExts = setOf("mp3", "wav", "aac", "m4a", "ogg", "flac", "opus", "amr", "mid")
     val videoExts = setOf("mp4", "mkv", "avi", "mov", "webm", "3gp", "flv", "ts")
-    val docExts = setOf(
-        "pdf", "doc", "docx", "txt", "xls", "xlsx", "ppt", "pptx", "csv", "rtf", "odt",
-        "epub", "zip", "rar", "7z", "tar", "gz", "apk", "json", "xml", "html", "md",
-        "kt", "java", "py", "js", "css", "gradle", "kts", "yml", "yaml", "properties", "log"
-    )
+    val docExts = setOf("pdf", "doc", "docx", "txt", "xls", "xlsx", "ppt", "pptx", "csv", "epub", "rtf", "odt")
 
     fun extsFor(type: String): Set<String> = when (type) {
         "IMAGE" -> imageExts
@@ -24,12 +24,81 @@ object MediaBrowser {
         else -> emptySet()
     }
 
-    fun roots(context: Context): List<File> {
-        val list = mutableListOf<File>()
-        val internal = Environment.getExternalStorageDirectory()
-        if (internal.exists()) list.add(internal)
-        getSdCard(context)?.let { if (it.exists()) list.add(it) }
-        return list
+    /** Ambil SEMUA file media dari database Android sekaligus (cepat & akurat) */
+    fun queryAllMediaFiles(context: Context, type: String): List<File> {
+        val result = mutableListOf<File>()
+        try {
+            when (type) {
+                "IMAGE" -> queryUri(context, MediaStore.Images.Media.EXTERNAL_CONTENT_URI, result, null)
+                "AUDIO" -> queryUri(context, MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, result, null)
+                "VIDEO" -> queryUri(context, MediaStore.Video.Media.EXTERNAL_CONTENT_URI, result, null)
+                "DOC" -> queryUri(context, MediaStore.Files.getContentUri("external"), result, docExts)
+            }
+        } catch (_: Exception) {}
+        return result.filter { it.exists() }
+    }
+
+    private fun queryUri(context: Context, uri: android.net.Uri, out: MutableList<File>, extFilter: Set<String>?) {
+        context.contentResolver.query(
+            uri,
+            arrayOf(MediaStore.MediaColumns.DATA, MediaStore.MediaColumns.DISPLAY_NAME, MediaStore.MediaColumns.SIZE),
+            null, null, null
+        )?.use { cursor ->
+            val dataIdx = cursor.getColumnIndex(MediaStore.MediaColumns.DATA)
+            val nameIdx = cursor.getColumnIndex(MediaStore.MediaColumns.DISPLAY_NAME)
+            val sizeIdx = cursor.getColumnIndex(MediaStore.MediaColumns.SIZE)
+            while (cursor.moveToNext()) {
+                val path = if (dataIdx >= 0) cursor.getString(dataIdx) else null
+                val size = if (sizeIdx >= 0) cursor.getLong(sizeIdx) else 0L
+                if (path.isNullOrEmpty() || size <= 0) continue
+                if (extFilter != null) {
+                    val name = if (nameIdx >= 0) cursor.getString(nameIdx) ?: "" else ""
+                    val ext = name.substringAfterLast('.', "").lowercase()
+                    if (ext !in extFilter) continue
+                }
+                // Abaikan folder sistem & aplikasi
+                if (path.contains("/Android/data/") || path.contains("/Android/obb/")) continue
+                out.add(File(path))
+            }
+        }
+    }
+
+    /** Folder tingkat atas yang berisi media — dikelompokkan dari database, bukan scan manual */
+    fun findMediaFolders(context: Context, type: String): List<File> {
+        val files = queryAllMediaFiles(context, type)
+        val folderMap = LinkedHashMap<String, File>()
+        for (f in files) {
+            val parent = f.parentFile ?: continue
+            if (parent.name.startsWith(".")) continue
+            val key = parent.absolutePath
+            if (!folderMap.containsKey(key)) folderMap[key] = parent
+        }
+        return folderMap.values.sortedBy { it.name.lowercase() }
+    }
+
+    /** Jumlah file media LANGSUNG di folder ini (dari database, akurat) */
+    fun countMediaInDir(allFiles: List<File>, dir: File): Int {
+        return allFiles.count { it.parentFile?.absolutePath == dir.absolutePath }
+    }
+
+    /** File contoh untuk thumbnail */
+    fun firstMediaInDir(allFiles: List<File>, dir: File): File? {
+        return allFiles.firstOrNull { it.parentFile?.absolutePath == dir.absolutePath }
+    }
+
+    /**
+     * Isi folder: HANYA subfolder yang punya media LANGSUNG + file media langsung.
+     * Tidak ada lagi folder asing yang ikut tampil.
+     */
+    fun listDirContents(allFiles: List<File>, dir: File): Pair<List<File>, List<File>> {
+        val directFiles = allFiles.filter { it.parentFile?.absolutePath == dir.absolutePath }
+            .sortedBy { it.name.lowercase() }
+        val subDirsWithMedia = directFiles.mapNotNull { null } // placeholder, dihitung di bawah
+        val subDirs = dir.listFiles()?.filter { sub ->
+            sub.isDirectory && !sub.name.startsWith(".") &&
+            allFiles.any { it.parentFile?.absolutePath == sub.absolutePath }
+        }?.sortedBy { it.name.lowercase() } ?: emptyList()
+        return Pair(subDirs, directFiles)
     }
 
     fun getSdCard(context: Context): File? {
@@ -41,78 +110,5 @@ object MediaBrowser {
             return File(sd)
         }
         return null
-    }
-
-    /** Folder yang berisi media (langsung atau di dalamnya), gabungan internal + SD, nama sama digabung */
-    fun findMediaFolders(context: Context, type: String): List<File> {
-        val exts = extsFor(type)
-        if (exts.isEmpty()) return emptyList()
-        val found = LinkedHashMap<String, File>()
-        for (root in roots(context)) scan(root, exts, found, 0)
-        return found.values.sortedBy { it.name.lowercase() }
-    }
-
-    private fun scan(dir: File, exts: Set<String>, found: LinkedHashMap<String, File>, depth: Int) {
-        if (depth > 12) return
-        val name = dir.name
-        if (name.startsWith(".") || name == "Android" || name == "obb") return
-        val files = dir.listFiles() ?: return
-        var hasDirect = false
-        for (f in files) {
-            if (f.isFile && f.extension.lowercase() in exts) { hasDirect = true; break }
-        }
-        if (hasDirect && !found.containsKey(name)) found[name] = dir
-        for (f in files) {
-            if (f.isDirectory) scan(f, exts, found, depth + 1)
-        }
-    }
-
-    /** Jumlah file media secara rekursif di dalam folder */
-    fun countMedia(dir: File, exts: Set<String>): Int {
-        var count = 0
-        val stack = ArrayDeque<File>()
-        stack.addLast(dir)
-        var guard = 0
-        while (stack.isNotEmpty() && guard < 20000) {
-            guard++
-            val d = stack.removeLast()
-            val files = d.listFiles() ?: continue
-            for (f in files) {
-                if (f.isFile && f.extension.lowercase() in exts) count++
-                else if (f.isDirectory && !f.name.startsWith(".")) stack.addLast(f)
-            }
-        }
-        return count
-    }
-
-    /** File contoh untuk thumbnail folder */
-    fun firstMediaFile(dir: File, exts: Set<String>): File? {
-        val stack = ArrayDeque<File>()
-        stack.addLast(dir)
-        var guard = 0
-        while (stack.isNotEmpty() && guard < 5000) {
-            guard++
-            val d = stack.removeLast()
-            val files = d.listFiles() ?: continue
-            for (f in files) {
-                if (f.isFile && f.extension.lowercase() in exts) return f
-            }
-            for (f in files) {
-                if (f.isDirectory && !f.name.startsWith(".")) stack.addLast(f)
-            }
-        }
-        return null
-    }
-
-    /** Isi folder: subfolder yang punya media + file media langsung */
-    fun listDirContents(dir: File, exts: Set<String>): Pair<List<File>, List<File>> {
-        val files = dir.listFiles() ?: return Pair(emptyList(), emptyList())
-        val subDirs = files.filter {
-            it.isDirectory && !it.name.startsWith(".") && countMedia(it, exts) > 0
-        }.sortedBy { it.name.lowercase() }
-        val mediaFiles = files.filter {
-            it.isFile && it.extension.lowercase() in exts
-        }.sortedBy { it.name.lowercase() }
-        return Pair(subDirs, mediaFiles)
     }
 }
