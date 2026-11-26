@@ -7,7 +7,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
-import android.media.audiofx.Equalizer
 import android.media.session.MediaSession
 import android.media.session.PlaybackState
 import android.net.Uri
@@ -20,10 +19,11 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.core.content.FileProvider
 import com.pla.manajer.databinding.ActivityAudioPlayerBinding
 import com.pla.manajer.util.NotificationHelper
+import com.pla.manajer.util.PlaAudioFx
 import com.pla.manajer.util.PlaMediaPlayer
+import com.pla.manajer.util.ShareHelper
 import java.io.File
 import java.io.FileOutputStream
 
@@ -35,8 +35,6 @@ class AudioPlayerActivity : AppCompatActivity() {
 
     private var isShuffle = false
     private var repeatMode = 0
-    private var equalizer: Equalizer? = null
-    private val savedBandLevels = mutableMapOf<Short, Short>()
 
     private lateinit var notif: NotificationHelper
     private var mediaSession: MediaSession? = null
@@ -55,7 +53,6 @@ class AudioPlayerActivity : AppCompatActivity() {
                     notif.hidePlayer()
                     PlaMediaPlayer.pause()
                     updateTombolPutar(false)
-                    finish()
                 }
             }
         }
@@ -67,6 +64,7 @@ class AudioPlayerActivity : AppCompatActivity() {
         setContentView(b.root)
 
         notif = NotificationHelper(this)
+        PlaMediaPlayer.init(this)
 
         var startPath: String? = intent.getStringExtra("start_path")
         var pathsList = intent.getStringArrayListExtra("file_paths")
@@ -124,7 +122,9 @@ class AudioPlayerActivity : AppCompatActivity() {
         }
 
         b.btnShare.setOnClickListener { shareCurrentSong() }
-        b.btnEqualizer.setOnClickListener { showEqualizerDialog() }
+        b.btnEqualizer.setOnClickListener {
+            startActivity(Intent(this, com.pla.manajer.ui.GlobalEqualizerActivity::class.java))
+        }
 
         playSong(currentIndex)
 
@@ -135,6 +135,15 @@ class AudioPlayerActivity : AppCompatActivity() {
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
+    }
+
+    // Tombol next/prev dari notifikasi saat layar sudah terbuka
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        when (intent.action) {
+            NotificationHelper.ACTION_NEXT -> playNextSong()
+            NotificationHelper.ACTION_PREV -> playPrevSong()
+        }
     }
 
     private fun requestNotifPermissionIfNeeded() {
@@ -154,8 +163,7 @@ class AudioPlayerActivity : AppCompatActivity() {
             addAction(NotificationHelper.ACTION_NEXT)
             addAction(NotificationHelper.ACTION_CLOSE)
         }
-        // PERBAIKAN: RECEIVER_EXPORTED agar notifikasi bisa menembus sistem
-        ContextCompat.registerReceiver(this, actionReceiver, f, ContextCompat.RECEIVER_EXPORTED)
+        ContextCompat.registerReceiver(this, actionReceiver, f, ContextCompat.RECEIVER_NOT_EXPORTED)
     }
 
     private fun setupMediaSession() {
@@ -229,12 +237,14 @@ class AudioPlayerActivity : AppCompatActivity() {
     }
 
     private fun playPrevSong() {
+        if (filePaths.isEmpty()) return
         if (isShuffle) currentIndex = filePaths.indices.random()
         else currentIndex = if (currentIndex > 0) currentIndex - 1 else filePaths.size - 1
         playSong(currentIndex)
     }
 
     private fun playNextSong() {
+        if (filePaths.isEmpty()) return
         if (isShuffle) currentIndex = filePaths.indices.random()
         else currentIndex = if (currentIndex < filePaths.size - 1) currentIndex + 1 else 0
         playSong(currentIndex)
@@ -248,15 +258,17 @@ class AudioPlayerActivity : AppCompatActivity() {
         b.tvCounter.text = "${index + 1} dari ${filePaths.size}"
 
         PlaMediaPlayer.play(file) {
-            updateTombolPutar(false); updateSessionState(false)
-            notif.showPlayer(file.name, false); scheduleAutoHide()
+            runOnUiThread {
+                updateTombolPutar(false); updateSessionState(false)
+                notif.showPlayer(file.name, false); scheduleAutoHide()
 
-            when (repeatMode) {
-                2 -> playSong(currentIndex)
-                1 -> playNextSong()
-                0 -> {
-                    if (currentIndex < filePaths.size - 1) {
-                        currentIndex++; playSong(currentIndex)
+                when (repeatMode) {
+                    2 -> playSong(currentIndex)
+                    1 -> playNextSong()
+                    0 -> {
+                        if (currentIndex < filePaths.size - 1) {
+                            currentIndex++; playSong(currentIndex)
+                        }
                     }
                 }
             }
@@ -264,78 +276,12 @@ class AudioPlayerActivity : AppCompatActivity() {
 
         updateTombolPutar(true); updateSessionState(true); updateSeekBar()
         notif.showPlayer(file.name, true); cancelAutoHide()
-
-        val sessionId = PlaMediaPlayer.audioSessionId
-        equalizer?.release()
-        equalizer = Equalizer(0, sessionId).apply {
-            enabled = true
-            savedBandLevels.forEach { (band, level) -> setBandLevel(band, level) }
-        }
+        // Equalizer sekarang diurus GLOBAL oleh PlaAudioFx (tidak dilepas saat layar ditutup)
     }
 
     private fun shareCurrentSong() {
         val file = PlaMediaPlayer.currentFile ?: return
-        try {
-            val uri = FileProvider.getUriForFile(this, "$packageName.provider", file)
-            val intent = Intent(Intent.ACTION_SEND).apply {
-                type = "audio/*"
-                putExtra(Intent.EXTRA_STREAM, uri)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            startActivity(Intent.createChooser(intent, "Bagikan Lagu via"))
-        } catch (e: Exception) {
-            Toast.makeText(this, "Gagal membagikan: ${e.message}", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    private fun showEqualizerDialog() {
-        if (equalizer == null) {
-            Toast.makeText(this, "Tidak ada audio yang diputar", Toast.LENGTH_SHORT).show(); return
-        }
-        val builder = AlertDialog.Builder(this)
-        builder.setTitle("Efek Suara (Equalizer)")
-        val scrollView = android.widget.ScrollView(this)
-        val layout = android.widget.LinearLayout(this).apply {
-            orientation = android.widget.LinearLayout.VERTICAL
-            setPadding(50, 20, 50, 20)
-        }
-        scrollView.addView(layout)
-
-        val numBands = equalizer!!.numberOfBands
-        val range = equalizer!!.bandLevelRange
-
-        for (i in 0 until numBands) {
-            val bandIndex = i.toShort()
-            val freq = equalizer!!.getCenterFreq(bandIndex) / 1000
-            val freqText = if (freq >= 1000) "${freq / 1000} kHz" else "$freq Hz"
-
-            val label = android.widget.TextView(this).apply {
-                text = freqText
-                setTextColor(android.graphics.Color.WHITE)
-                setPadding(0, 20, 0, 0)
-            }
-            val seekBar = SeekBar(this).apply {
-                max = (range[1] - range[0]).toInt()
-                val currentLevel = savedBandLevels[bandIndex] ?: equalizer!!.getBandLevel(bandIndex)
-                progress = (currentLevel - range[0]).toInt()
-                setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                    override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
-                        if (fromUser) {
-                            val newLevel = (progress + range[0]).toShort()
-                            equalizer!!.setBandLevel(bandIndex, newLevel)
-                            savedBandLevels[bandIndex] = newLevel
-                        }
-                    }
-                    override fun onStartTrackingTouch(sb: SeekBar?) {}
-                    override fun onStopTrackingTouch(sb: SeekBar?) {}
-                })
-            }
-            layout.addView(label)
-            layout.addView(seekBar)
-        }
-        builder.setView(scrollView)
-        builder.setPositiveButton("Tutup", null)
-        builder.show()
+        ShareHelper.shareFile(this, file)
     }
 
     private fun updateSeekBar() {
@@ -359,6 +305,11 @@ class AudioPlayerActivity : AppCompatActivity() {
         return String.format("%02d:%02d", sec / 60, sec % 60)
     }
 
+    override fun onResume() {
+        super.onResume()
+        updateTombolPutar(PlaMediaPlayer.isPlaying)
+    }
+
     override fun onStop() {
         super.onStop()
         if (!PlaMediaPlayer.isPlaying) scheduleAutoHide()
@@ -371,6 +322,6 @@ class AudioPlayerActivity : AppCompatActivity() {
         try { unregisterReceiver(actionReceiver) } catch (_: Exception) {}
         mediaSession?.isActive = false
         mediaSession?.release()
-        equalizer?.release()
+        // JANGAN lepas equalizer di sini! Biarkan tetap hidup global.
     }
 }
