@@ -43,9 +43,7 @@
                 android:text="Tampilkan Petunjuk Screen Reader"
                 android:textSize="14sp" />
 
-            <!-- ========================================== -->
-            <!-- FITUR TOMBOL AJAIB (BISA DIMUNCULKAN/DISEMBUNYIKAN) -->
-            <!-- ========================================== -->
+            <!-- TOMBOL AJAIB -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -86,8 +84,6 @@
                 android:text="Tampilkan Tab 'Buat APK' di Manajer Aplikasi"
                 android:textSize="14sp" />
 
-            <!-- ========================================== -->
-
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -104,15 +100,24 @@
                 android:fontFamily="monospace" />
 
             <!-- ========================================== -->
-            <!-- TAMBAHAN DARI AI: Tampilkan Jam & Menit -->
+            <!-- FITUR TAMBAHAN: EQUALIZER & JAM -->
             <!-- ========================================== -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="32dp"
-                android:text="Rincian File"
+                android:text="Rincian File & Suara"
                 android:textStyle="bold"
                 android:textSize="16sp" />
+
+            <!-- TOMBOL EQUALIZER BARU -->
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/swEqualizer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Aktifkan Equalizer 32 Band (Global)"
+                android:textSize="14sp" />
 
             <com.google.android.material.materialswitch.MaterialSwitch
                 android:id="@+id/switchDateTime"
@@ -129,7 +134,6 @@
                 android:text="Jika dimatikan, rincian hanya menampilkan Tanggal, Bulan, Tahun."
                 android:textSize="12sp"
                 android:textColor="?android:attr/textColorSecondary" />
-            <!-- ========================================== -->
 
         </LinearLayout>
     </ScrollView>
