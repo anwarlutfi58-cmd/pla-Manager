@@ -1,6 +1,8 @@
 package com.pla.manajer.ui
 
+import android.content.Intent
 import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
 import android.widget.LinearLayout
 import android.widget.SeekBar
@@ -8,6 +10,7 @@ import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import com.pla.manajer.service.GlobalEqualizerService
 import com.pla.manajer.util.PlaAudioFx
 import com.pla.manajer.util.PlaMediaPlayer
 import com.pla.manajer.util.Prefs
@@ -41,14 +44,14 @@ class GlobalEqualizerActivity : AppCompatActivity() {
         layout.addView(title)
 
         val info = TextView(this).apply {
-            text = "Berlaku untuk pemutar musik PLA. Putar lagu dulu agar efek terdengar langsung."
+            text = "Berlaku untuk pemutar musik PLA. Putar lagu dulu agar efek terdengar langsung. Jika dimatikan, kartu EQ di beranda akan disembunyikan."
             textSize = 12f
             setTextColor(Color.GRAY)
             setPadding(0, 0, 0, 16)
         }
         layout.addView(info)
 
-        // ===== SAKLAR UTAMA ON/OFF (tersimpan & dibaca beranda) =====
+        // ===== SAKLAR UTAMA ON/OFF (sinkron dengan Pengaturan & Beranda) =====
         val masterSwitch = Switch(this).apply {
             text = "Aktifkan Equalizer"
             setTextColor(Color.WHITE)
@@ -57,8 +60,14 @@ class GlobalEqualizerActivity : AppCompatActivity() {
             setOnCheckedChangeListener { _, checked ->
                 prefs.eqEnabled = checked
                 PlaAudioFx.applyAll()
-                Toast.makeText(this@GlobalEqualizerActivity,
-                    if (checked) "Equalizer AKTIF" else "Equalizer MATI", Toast.LENGTH_SHORT).show()
+                if (checked) {
+                    val intent = Intent(this@GlobalEqualizerActivity, GlobalEqualizerService::class.java)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(intent) else startService(intent)
+                    Toast.makeText(this@GlobalEqualizerActivity, "Equalizer AKTIF", Toast.LENGTH_SHORT).show()
+                } else {
+                    stopService(Intent(this@GlobalEqualizerActivity, GlobalEqualizerService::class.java))
+                    Toast.makeText(this@GlobalEqualizerActivity, "Equalizer MATI. Kartu EQ disembunyikan dari beranda.", Toast.LENGTH_LONG).show()
+                }
             }
         }
         layout.addView(masterSwitch)
@@ -94,7 +103,7 @@ class GlobalEqualizerActivity : AppCompatActivity() {
         }
         layout.addView(divider)
 
-        // ===== 32 SLIDER FREKUENSI (langsung mengubah suara) =====
+        // ===== 32 SLIDER FREKUENSI =====
         for (i in freqs.indices) {
             val freqText = if (freqs[i] >= 1000) "${freqs[i] / 1000} kHz" else "${freqs[i]} Hz"
             val saved = prefs.getEqLevel(freqs[i])
@@ -106,7 +115,7 @@ class GlobalEqualizerActivity : AppCompatActivity() {
             }
 
             val seekBar = SeekBar(this).apply {
-                max = 30 // -15 sampai +15 dB
+                max = 30
                 progress = saved + 15
                 setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                     override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
@@ -114,7 +123,7 @@ class GlobalEqualizerActivity : AppCompatActivity() {
                             val db = progress - 15
                             label.text = "$freqText : $db dB"
                             prefs.setEqLevel(freqs[i], db)
-                            PlaAudioFx.applyAll() // LANGSUNG terapkan ke audio yang sedang main
+                            PlaAudioFx.applyAll()
                         }
                     }
                     override fun onStartTrackingTouch(sb: SeekBar?) {}
@@ -130,7 +139,6 @@ class GlobalEqualizerActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Pastikan efek terpasang kalau ada lagu yang sedang diputar
         if (PlaMediaPlayer.audioSessionId > 0) {
             PlaAudioFx.attach(PlaMediaPlayer.audioSessionId)
         }
