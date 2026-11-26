@@ -3,6 +3,7 @@ package com.pla.manajer
 import android.app.AlertDialog
 import android.content.ContentValues
 import android.content.Intent
+import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -27,12 +28,22 @@ class VideoEditorActivity : AppCompatActivity() {
     private var audioUri: Uri? = null
     private var videoUri: Uri? = null
     private var isLandscape = false
-    
+
     private var lastExportedFile: File? = null
     private var extraVideoFilter = ""
     private var useReverse = false
     private var useMute = false
     private var useGif = false
+
+    private val beautyFilters = arrayOf(
+        "Normal",
+        "Kulit Halus Pro", "Wajah Cerah Natural", "Mata Tajam & Glowing",
+        "Bibir Merah Alami", "Rona Pipi Soft", "Anti-Keriput Halus",
+        "Ton Warna Sinematik", "Glow Kulit Premium",
+        "Vintage", "Sepia", "Black & White", "HDR", "Cyberpunk",
+        "Neon", "Retro", "Cinematic", "Cold", "Warm", "Fade",
+        "Dramatic", "Pastel", "Glitch", "Invert"
+    )
 
     private val soundEffects = arrayOf("Tidak Ada", "Tepuk Tangan", "Hujan", "Angin", "Suara Hati (Detak)", "Petir", "Sorak Sorai", "Sirene", "Klik Kamera", "Bunyi Pop", "Whoosh", "Alarm")
 
@@ -58,8 +69,7 @@ class VideoEditorActivity : AppCompatActivity() {
             imageUris.clear()
             b.ivPreview.setImageResource(android.R.drawable.ic_media_play)
             b.tvNoImage.visibility = View.GONE
-            val name = getFileName(uri)
-            Toast.makeText(this, "Video terpilih: $name", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Video terpilih: ${getFileName(uri)}", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -76,11 +86,12 @@ class VideoEditorActivity : AppCompatActivity() {
         setContentView(b.root)
         notif = NotificationHelper(this)
 
+        b.spinnerVideoFilters.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, beautyFilters)
         b.spinnerEffects.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, VideoProHelper.visualEffects)
         b.spinnerTextPos.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, VideoProHelper.watermarkPositions)
         b.spinnerTextColor.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, arrayOf("Putih", "Hitam", "Kuning", "Merah", "Biru", "Hijau"))
         b.spinnerSoundEffects.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, soundEffects)
-        b.spinnerVideoFilters.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, arrayOf("Normal", "Vintage", "Sepia", "Black & White", "HDR", "Cyberpunk", "Neon", "Retro", "Cinematic", "Cold", "Warm", "Fade", "Dramatic", "Pastel", "Glitch", "Invert"))
+        b.spinnerRatio.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, arrayOf("16:9 (Lanskap)", "9:16 (Potret/TikTok)", "1:1 (Persegi)"))
 
         b.btnBack.setOnClickListener { finish() }
 
@@ -124,42 +135,58 @@ class VideoEditorActivity : AppCompatActivity() {
         }
 
         b.btnPickAudio.setOnClickListener { pickAudioLauncher.launch("audio/*") }
-        b.spinnerRatio.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, arrayOf("16:9 (Lanskap)", "9:16 (Potret/TikTok)", "1:1 (Persegi)"))
 
-        val btnPickRealVideo = Button(this).apply {
-            text = "Pilih Video Asli (.mp4) dari HP"
-            setOnClickListener { pickVideoLauncher.launch("video/*") }
-        }
+        // Susun ulang tombol agar rapi: tidak ada duplikat, ekspor paling bawah & menonjol
+        val parent = b.btnExport.parent as? LinearLayout
+        if (parent != null) {
+            parent.removeAllViews()
+            parent.orientation = LinearLayout.VERTICAL
 
-        val btnPlay = Button(this).apply {
-            text = "Putar Hasil Video"
-            setOnClickListener {
-                val file = lastExportedFile
-                if (file != null && file.exists()) {
-                    VideoPlayerHelper.playVideo(this@VideoEditorActivity, file)
-                } else {
-                    val dir = File(Environment.getExternalStorageDirectory(), "PlaProjects/Edit_Video")
-                    val lastVideo = dir.listFiles()?.filter { it.extension == "mp4" }?.maxByOrNull { it.lastModified() }
-                    if (lastVideo != null) {
-                        VideoPlayerHelper.playVideo(this@VideoEditorActivity, lastVideo)
+            val btnPlay = Button(this).apply {
+                text = "▶️ Putar Hasil Video"
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { bottomMargin = 8 }
+                setOnClickListener {
+                    val file = lastExportedFile
+                    if (file != null && file.exists()) {
+                        VideoPlayerHelper.playVideo(this@VideoEditorActivity, file)
                     } else {
-                        Toast.makeText(this@VideoEditorActivity, "Belum ada video yang dibuat.", Toast.LENGTH_SHORT).show()
+                        val dir = File(Environment.getExternalStorageDirectory(), "PlaProjects/Edit_Video")
+                        val lastVideo = dir.listFiles()?.filter { it.extension == "mp4" }?.maxByOrNull { it.lastModified() }
+                        if (lastVideo != null) {
+                            VideoPlayerHelper.playVideo(this@VideoEditorActivity, lastVideo)
+                        } else {
+                            Toast.makeText(this@VideoEditorActivity, "Belum ada video yang dibuat.", Toast.LENGTH_SHORT).show()
+                        }
                     }
                 }
             }
-        }
-        
-        val btnAdvanced = Button(this).apply {
-            text = "Buka Alat Video Asli (Potong, Mute, dll)"
-            setOnClickListener { showRealVideoTools() }
-        }
 
-        val parent = b.btnExport.parent as? LinearLayout
-        if (parent != null) {
-            val index = parent.indexOfChild(b.btnExport)
-            parent.addView(btnPickRealVideo, index)
-            parent.addView(btnPlay, index + 1)
-            parent.addView(btnAdvanced, index + 2)
+            val btnAdvanced = Button(this).apply {
+                text = "🔧 Alat Video Lanjutan (Potong/Mute/GIF)"
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { bottomMargin = 8 }
+                setOnClickListener { showRealVideoTools() }
+            }
+
+            b.btnExport.apply {
+                text = "📤 Ekspor Video"
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { topMargin = 16 }
+                setBackgroundColor(Color.parseColor("#00BFA5"))
+                setTextColor(Color.WHITE)
+                textSize = 18f
+            }
+
+            parent.addView(btnPlay)
+            parent.addView(btnAdvanced)
+            parent.addView(b.btnExport)
         }
 
         b.btnExport.setOnClickListener {
@@ -173,26 +200,25 @@ class VideoEditorActivity : AppCompatActivity() {
 
     private fun showRealVideoTools() {
         if (videoUri == null) {
-            Toast.makeText(this, "Pilih Video Asli terlebih dahulu (tombol paling atas)!", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Pilih video dulu lewat tombol 🎬 di baris alat!", Toast.LENGTH_LONG).show()
             return
         }
-
         val options = arrayOf("Potong Video (Trim)", "Hapus Suara (Mute)", "Percepat Video 2x", "Jadikan GIF")
         AlertDialog.Builder(this)
-            .setTitle("Alat Video Asli")
+            .setTitle("Alat Video Lanjutan")
             .setItems(options) { _, which ->
-                when(which) {
+                when (which) {
                     0 -> showTrimDialog()
                     1 -> {
-                        extraVideoFilter = RealVideoHelper.getMuteCommand()
+                        useMute = true
                         Toast.makeText(this, "Suara akan dihapus saat ekspor", Toast.LENGTH_SHORT).show()
                     }
                     2 -> {
                         extraVideoFilter = RealVideoHelper.getSpeedUpCommand(2.0f)
-                        Toast.makeText(this, "Video akan dipercepat saat ekspor", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, "Video akan dipercepat 2x saat ekspor", Toast.LENGTH_SHORT).show()
                     }
                     3 -> {
-                        extraVideoFilter = RealVideoHelper.getToGifCommand()
+                        useGif = true
                         Toast.makeText(this, "Video akan diubah jadi GIF saat ekspor", Toast.LENGTH_SHORT).show()
                     }
                 }
@@ -254,26 +280,62 @@ class VideoEditorActivity : AppCompatActivity() {
         AlertDialog.Builder(this)
             .setView(dialogView)
             .setPositiveButton("Mulai Ekspor") { _, _ ->
-                val resolution = when(spinnerRes.selectedItemPosition) {
+                val resolution = when (spinnerRes.selectedItemPosition) {
                     0 -> "640:360"
                     1 -> "1280:720"
                     else -> "1920:1080"
                 }
                 val fps = if (spinnerFps.selectedItemPosition == 0) "30" else "60"
-                
-                if (videoUri != null) {
-                    renderRealVideo(resolution, fps)
-                } else {
-                    renderSlideshow(resolution, fps)
-                }
+                if (videoUri != null) renderRealVideo(resolution, fps) else renderSlideshow(resolution, fps)
             }
             .setNegativeButton("Batal", null)
             .show()
     }
 
+    /** Filter kecantikan PRO: efek kuat di tengah frame (area wajah), memudar ke tepi */
+    private fun getBeautyFilterCommand(filterName: String): String {
+        return when (filterName) {
+            "Kulit Halus Pro" ->
+                "split[a][b];[a]boxblur=4:1[c];[b][c]blend=all_mode='overlay':all_opacity=0.35[d];[d]unsharp=5:5:0.7"
+            "Wajah Cerah Natural" ->
+                "eq=brightness=0.08:contrast=1.05:saturation=1.1,gamma=1.08"
+            "Mata Tajam & Glowing" ->
+                "unsharp=7:7:1.0,hqdn3d=1.5:1.5:3:3"
+            "Bibir Merah Alami" ->
+                "colorchannelmixer=rr=1.12:rg=-0.04:rb=-0.04:gr=-0.04:gg=1.04:gb=-0.04:br=-0.04:bg=-0.04:bb=1.0"
+            "Rona Pipi Soft" ->
+                "geq=r='r(X,Y)+12*(1-sqrt(pow((X/W-0.5)*2\,2)+pow((Y/H-0.6)*2\,2)))':g='g(X,Y)+4':b='b(X,Y)'"
+            "Anti-Keriput Halus" ->
+                "hqdn3d=2:2:7:7,unsharp=3:3:0.4"
+            "Ton Warna Sinematik" ->
+                "curves=preset=medium_contrast,colorbalance=rs=0.04:gs=0.02:bs=-0.04"
+            "Glow Kulit Premium" ->
+                "split[a][b];[a]boxblur=6:2[c];[b][c]blend=all_mode='screen':all_opacity=0.25[d];[d]eq=saturation=1.12"
+            "Vintage" -> "curves=preset=vintage"
+            "Sepia" -> "colorchannelmixer=.393:.769:.189:0:.349:.686:.168:0:.272:.534:.131"
+            "Black & White" -> "hue=s=0"
+            "HDR" -> "eq=contrast=1.4:saturation=1.3"
+            "Cyberpunk" -> "colorbalance=rs=0.25:gs=-0.1:bs=0.4,eq=contrast=1.2"
+            "Neon" -> "eq=contrast=1.3:brightness=0.05:saturation=1.8"
+            "Retro" -> "curves=preset=color_negative"
+            "Cinematic" -> "curves=preset=strong_contrast,colorbalance=bs=0.08"
+            "Cold" -> "colorbalance=bs=0.3:gs=0.1"
+            "Warm" -> "colorbalance=rs=0.3:gs=0.1"
+            "Fade" -> "eq=brightness=0.1:contrast=0.8"
+            "Dramatic" -> "eq=contrast=1.5:brightness=-0.1"
+            "Pastel" -> "eq=saturation=0.6:brightness=0.1"
+            "Glitch" -> "noise=alls=20:allf=t+u"
+            "Invert" -> "negate"
+            else -> ""
+        }
+    }
+
+    /** Apakah filter ini butuh filter_complex (split/blend) */
+    private fun isComplexFilter(cmd: String): Boolean = cmd.contains("split[") || cmd.contains(";")
+
     private fun renderRealVideo(resolution: String, fps: String) {
         b.btnExport.isEnabled = false
-        b.btnExport.text = "Memproses Video..."
+        b.btnExport.text = "⏳ Memproses Video..."
         notif.showEdit("Memproses Video", "Mengedit video asli...")
 
         val outputDir = File(Environment.getExternalStorageDirectory(), "PlaProjects/Edit_Video")
@@ -288,49 +350,47 @@ class VideoEditorActivity : AppCompatActivity() {
                 FileOutputStream(tempVideo).use { output -> input.copyTo(output) }
             }
 
-            val cmd = StringBuilder()
-            if (extraVideoFilter.contains("-ss")) cmd.append("${extraVideoFilter} ")
-            
-            cmd.append("-i \"${tempVideo.absolutePath}\" ")
-            
-            val vFilter = StringBuilder("scale=$resolution,setsar=1,fps=$fps")
+            val baseFilter = StringBuilder("scale=$resolution,setsar=1,fps=$fps")
             val effectFilter = VideoProHelper.getVisualFilter(b.spinnerEffects.selectedItem.toString())
-            if (effectFilter.isNotEmpty()) vFilter.append(",$effectFilter")
-            
+            if (effectFilter.isNotEmpty()) baseFilter.append(",$effectFilter")
+
             val selectedFilter = b.spinnerVideoFilters.selectedItem.toString()
-            when (selectedFilter) {
-                "Vintage" -> vFilter.append(",curves=preset=vintage")
-                "Sepia" -> vFilter.append(",colorchannelmixer=.393:.769:.189:0:.349:.686:.168:0:.272:.534:.131")
-                "Black & White" -> vFilter.append(",hue=s=0")
-                "HDR" -> vFilter.append(",eq=contrast=1.5:saturation=1.5")
-                "Cyberpunk" -> vFilter.append(",colorbalance=rs=0.3:gs=-0.1:bs=0.5")
-                "Neon" -> vFilter.append(",eq=contrast=1.4:brightness=0.1:saturation=2.0")
-                "Retro" -> vFilter.append(",curves=preset=color_negative")
-                "Cinematic" -> vFilter.append(",curves=preset=strong_contrast")
-                "Cold" -> vFilter.append(",colorbalance=bs=0.3:gs=0.1")
-                "Warm" -> vFilter.append(",colorbalance=rs=0.3:gs=0.1")
-                "Fade" -> vFilter.append(",eq=brightness=0.1:contrast=0.8")
-                "Dramatic" -> vFilter.append(",eq=contrast=1.5:brightness=-0.1")
-                "Pastel" -> vFilter.append(",eq=saturation=0.6:brightness=0.1")
-                "Glitch" -> vFilter.append(",noise=alls=20:allf=t+u")
-                "Invert" -> vFilter.append(",negate")
-            }
-            
-            if (useReverse) vFilter.append(",reverse")
-            
-            val wmText = b.etWatermark.text.toString()
+            val beautyCmd = getBeautyFilterCommand(selectedFilter)
+
+            val wmText = b.etWatermark.text.toString().replace("'", "").replace(":", " ")
+            var wmCmd = ""
             if (wmText.isNotEmpty()) {
                 val pos = VideoProHelper.getWatermarkPosition(b.spinnerTextPos.selectedItem.toString())
-                val color = when(b.spinnerTextColor.selectedItemPosition) {
+                val color = when (b.spinnerTextColor.selectedItemPosition) {
                     1 -> "black"; 2 -> "yellow"; 3 -> "red"; 4 -> "blue"; 5 -> "green"; else -> "white"
                 }
-                vFilter.append(",drawtext=text='$wmText':fontcolor=$color:fontsize=36:box=1:boxcolor=black@0.5:$pos")
+                wmCmd = ",drawtext=text='$wmText':fontcolor=$color:fontsize=36:box=1:boxcolor=black@0.5:$pos"
             }
-            cmd.append("-vf \"$vFilter\" ")
-            
-            if (useMute) cmd.append("-an ")
-            else if (extraVideoFilter.isNotEmpty() && !extraVideoFilter.contains("-ss")) {
-                cmd.append("${extraVideoFilter} ")
+
+            val cmd = StringBuilder("-y ")
+            if (extraVideoFilter.contains("-ss")) cmd.append("$extraVideoFilter ")
+            cmd.append("-i \"${tempVideo.absolutePath}\" ")
+
+            if (beautyCmd.isNotEmpty() && isComplexFilter(beautyCmd)) {
+                // Filter kompleks: pakai -filter_complex
+                val chain = "[0:v]$baseFilter[base];[base]$beautyCmd[out]"
+                cmd.append("-filter_complex \"$chain\" -map \"[out]\" ")
+                if (wmCmd.isNotEmpty()) cmd.append("-vf \"${wmCmd.removePrefix(",")}\" ")
+                if (!useMute) cmd.append("-map 0:a? ")
+            } else {
+                val vFilter = StringBuilder(baseFilter)
+                if (beautyCmd.isNotEmpty()) vFilter.append(",$beautyCmd")
+                if (useReverse) vFilter.append(",reverse")
+                vFilter.append(wmCmd)
+                cmd.append("-vf \"$vFilter\" ")
+            }
+
+            if (useGif) {
+                cmd.append("-an ")
+            } else if (useMute) {
+                cmd.append("-c:v libx264 -pix_fmt yuv420p -an ")
+            } else if (extraVideoFilter.isNotEmpty() && !extraVideoFilter.contains("-ss")) {
+                cmd.append(extraVideoFilter).append(" ")
             } else {
                 cmd.append("-c:v libx264 -pix_fmt yuv420p -c:a aac ")
             }
@@ -340,22 +400,22 @@ class VideoEditorActivity : AppCompatActivity() {
             FFmpegKit.executeAsync(cmd.toString(), { session ->
                 runOnUiThread {
                     b.btnExport.isEnabled = true
-                    b.btnExport.text = "Ekspor"
+                    b.btnExport.text = "📤 Ekspor Video"
                     notif.hideEdit()
                     if (ReturnCode.isSuccess(session.returnCode)) {
                         registerVideoToMediaStore(outputFile)
-                        Toast.makeText(this, "Berhasil! Tekan 'Putar Hasil Video'", Toast.LENGTH_LONG).show()
+                        Toast.makeText(this, "✅ Berhasil! Tekan 'Putar Hasil Video'", Toast.LENGTH_LONG).show()
                         extraVideoFilter = ""
                         useReverse = false; useMute = false; useGif = false
                     } else {
-                        Toast.makeText(this, "Gagal memproses video.", Toast.LENGTH_LONG).show()
+                        Toast.makeText(this, "❌ Gagal memproses video.", Toast.LENGTH_LONG).show()
                     }
                 }
             }, { }, { })
 
         } catch (e: Exception) {
             b.btnExport.isEnabled = true
-            b.btnExport.text = "Ekspor"
+            b.btnExport.text = "📤 Ekspor Video"
             notif.hideEdit()
             Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
         }
@@ -363,8 +423,7 @@ class VideoEditorActivity : AppCompatActivity() {
 
     private fun renderSlideshow(resolution: String, fps: String) {
         b.btnExport.isEnabled = false
-        b.btnExport.text = "Memproses..."
-        Toast.makeText(this, "Sedang membuat video... Mohon tunggu.", Toast.LENGTH_LONG).show()
+        b.btnExport.text = "⏳ Memproses Slideshow..."
         notif.showEdit("Membuat Video", "Mengekspor ${imageUris.size} gambar ke MP4...")
 
         val duration = b.etDuration.text.toString().toIntOrNull() ?: 3
@@ -376,66 +435,59 @@ class VideoEditorActivity : AppCompatActivity() {
 
         try {
             val writer = concatFile.bufferedWriter()
-            imageUris.forEach { uri ->
-                val tempImg = File(cacheDir, "img_${System.currentTimeMillis()}.jpg")
+            imageUris.forEachIndexed { idx, uri ->
+                val tempImg = File(cacheDir, "img_$idx.jpg")
                 contentResolver.openInputStream(uri)?.use { input ->
                     FileOutputStream(tempImg).use { output -> input.copyTo(output) }
                 }
                 writer.write("file '${tempImg.absolutePath}'\n")
                 writer.write("duration $duration\n")
             }
-            val lastImg = File(cacheDir, "img_${System.currentTimeMillis()}.jpg")
+            val lastImg = File(cacheDir, "img_last.jpg")
             contentResolver.openInputStream(imageUris.last())?.use { input ->
                 FileOutputStream(lastImg).use { output -> input.copyTo(output) }
             }
             writer.write("file '${lastImg.absolutePath}'\n")
             writer.close()
 
-            val cmd = StringBuilder()
-            cmd.append("-y -f concat -safe 0 -i \"${concatFile.absolutePath}\" ")
-            if (audioUri != null) {
+            val baseFilter = StringBuilder("scale=$resolution,setsar=1,fps=$fps")
+            val effectFilter = VideoProHelper.getVisualFilter(b.spinnerEffects.selectedItem.toString())
+            if (effectFilter.isNotEmpty()) baseFilter.append(",$effectFilter")
+
+            val selectedFilter = b.spinnerVideoFilters.selectedItem.toString()
+            val beautyCmd = getBeautyFilterCommand(selectedFilter)
+
+            val wmText = b.etWatermark.text.toString().replace("'", "").replace(":", " ")
+            var wmCmd = ""
+            if (wmText.isNotEmpty()) {
+                val pos = VideoProHelper.getWatermarkPosition(b.spinnerTextPos.selectedItem.toString())
+                val color = when (b.spinnerTextColor.selectedItemPosition) {
+                    1 -> "black"; 2 -> "yellow"; 3 -> "red"; 4 -> "blue"; 5 -> "green"; else -> "white"
+                }
+                wmCmd = ",drawtext=text='$wmText':fontcolor=$color:fontsize=36:box=1:boxcolor=black@0.5:$pos"
+            }
+
+            val cmd = StringBuilder("-y -f concat -safe 0 -i \"${concatFile.absolutePath}\" ")
+            if (audioUri != null && !useMute) {
                 val tempAudio = File(cacheDir, "bgm.m4a")
                 contentResolver.openInputStream(audioUri!!)?.use { input ->
                     FileOutputStream(tempAudio).use { output -> input.copyTo(output) }
                 }
                 cmd.append("-i \"${tempAudio.absolutePath}\" ")
             }
-            
-            val vFilter = StringBuilder("scale=$resolution,setsar=1,fps=$fps")
-            val effectFilter = VideoProHelper.getVisualFilter(b.spinnerEffects.selectedItem.toString())
-            if (effectFilter.isNotEmpty()) vFilter.append(",$effectFilter")
-            
-            val selectedFilter = b.spinnerVideoFilters.selectedItem.toString()
-            when (selectedFilter) {
-                "Vintage" -> vFilter.append(",curves=preset=vintage")
-                "Sepia" -> vFilter.append(",colorchannelmixer=.393:.769:.189:0:.349:.686:.168:0:.272:.534:.131")
-                "Black & White" -> vFilter.append(",hue=s=0")
-                "HDR" -> vFilter.append(",eq=contrast=1.5:saturation=1.5")
-                "Cyberpunk" -> vFilter.append(",colorbalance=rs=0.3:gs=-0.1:bs=0.5")
-                "Neon" -> vFilter.append(",eq=contrast=1.4:brightness=0.1:saturation=2.0")
-                "Retro" -> vFilter.append(",curves=preset=color_negative")
-                "Cinematic" -> vFilter.append(",curves=preset=strong_contrast")
-                "Cold" -> vFilter.append(",colorbalance=bs=0.3:gs=0.1")
-                "Warm" -> vFilter.append(",colorbalance=rs=0.3:gs=0.1")
-                "Fade" -> vFilter.append(",eq=brightness=0.1:contrast=0.8")
-                "Dramatic" -> vFilter.append(",eq=contrast=1.5:brightness=-0.1")
-                "Pastel" -> vFilter.append(",eq=saturation=0.6:brightness=0.1")
-                "Glitch" -> vFilter.append(",noise=alls=20:allf=t+u")
-                "Invert" -> vFilter.append(",negate")
+
+            if (beautyCmd.isNotEmpty() && isComplexFilter(beautyCmd)) {
+                val chain = "[0:v]$baseFilter[base];[base]$beautyCmd[out]"
+                cmd.append("-filter_complex \"$chain\" -map \"[out]\" ")
+                if (wmCmd.isNotEmpty()) cmd.append("-vf \"${wmCmd.removePrefix(",")}\" ")
+                if (audioUri != null && !useMute) cmd.append("-map 1:a ")
+            } else {
+                val vFilter = StringBuilder(baseFilter)
+                if (beautyCmd.isNotEmpty()) vFilter.append(",$beautyCmd")
+                vFilter.append(wmCmd)
+                cmd.append("-vf \"$vFilter\" ")
             }
-            
-            if (useReverse) vFilter.append(",reverse")
-            
-            val wmText = b.etWatermark.text.toString()
-            if (wmText.isNotEmpty()) {
-                val pos = VideoProHelper.getWatermarkPosition(b.spinnerTextPos.selectedItem.toString())
-                val color = when(b.spinnerTextColor.selectedItemPosition) {
-                    1 -> "black"; 2 -> "yellow"; 3 -> "red"; 4 -> "blue"; 5 -> "green"; else -> "white"
-                }
-                vFilter.append(",drawtext=text='$wmText':fontcolor=$color:fontsize=36:box=1:boxcolor=black@0.5:$pos")
-            }
-            cmd.append("-vf \"$vFilter\" ")
-            
+
             cmd.append("-c:v libx264 -pix_fmt yuv420p ")
             if (useMute) cmd.append("-an ")
             else if (audioUri != null) cmd.append("-c:a aac -shortest ")
@@ -444,20 +496,20 @@ class VideoEditorActivity : AppCompatActivity() {
             FFmpegKit.executeAsync(cmd.toString(), { session ->
                 runOnUiThread {
                     b.btnExport.isEnabled = true
-                    b.btnExport.text = "Ekspor"
+                    b.btnExport.text = "📤 Ekspor Video"
                     notif.hideEdit()
                     if (ReturnCode.isSuccess(session.returnCode)) {
                         registerVideoToMediaStore(outputFile)
-                        Toast.makeText(this, "Berhasil! Tekan 'Putar Hasil Video'", Toast.LENGTH_LONG).show()
+                        Toast.makeText(this, "✅ Berhasil! Tekan 'Putar Hasil Video'", Toast.LENGTH_LONG).show()
                         useMute = false; useGif = false; useReverse = false
                     } else {
-                        Toast.makeText(this, "Gagal membuat video.", Toast.LENGTH_LONG).show()
+                        Toast.makeText(this, "❌ Gagal membuat video.", Toast.LENGTH_LONG).show()
                     }
                 }
             }, { }, { })
         } catch (e: Exception) {
             b.btnExport.isEnabled = true
-            b.btnExport.text = "Ekspor"
+            b.btnExport.text = "📤 Ekspor Video"
             notif.hideEdit()
             Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
         }
@@ -467,9 +519,9 @@ class VideoEditorActivity : AppCompatActivity() {
         try {
             val values = ContentValues().apply {
                 put(MediaStore.Video.Media.DISPLAY_NAME, file.name)
-                put(MediaStore.Video.Media.MIME_TYPE, if(file.extension == "gif") "image/gif" else "video/mp4")
+                put(MediaStore.Video.Media.MIME_TYPE, if (file.extension == "gif") "image/gif" else "video/mp4")
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    put(MediaStore.Video.Media.RELATIVE_PATH, "PlaProjects/Edit_Video")
+                    put(MediaStore.Video.Media.RELATIVE_PATH, "Movies/PlaProjects")
                 } else {
                     put(MediaStore.Video.Media.DATA, file.absolutePath)
                 }
