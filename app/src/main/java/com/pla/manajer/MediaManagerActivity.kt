@@ -2,20 +2,26 @@ package com.pla.manajer
 
 import android.app.AlertDialog
 import android.content.Intent
+import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
+import android.view.Gravity
 import android.view.View
 import android.webkit.MimeTypeMap
 import android.widget.EditText
+import android.widget.ImageButton
+import android.widget.LinearLayout
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.pla.manajer.adapter.FileAdapter
+import com.pla.manajer.adapter.MediaBrowserAdapter
 import com.pla.manajer.databinding.ActivityMediaManagerBinding
 import com.pla.manajer.util.FileUtils
+import com.pla.manajer.util.MediaBrowser
 import com.pla.manajer.util.NotificationHelper
 import com.pla.manajer.util.Prefs
 import com.pla.manajer.util.ShareHelper
@@ -26,16 +32,19 @@ import java.io.File
 
 class MediaManagerActivity : AppCompatActivity() {
     private lateinit var b: ActivityMediaManagerBinding
-    private lateinit var adapter: FileAdapter
+    private lateinit var adapter: MediaBrowserAdapter
     private lateinit var prefs: Prefs
     private lateinit var notif: NotificationHelper
+
     private var mediaType: String = "AUDIO"
     private var currentDir: File? = null
-    private var allItems: List<File> = emptyList()
+    private var rootFolders: List<File> = emptyList()
+    private var currentRows: List<MediaBrowserAdapter.Row> = emptyList()
+    private var searchQuery: String = ""
+    private lateinit var crumbBar: LinearLayout
+    private lateinit var searchBar: EditText
 
-    private val audioExts = listOf("mp3", "wav", "aac", "m4a", "ogg", "flac", "opus")
-    private val videoExts = listOf("mp4", "mkv", "avi", "mov", "webm")
-    private val imageExts = listOf("jpg", "jpeg", "png", "webp", "gif", "bmp")
+    private val exts get() = MediaBrowser.extsFor(mediaType)
 
     override fun onCreate(s: Bundle?) {
         super.onCreate(s)
@@ -46,150 +55,206 @@ class MediaManagerActivity : AppCompatActivity() {
 
         mediaType = intent.getStringExtra("media_type") ?: "AUDIO"
 
-        adapter = FileAdapter(
-            onOpen = { f -> open(f) },
-            onLong = { /* Abaikan centang untuk folder */ },
-            onSelectToggle = { /* Abaikan */ },
-            onMoreOptions = { f -> showMoreMenu(f) }
-        ).apply { setDateTimeMode(prefs.showDateTime) }
+        b.tvTitle.text = when (mediaType) {
+            "AUDIO" -> "Audio"; "VIDEO" -> "Video"; "IMAGE" -> "Gambar"; "DOC" -> "Dokumen"; else -> "Media"
+        }
 
+        // Toolbar aksi bawah disembunyikan total (bersih ala File Manager+)
+        b.selectionToolbar.visibility = View.GONE
+        b.miniPlayerLayout.visibility = View.GONE
+
+        // Breadcrumb (rumah > folder)
+        crumbBar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(24, 12, 24, 12)
+        }
+        val parent = b.recyclerMedia.parent as LinearLayout
+        parent.addView(crumbBar, 1)
+
+        // Kolom pencarian
+        searchBar = EditText(this).apply {
+            hint = "Cari folder atau file..."
+            setSingleLine()
+            textSize = 14f
+            setPadding(32, 12, 32, 12)
+            visibility = View.GONE
+            addTextChangedListener(object : android.text.TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, a: Int, c: Int, d: Int) {}
+                override fun onTextChanged(s: CharSequence?, a: Int, c: Int, d: Int) {
+                    searchQuery = s?.toString() ?: ""
+                    applyFilter()
+                }
+                override fun afterTextChanged(s: android.text.Editable?) {}
+            })
+        }
+        parent.addView(searchBar, 2)
+
+        // Tombol cari di toolbar (dibuat lewat kode, tanpa ubah XML)
+        val btnSearch = ImageButton(this).apply {
+            setImageResource(android.R.drawable.ic_menu_search)
+            setBackgroundColor(Color.TRANSPARENT)
+            layoutParams = LinearLayout.LayoutParams(100, 100)
+            setOnClickListener {
+                searchBar.visibility = if (searchBar.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+                if (searchBar.visibility == View.VISIBLE) searchBar.requestFocus()
+            }
+        }
+        (b.btnSort.parent as LinearLayout).addView(btnSearch, 2)
+
+        adapter = MediaBrowserAdapter(
+            scope = lifecycleScope,
+            onOpen = { f -> open(f) },
+            onFileMenu = { f -> showFileMenu(f) }
+        )
         b.recyclerMedia.layoutManager = LinearLayoutManager(this)
         b.recyclerMedia.adapter = adapter
 
         b.btnTopBack.setOnClickListener { handleBack() }
-        b.selectionToolbar.visibility = View.GONE
-        b.miniPlayerLayout.visibility = View.GONE
         b.btnSort.setOnClickListener { showSortDialog() }
-        setupSearchBar()
-
-        // Sembunyikan tombol hapus/salin massal di bawah
-        b.btnDeleteSelected.visibility = View.GONE
-        b.btnCopySelected.visibility = View.GONE
-        b.btnMoveSelected.visibility = View.GONE
-        b.btnRenameSelected.visibility = View.GONE
-        b.btnMoreSelected.visibility = View.GONE
 
         loadRoots()
     }
 
-    private fun setupSearchBar() {
-        val parent = b.recyclerMedia.parent as? android.view.ViewGroup ?: return
-        val searchBar = EditText(this).apply {
-            hint = "Cari..."
-            setSingleLine()
-            setPadding(32, 16, 32, 16)
-            addTextChangedListener(object : android.text.TextWatcher {
-                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) { applyFilter(s?.toString() ?: "") }
-                override fun afterTextChanged(s: android.text.Editable?) {}
-            })
+    private fun updateCrumb() {
+        crumbBar.removeAllViews()
+        val home = TextView(this).apply {
+            text = "🏠"
+            textSize = 20f
+            setOnClickListener { loadRoots() }
         }
-        (parent as android.widget.LinearLayout).addView(searchBar, 1)
+        crumbBar.addView(home)
+        val dir = currentDir ?: return
+        val arrow = TextView(this).apply { text = "  ›  "; textSize = 18f; setTextColor(Color.GRAY) }
+        crumbBar.addView(arrow)
+        val folder = TextView(this).apply {
+            text = "📁 ${dir.name}"
+            textSize = 15f
+            setTextColor(Color.parseColor("#00BFA5"))
+        }
+        crumbBar.addView(folder)
     }
 
     private fun loadRoots() {
         currentDir = null
-        b.tvTitle.text = when(mediaType) { "AUDIO" -> "Folder Audio"; "VIDEO" -> "Folder Video"; "IMAGE" -> "Folder Gambar"; else -> "Folder Media" }
-        
+        searchQuery = ""
+        searchBar.setText("")
+        updateCrumb()
         lifecycleScope.launch {
-            val folders = withContext(Dispatchers.IO) {
-                val exts = when(mediaType) { "AUDIO" -> audioExts; "VIDEO" -> videoExts; "IMAGE" -> imageExts; else -> emptyList() }
-                val roots = mutableListOf<File>()
-                roots.add(Environment.getExternalStorageDirectory())
-                getSdCard()?.let { roots.add(it) }
-                val foundFolders = mutableSetOf<File>()
-
-                fun scanForMediaFolders(dir: File) {
-                    val files = dir.listFiles() ?: return
-                    if (files.any { it.isFile && it.extension.lowercase() in exts }) {
-                        if (!dir.name.startsWith(".") && dir.name != "Android") foundFolders.add(dir)
-                    }
-                    files.filter { it.isDirectory && !it.name.startsWith(".") && it.name != "Android" }.forEach { scanForMediaFolders(it) }
+            val folders = withContext(Dispatchers.IO) { MediaBrowser.findMediaFolders(this@MediaManagerActivity, mediaType) }
+            rootFolders = folders
+            val rows = withContext(Dispatchers.IO) {
+                folders.map { dir ->
+                    MediaBrowserAdapter.Row(
+                        file = dir, isDir = true,
+                        count = MediaBrowser.countMedia(dir, exts),
+                        thumbSource = MediaBrowser.firstMediaFile(dir, exts)
+                    )
                 }
-                roots.forEach { scanForMediaFolders(it) }
-                foundFolders.sortedBy { it.name.lowercase() }
             }
-            allItems = folders
-            applyFilter("")
+            currentRows = rows
+            applyFilter()
         }
     }
 
     private fun loadDir(dir: File) {
         currentDir = dir
-        b.tvTitle.text = dir.name
-
+        searchQuery = ""
+        searchBar.setText("")
+        updateCrumb()
         lifecycleScope.launch {
-            allItems = withContext(Dispatchers.IO) {
-                val files = dir.listFiles() ?: return@withContext emptyList<File>()
-                val exts = when(mediaType) { "AUDIO" -> audioExts; "VIDEO" -> videoExts; "IMAGE" -> imageExts; else -> emptyList() }
-                // Hanya menampilkan FILE, bukan folder di dalamnya
-                files.filter { it.isFile && it.extension.lowercase() in exts }
+            val rows = withContext(Dispatchers.IO) {
+                val (subDirs, files) = MediaBrowser.listDirContents(dir, exts)
+                val dirRows = subDirs.map {
+                    MediaBrowserAdapter.Row(it, true, MediaBrowser.countMedia(it, exts), MediaBrowser.firstMediaFile(it, exts))
+                }
+                val fileRows = files.map { MediaBrowserAdapter.Row(it, false, 0, it) }
+                dirRows + fileRows
             }
-            applyFilter("")
+            currentRows = rows
+            applyFilter()
         }
     }
 
-    private fun applyFilter(query: String) {
-        val filtered = if (query.isEmpty()) allItems else allItems.filter { it.name.lowercase().contains(query.lowercase()) }
-        adapter.submit(sortFiles(filtered))
-    }
-
-    private fun sortFiles(files: List<File>): List<File> {
-        return when (prefs.sortMode) {
-            1 -> files.sortedByDescending { it.name.lowercase() }
-            2 -> files.sortedByDescending { it.lastModified() }
-            3 -> files.sortedBy { it.lastModified() }
-            4 -> files.sortedByDescending { it.length() }
-            5 -> files.sortedBy { it.length() }
-            else -> files.sortedBy { it.name.lowercase() }
+    private fun applyFilter() {
+        val q = searchQuery.lowercase()
+        val filtered = if (q.isEmpty()) currentRows else currentRows.filter { it.file.name.lowercase().contains(q) }
+        val sorted = when (prefs.sortMode) {
+            1 -> filtered.sortedWith(compareByDescending<MediaBrowserAdapter.Row> { it.isDir }.thenByDescending { it.file.name.lowercase() })
+            2 -> filtered.sortedWith(compareByDescending<MediaBrowserAdapter.Row> { it.isDir }.thenByDescending { it.file.lastModified() })
+            3 -> filtered.sortedWith(compareByDescending<MediaBrowserAdapter.Row> { it.isDir }.thenBy { it.file.lastModified() })
+            4 -> filtered.sortedWith(compareByDescending<MediaBrowserAdapter.Row> { it.isDir }.thenByDescending { it.file.length() })
+            5 -> filtered.sortedWith(compareByDescending<MediaBrowserAdapter.Row> { it.isDir }.thenBy { it.file.length() })
+            else -> filtered.sortedWith(compareByDescending<MediaBrowserAdapter.Row> { it.isDir }.thenBy { it.file.name.lowercase() })
         }
+        adapter.submit(sorted, exts)
     }
 
     private fun showSortDialog() {
         val options = arrayOf("Nama (A-Z)", "Nama (Z-A)", "Tanggal (Terbaru)", "Tanggal (Terlama)", "Ukuran (Terbesar)", "Ukuran (Terkecil)")
         AlertDialog.Builder(this).setTitle("Urutkan").setSingleChoiceItems(options, prefs.sortMode) { dialog, which ->
-            prefs.sortMode = which; applyFilter(""); dialog.dismiss()
+            prefs.sortMode = which; applyFilter(); dialog.dismiss()
         }.setNegativeButton("Batal", null).show()
     }
 
     private fun open(f: File) {
-        if (f.isDirectory) {
-            loadDir(f)
-        } else {
-            val ext = f.extension.lowercase()
-            if (ext in audioExts) {
-                val audioList = allItems.filter { it.isFile && it.extension.lowercase() in audioExts }.map { it.absolutePath }
+        if (f.isDirectory) { loadDir(f); return }
+        val ext = f.extension.lowercase()
+        when {
+            ext in MediaBrowser.audioExts -> {
+                val audioList = currentRows.filter { !it.isDir && it.file.extension.lowercase() in MediaBrowser.audioExts }
+                    .map { it.file.absolutePath }
                 val intent = Intent(this, AudioPlayerActivity::class.java)
                 intent.putStringArrayListExtra("file_paths", ArrayList(audioList))
                 intent.putExtra("start_path", f.absolutePath)
                 startActivity(intent)
-            } else {
-                try {
-                    val uri = FileProvider.getUriForFile(this, "$packageName.provider", f)
-                    val mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext) ?: "*/*"
-                    startActivity(Intent.createChooser(Intent(Intent.ACTION_VIEW).apply {
-                        setDataAndType(uri, mime); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    }, "Buka dengan"))
-                } catch (e: Exception) { Toast.makeText(this, "Gagal buka", Toast.LENGTH_SHORT).show() }
             }
+            ext in MediaBrowser.imageExts -> {
+                startActivity(Intent(this, ImageEditorActivity::class.java).putExtra("file_path", f.absolutePath))
+            }
+            ext in MediaBrowser.videoExts -> openExternal(f)
+            else -> openExternal(f)
         }
     }
 
+    private fun openExternal(f: File) {
+        try {
+            val uri = FileProvider.getUriForFile(this, "$packageName.provider", f)
+            val mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(f.extension.lowercase()) ?: "*/*"
+            startActivity(Intent.createChooser(Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, mime); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }, "Buka dengan"))
+        } catch (e: Exception) { Toast.makeText(this, "Gagal buka file", Toast.LENGTH_SHORT).show() }
+    }
+
     private fun handleBack() {
-        if (currentDir != null) { currentDir = null; loadRoots() } else finish()
+        if (currentDir != null) {
+            val parent = currentDir?.parentFile
+            val isRootLevel = rootFolders.any { it.absolutePath == currentDir?.absolutePath }
+            if (!isRootLevel && parent != null && parent.canRead() &&
+                parent.absolutePath != Environment.getExternalStorageDirectory().absolutePath &&
+                parent.absolutePath != MediaBrowser.getSdCard(this)?.absolutePath) {
+                loadDir(parent)
+            } else loadRoots()
+        } else finish()
     }
 
     override fun onBackPressed() { handleBack() }
 
-    private fun showMoreMenu(f: File) {
-        // Folder tidak ada titik 3
-        if (f.isDirectory) return
-        
-        val options = arrayOf("Bagikan ke Aplikasi Lain", "Jadikan File ZIP")
+    private fun showFileMenu(f: File) {
+        val options = arrayOf("Buka", "Bagikan", "Jadikan ZIP", "Hapus")
         AlertDialog.Builder(this).setTitle(f.name).setItems(options) { _, which ->
             when (options[which]) {
-                "Bagikan ke Aplikasi Lain" -> ShareHelper.shareFile(this, f)
-                "Jadikan File ZIP" -> zipFile(f)
+                "Buka" -> open(f)
+                "Bagikan" -> ShareHelper.shareFile(this, f)
+                "Jadikan ZIP" -> zipFile(f)
+                "Hapus" -> {
+                    AlertDialog.Builder(this).setTitle("Hapus ${f.name}?")
+                        .setPositiveButton("Hapus") { _, _ ->
+                            f.delete()
+                            currentDir?.let { loadDir(it) } ?: loadRoots()
+                        }.setNegativeButton("Batal", null).show()
+                }
             }
         }.show()
     }
@@ -199,19 +264,8 @@ class MediaManagerActivity : AppCompatActivity() {
             notif.showFile("Kompres ZIP", "Mengompres ${f.name}...")
             val out = File(f.parentFile, f.name + ".zip")
             withContext(Dispatchers.IO) { FileUtils.zip(f, out) }
-            if (currentDir != null) currentDir?.let { loadDir(it) } else loadRoots()
+            currentDir?.let { loadDir(it) } ?: loadRoots()
             notif.showFile("Kompres selesai", "Berhasil")
         }
-    }
-
-    private fun getSdCard(): File? {
-        val dirs = getExternalFilesDirs(null)
-        if (dirs.size > 1 && dirs[1] != null) {
-            var sd = dirs[1]!!.absolutePath
-            val idx = sd.indexOf("/Android")
-            if (idx != -1) sd = sd.substring(0, idx)
-            return File(sd)
-        }
-        return null
     }
 }
