@@ -69,7 +69,6 @@ class NotificationHelper(private val context: Context) {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        // Saat dijeda: notifikasi TIDAK ongoing → bisa digeser/dihilangkan pengguna (seperti YouTube)
         val notifBuilder = NotificationCompat.Builder(context, CHANNEL_PLAYER)
             .setSmallIcon(R.drawable.ic_music_note)
             .setContentTitle(title)
@@ -87,7 +86,6 @@ class NotificationHelper(private val context: Context) {
             )
             .addAction(android.R.drawable.ic_media_next, "Berikutnya", nextPi)
 
-        // MediaStyle: tampilkan 3 tombol utama, tombol tutup di pojok
         val style = MediaStyle()
             .setShowActionsInCompactView(0, 1, 2)
             .setCancelButtonIntent(closePi)
@@ -97,7 +95,6 @@ class NotificationHelper(private val context: Context) {
         manager.notify(ID_PLAYER, notifBuilder.build())
     }
 
-    // Tombol notifikasi → dikirim ke MusicPlaybackService (bukan Activity), jadi selalu sampai
     private fun actionPi(action: String, reqCode: Int): PendingIntent {
         val i = Intent(context, MusicPlaybackService::class.java).apply {
             this.action = action
