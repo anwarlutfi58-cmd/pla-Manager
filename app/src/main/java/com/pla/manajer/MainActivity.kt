@@ -15,6 +15,7 @@ import com.pla.manajer.databinding.ActivityMainBinding
 import com.pla.manajer.service.GlobalEqualizerService
 import com.pla.manajer.ui.GlobalEqualizerActivity
 import com.pla.manajer.util.MediaScannerHelper
+import com.pla.manajer.util.PlaMediaPlayer
 import com.pla.manajer.util.Prefs
 import com.pla.manajer.util.StorageHelper
 import kotlinx.coroutines.Dispatchers
@@ -38,6 +39,8 @@ class MainActivity : AppCompatActivity() {
         b = ActivityMainBinding.inflate(layoutInflater)
         setContentView(b.root)
 
+        PlaMediaPlayer.init(this)
+
         b.cardInternal.setOnClickListener { openFileManager(Environment.getExternalStorageDirectory().absolutePath) }
         b.cardSdCard.setOnClickListener { openSdCard() }
         b.cardImages.setOnClickListener { openMedia("IMAGE") }
@@ -57,12 +60,14 @@ class MainActivity : AppCompatActivity() {
         b.cardEditVideo.setOnClickListener { startActivity(Intent(this, VideoEditorActivity::class.java)) }
 
         b.cardGlobalEq.setOnClickListener {
-            val intent = Intent(this, GlobalEqualizerService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(intent) else startService(intent)
+            val prefs = Prefs(this)
+            if (prefs.eqEnabled) {
+                val intent = Intent(this, GlobalEqualizerService::class.java)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(intent) else startService(intent)
+            }
             startActivity(Intent(this, GlobalEqualizerActivity::class.java))
         }
 
-        // Kosongkan teks awal (tidak menampilkan 0 MB)
         b.tvImageStats.text = ""
         b.tvAudioStats.text = ""
         b.tvVideoStats.text = ""
@@ -83,6 +88,23 @@ class MainActivity : AppCompatActivity() {
         if (prefs.showAudioEditor) b.cardEditAudio.visibility = View.VISIBLE else b.cardEditAudio.visibility = View.GONE
         if (prefs.showVideoEditor) b.cardEditVideo.visibility = View.VISIBLE else b.cardEditVideo.visibility = View.GONE
         if (prefs.showGithubBuilder) b.cardGithub.visibility = View.VISIBLE else b.cardGithub.visibility = View.GONE
+
+        // ===== STATUS EQ REAL-TIME DI BERANDA (sinkron dengan saklar) =====
+        try {
+            val tvStatus = findViewById<android.widget.TextView>(R.id.tvEqStatus)
+            if (tvStatus != null) {
+                tvStatus.text = if (prefs.eqEnabled) "EQ: AKTIF ✅" else "EQ: MATI ⭕"
+                tvStatus.setTextColor(
+                    if (prefs.eqEnabled) android.graphics.Color.parseColor("#00BFA5")
+                    else android.graphics.Color.parseColor("#888888")
+                )
+            }
+        } catch (_: Exception) {}
+
+        // Matikan service kalau EQ dimatikan
+        if (!prefs.eqEnabled) {
+            try { stopService(Intent(this, GlobalEqualizerService::class.java)) } catch (_: Exception) {}
+        }
     }
 
     private fun loadCategoryStats() {
