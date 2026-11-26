@@ -25,7 +25,7 @@ class FileAdapter(
 
     var isSelectionMode = false
     var isRootMode = false
-    var hideCheckboxAndMore = false // <-- TAMBAHAN BARU
+    var hideCheckboxAndMore = false
     val selectedFiles = mutableSetOf<File>()
     var fileCounts: Map<String, Int> = emptyMap()
 
@@ -46,20 +46,23 @@ class FileAdapter(
 
         if (f.isDirectory) {
             val count = fileCounts[f.absolutePath] ?: (f.listFiles()?.size ?: 0)
-            h.b.tvMeta.text = "$count file"
+            h.b.tvMeta.text = "$count item"
             h.b.ivIcon.setImageResource(R.drawable.ic_folder)
+            h.b.ivIcon.contentDescription = "Folder"
         } else {
             h.b.tvMeta.text = "${FileUtils.humanSize(f.length())} • $dateStr"
             h.b.ivIcon.setImageResource(R.drawable.ic_file)
+            h.b.ivIcon.contentDescription = "File ${f.extension}"
         }
 
-        // Logika visibilitas tombol
+        // ATURAN: kategori media = tanpa centang & titik tiga. File manager = centang WAJIB.
         if (isRootMode || hideCheckboxAndMore) {
             h.b.cbSelect.visibility = View.GONE
             h.b.btnMore.visibility = View.GONE
         } else {
             h.b.cbSelect.visibility = View.VISIBLE
             h.b.btnMore.visibility = View.VISIBLE
+            h.b.cbSelect.contentDescription = "Tandai ${f.name}"
         }
 
         val isSelected = selectedFiles.contains(f)
@@ -68,11 +71,21 @@ class FileAdapter(
         if (isSelected) h.b.root.setBackgroundColor(Color.parseColor("#8090C0C0"))
         else h.b.root.setBackgroundColor(Color.TRANSPARENT)
 
+        // Deskripsi lengkap untuk TalkBack
+        h.b.root.contentDescription = buildString {
+            append(if (f.isDirectory) "Folder " else "File ")
+            append(f.name)
+            if (!f.isDirectory) append(", ${FileUtils.humanSize(f.length())}, $dateStr")
+            if (isSelected) append(", ditandai")
+        }
+
         h.b.cbSelect.setOnClickListener { onSelectToggle(f) }
         h.b.btnMore.setOnClickListener { onMoreOptions(f) }
         h.b.root.setOnClickListener { if (isSelectionMode) onSelectToggle(f) else onOpen(f) }
-        h.b.root.setOnLongClickListener { 
-            if (!isRootMode && !hideCheckboxAndMore) { onLong(f); true } else false 
+        // Tekan tahan = mulai menandai (sama seperti centang), berlaku juga di mode kategori utk file
+        h.b.root.setOnLongClickListener {
+            if (isRootMode && f.isDirectory) return@setOnLongClickListener false
+            onLong(f); true
         }
     }
 
