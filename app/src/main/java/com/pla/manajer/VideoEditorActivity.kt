@@ -136,7 +136,7 @@ class VideoEditorActivity : AppCompatActivity() {
 
         b.btnPickAudio.setOnClickListener { pickAudioLauncher.launch("audio/*") }
 
-        // Susun ulang tombol agar rapi: tidak ada duplikat, ekspor paling bawah & menonjol
+        // Susun ulang tombol agar rapi: ekspor paling bawah & menonjol
         val parent = b.btnExport.parent as? LinearLayout
         if (parent != null) {
             parent.removeAllViews()
@@ -292,7 +292,7 @@ class VideoEditorActivity : AppCompatActivity() {
             .show()
     }
 
-    /** Filter kecantikan PRO: efek kuat di tengah frame (area wajah), memudar ke tepi */
+    /** Filter kecantikan PRO. Semua string aman dari escape ilegal Kotlin. */
     private fun getBeautyFilterCommand(filterName: String): String {
         return when (filterName) {
             "Kulit Halus Pro" ->
@@ -304,7 +304,7 @@ class VideoEditorActivity : AppCompatActivity() {
             "Bibir Merah Alami" ->
                 "colorchannelmixer=rr=1.12:rg=-0.04:rb=-0.04:gr=-0.04:gg=1.04:gb=-0.04:br=-0.04:bg=-0.04:bb=1.0"
             "Rona Pipi Soft" ->
-                "geq=r='r(X,Y)+12*(1-sqrt(pow((X/W-0.5)*2\,2)+pow((Y/H-0.6)*2\,2)))':g='g(X,Y)+4':b='b(X,Y)'"
+                "colorbalance=rs=0.08:gs=0.02:bs=-0.02,eq=saturation=1.08"
             "Anti-Keriput Halus" ->
                 "hqdn3d=2:2:7:7,unsharp=3:3:0.4"
             "Ton Warna Sinematik" ->
@@ -330,7 +330,6 @@ class VideoEditorActivity : AppCompatActivity() {
         }
     }
 
-    /** Apakah filter ini butuh filter_complex (split/blend) */
     private fun isComplexFilter(cmd: String): Boolean = cmd.contains("split[") || cmd.contains(";")
 
     private fun renderRealVideo(resolution: String, fps: String) {
@@ -372,7 +371,6 @@ class VideoEditorActivity : AppCompatActivity() {
             cmd.append("-i \"${tempVideo.absolutePath}\" ")
 
             if (beautyCmd.isNotEmpty() && isComplexFilter(beautyCmd)) {
-                // Filter kompleks: pakai -filter_complex
                 val chain = "[0:v]$baseFilter[base];[base]$beautyCmd[out]"
                 cmd.append("-filter_complex \"$chain\" -map \"[out]\" ")
                 if (wmCmd.isNotEmpty()) cmd.append("-vf \"${wmCmd.removePrefix(",")}\" ")
