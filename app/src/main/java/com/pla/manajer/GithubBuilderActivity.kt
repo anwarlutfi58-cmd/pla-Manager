@@ -26,16 +26,24 @@ import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
 class GithubBuilderActivity : AppCompatActivity() {
-    
+
     private lateinit var layoutLogin: LinearLayout
     private lateinit var layoutMain: LinearLayout
     private lateinit var etToken: EditText
-    
+
     private var token: String = ""
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .build()
+
+    // Data lengkap repo agar item bisa diketuk & dibuka detailnya
+    private data class RepoItem(
+        val name: String,
+        val fullName: String,
+        val isPrivate: Boolean,
+        val htmlUrl: String
+    )
 
     override fun onCreate(s: Bundle?) {
         super.onCreate(s)
@@ -45,7 +53,6 @@ class GithubBuilderActivity : AppCompatActivity() {
         layoutMain = findViewById(R.id.layoutMain)
         etToken = findViewById(R.id.etToken)
 
-        // Ambil token dari memori
         val prefs = getSharedPreferences("PlaPrefs", MODE_PRIVATE)
         token = prefs.getString("github_token", "") ?: ""
 
@@ -55,7 +62,6 @@ class GithubBuilderActivity : AppCompatActivity() {
             setupMenuButtons()
         }
 
-        // Tombol Login
         findViewById<Button>(R.id.btnLogin).setOnClickListener {
             val inputToken = etToken.text.toString().trim()
             if (inputToken.isNotEmpty()) {
@@ -65,7 +71,6 @@ class GithubBuilderActivity : AppCompatActivity() {
             }
         }
 
-        // Tombol Buat Token di Web (Layar Login)
         findViewById<Button>(R.id.btnBuatTokenWeb).setOnClickListener {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/settings/tokens/new")))
         }
@@ -102,46 +107,33 @@ class GithubBuilderActivity : AppCompatActivity() {
     }
 
     private fun setupMenuButtons() {
-        // 1. Repositori Saya
         findViewById<Button>(R.id.btnMenu1).setOnClickListener { fetchMyRepos() }
-
-        // 2. Cari Repositori
         findViewById<Button>(R.id.btnMenu2).setOnClickListener { showSearchDialog() }
-
-        // 3. Lihat Rilis
         findViewById<Button>(R.id.btnMenu3).setOnClickListener { showReleasesDialog() }
-
-        // 4. Buat Repositori
         findViewById<Button>(R.id.btnMenu4).setOnClickListener { showCreateRepoDialog() }
 
-        // 5. GitHub Pages
         findViewById<Button>(R.id.btnMenu5).setOnClickListener {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/settings/pages")))
         }
 
-        // 6. Salin Token
         findViewById<Button>(R.id.btnMenu6).setOnClickListener {
             val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             clipboard.setPrimaryClip(ClipData.newPlainText("GitHub Token", token))
             Toast.makeText(this, "Token disalin ke clipboard", Toast.LENGTH_SHORT).show()
         }
 
-        // 7. Buat Token di Web
         findViewById<Button>(R.id.btnMenu7).setOnClickListener {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/settings/tokens/new")))
         }
 
-        // 8. Pengaturan Bangun APK
         findViewById<Button>(R.id.btnMenu8).setOnClickListener {
             Toast.makeText(this, "Pengaturan Build APK akan diimplementasikan.", Toast.LENGTH_SHORT).show()
         }
 
-        // 9. Tema Tampilan
         findViewById<Button>(R.id.btnMenu9).setOnClickListener {
             Toast.makeText(this, "Tema: Mengikuti Sistem", Toast.LENGTH_SHORT).show()
         }
 
-        // 10. Keluar Akun
         findViewById<Button>(R.id.btnMenu10).setOnClickListener {
             getSharedPreferences("PlaPrefs", MODE_PRIVATE).edit().remove("github_token").apply()
             token = ""
@@ -150,6 +142,17 @@ class GithubBuilderActivity : AppCompatActivity() {
             etToken.setText("")
             Toast.makeText(this, "Berhasil Logout", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    /** Buka halaman detail repo (24 menu) */
+    private fun openRepoDetail(repo: RepoItem) {
+        val intent = Intent(this, GithubRepoDetailActivity::class.java).apply {
+            putExtra("repo_name", repo.name)
+            putExtra("repo_full_name", repo.fullName)
+            putExtra("repo_private", repo.isPrivate)
+            putExtra("repo_url", repo.htmlUrl)
+        }
+        startActivity(intent)
     }
 
     // ==========================================
@@ -162,35 +165,40 @@ class GithubBuilderActivity : AppCompatActivity() {
             val result = withContext(Dispatchers.IO) {
                 try {
                     val request = Request.Builder()
-                        .url("https://api.github.com/user/repos?per_page=100")
+                        .url("https://api.github.com/user/repos?per_page=100&sort=updated")
                         .header("Authorization", "token $token")
                         .build()
                     val response = client.newCall(request).execute()
                     val body = response.body?.string() ?: ""
                     if (response.isSuccessful) {
                         val jsonArray = JSONArray(body)
-                        val list = mutableListOf<String>()
+                        val list = mutableListOf<RepoItem>()
                         for (i in 0 until jsonArray.length()) {
                             val repo = jsonArray.getJSONObject(i)
-                            val name = repo.getString("name")
-                            val isPrivate = repo.getBoolean("private")
-                            list.add("$name [${if(isPrivate) "Privat" else "Publik"}]")
+                            list.add(
+                                RepoItem(
+                                    name = repo.getString("name"),
+                                    fullName = repo.getString("full_name"),
+                                    isPrivate = repo.getBoolean("private"),
+                                    htmlUrl = repo.getString("html_url")
+                                )
+                            )
                         }
                         list
-                    } else {
-                        null
-                    }
-                } catch (e: Exception) {
-                    null
-                }
+                    } else null
+                } catch (e: Exception) { null }
             }
             if (result != null) {
                 if (result.isEmpty()) {
                     Toast.makeText(this@GithubBuilderActivity, "Belum ada repositori.", Toast.LENGTH_SHORT).show()
                 } else {
+                    val displayList = result.map { "${it.name} [${if (it.isPrivate) "Privat" else "Publik"}]" }
                     AlertDialog.Builder(this@GithubBuilderActivity)
                         .setTitle("Repositori Saya (${result.size})")
-                        .setItems(result.toTypedArray(), null)
+                        .setItems(displayList.toTypedArray()) { _, which ->
+                            // PERBAIKAN UTAMA: item sekarang BISA DIKETUK → buka detail repo
+                            openRepoDetail(result[which])
+                        }
                         .setPositiveButton("Tutup", null)
                         .show()
                 }
@@ -220,28 +228,46 @@ class GithubBuilderActivity : AppCompatActivity() {
             val result = withContext(Dispatchers.IO) {
                 try {
                     val request = Request.Builder()
-                        .url("https://api.github.com/search/repositories?q=$query&per_page=15")
+                        .url("https://api.github.com/search/repositories?q=${Uri.encode(query)}&per_page=15")
                         .header("Authorization", "token $token")
                         .build()
                     val response = client.newCall(request).execute()
                     val body = response.body?.string() ?: ""
                     if (response.isSuccessful) {
                         val items = JSONObject(body).getJSONArray("items")
-                        val list = mutableListOf<String>()
+                        val list = mutableListOf<Pair<RepoItem, Int>>()
                         for (i in 0 until items.length()) {
                             val repo = items.getJSONObject(i)
-                            list.add("${repo.getString("full_name")}\n⭐ ${repo.getInt("stargazers_count")}")
+                            list.add(
+                                Pair(
+                                    RepoItem(
+                                        name = repo.getString("name"),
+                                        fullName = repo.getString("full_name"),
+                                        isPrivate = repo.getBoolean("private"),
+                                        htmlUrl = repo.getString("html_url")
+                                    ),
+                                    repo.getInt("stargazers_count")
+                                )
+                            )
                         }
                         list
                     } else null
                 } catch (e: Exception) { null }
             }
             if (result != null) {
-                AlertDialog.Builder(this@GithubBuilderActivity)
-                    .setTitle("Hasil Pencarian: $query")
-                    .setItems(result.toTypedArray(), null)
-                    .setPositiveButton("Tutup", null)
-                    .show()
+                if (result.isEmpty()) {
+                    Toast.makeText(this@GithubBuilderActivity, "Tidak ditemukan", Toast.LENGTH_SHORT).show()
+                } else {
+                    val displayList = result.map { "${it.first.fullName}\n⭐ ${it.second}" }
+                    AlertDialog.Builder(this@GithubBuilderActivity)
+                        .setTitle("Hasil Pencarian: $query")
+                        .setItems(displayList.toTypedArray()) { _, which ->
+                            // PERBAIKAN: hasil pencarian juga BISA DIKETUK
+                            openRepoDetail(result[which].first)
+                        }
+                        .setPositiveButton("Tutup", null)
+                        .show()
+                }
             } else {
                 Toast.makeText(this@GithubBuilderActivity, "Pencarian gagal", Toast.LENGTH_SHORT).show()
             }
@@ -275,10 +301,12 @@ class GithubBuilderActivity : AppCompatActivity() {
                     val body = response.body?.string() ?: ""
                     if (response.isSuccessful) {
                         val jsonArray = JSONArray(body)
-                        val list = mutableListOf<String>()
+                        val list = mutableListOf<Pair<String, String>>()
                         for (i in 0 until jsonArray.length()) {
                             val release = jsonArray.getJSONObject(i)
-                            list.add("${release.getString("tag_name")} - ${release.getString("name")}")
+                            val label = "${release.getString("tag_name")} - ${release.optString("name", "")}"
+                            val url = release.optString("html_url", "https://github.com/$repo/releases")
+                            list.add(Pair(label, url))
                         }
                         list
                     } else null
@@ -290,7 +318,10 @@ class GithubBuilderActivity : AppCompatActivity() {
                 } else {
                     AlertDialog.Builder(this@GithubBuilderActivity)
                         .setTitle("Rilis $repo")
-                        .setItems(result.toTypedArray(), null)
+                        .setItems(result.map { it.first }.toTypedArray()) { _, which ->
+                            // PERBAIKAN: ketuk rilis → buka halaman rilis (bisa download APK)
+                            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(result[which].second)))
+                        }
                         .setPositiveButton("Tutup", null)
                         .show()
                 }
