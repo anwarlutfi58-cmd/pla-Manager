@@ -62,36 +62,23 @@ class NotificationHelper(private val context: Context) {
         }
     }
 
+    // PERBAIKAN UTAMA: broadcast ditujukan ke MusicActionReceiver (bukan Activity!)
+    private fun actionPi(action: String, reqCode: Int): PendingIntent {
+        val i = Intent(context, MusicActionReceiver::class.java).apply {
+            this.action = action
+            setPackage(context.packageName)
+        }
+        return PendingIntent.getBroadcast(
+            context, reqCode, i,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+    }
+
     fun showPlayer(title: String, isPlaying: Boolean) {
-        // PERBAIKAN: Tambahkan setPackage agar diizinkan sistem Android
-        val prevIntent = Intent(context, AudioPlayerActivity::class.java).apply {
-            action = ACTION_PREV
-            setPackage(context.packageName)
-        }
-        val prevPi  = PendingIntent.getBroadcast(context, 10, prevIntent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-
-        val playIntent = Intent(context, AudioPlayerActivity::class.java).apply {
-            action = ACTION_PLAY_PAUSE
-            setPackage(context.packageName)
-        }
-        val playPi  = PendingIntent.getBroadcast(context, 11, playIntent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-
-        val nextIntent = Intent(context, AudioPlayerActivity::class.java).apply {
-            action = ACTION_NEXT
-            setPackage(context.packageName)
-        }
-        val nextPi  = PendingIntent.getBroadcast(context, 12, nextIntent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-
-        val closeIntent = Intent(context, AudioPlayerActivity::class.java).apply {
-            action = ACTION_CLOSE
-            setPackage(context.packageName)
-        }
-        val closePi = PendingIntent.getBroadcast(context, 13, closeIntent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-
-        val openPi  = PendingIntent.getActivity(
+        val openPi = PendingIntent.getActivity(
             context, 14,
             Intent(context, AudioPlayerActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
-            PendingIntent.FLAG_IMMUTABLE
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
         val notif = NotificationCompat.Builder(context, CHANNEL_PLAYER)
@@ -103,13 +90,13 @@ class NotificationHelper(private val context: Context) {
             .setOnlyAlertOnce(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .addAction(android.R.drawable.ic_media_previous, "Sebelumnya", prevPi)
+            .addAction(android.R.drawable.ic_media_previous, "Sebelumnya", actionPi(ACTION_PREV, 10))
             .addAction(
                 if (isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play,
-                if (isPlaying) "Jeda" else "Putar", playPi
+                if (isPlaying) "Jeda" else "Putar", actionPi(ACTION_PLAY_PAUSE, 11)
             )
-            .addAction(android.R.drawable.ic_media_next, "Berikutnya", nextPi)
-            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Tutup", closePi)
+            .addAction(android.R.drawable.ic_media_next, "Berikutnya", actionPi(ACTION_NEXT, 12))
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Tutup", actionPi(ACTION_CLOSE, 13))
             .build()
 
         manager.notify(ID_PLAYER, notif)
