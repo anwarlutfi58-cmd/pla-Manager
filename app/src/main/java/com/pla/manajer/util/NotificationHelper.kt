@@ -7,7 +7,6 @@ import android.content.Context
 import android.content.Intent
 import android.media.session.MediaSession
 import android.os.Build
-import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import androidx.core.app.NotificationCompat
@@ -58,7 +57,7 @@ class NotificationHelper(private val context: Context) {
         }
     }
 
-    /** Notifikasi MediaStyle ala YouTube. Menerima MediaSession framework, dikonversi ke compat token. */
+    /** Notifikasi MediaStyle ala YouTube */
     fun showPlayer(title: String, isPlaying: Boolean, mediaSession: MediaSession?) {
         val prevPi = actionPi(ACTION_PREV, 10)
         val playPi = actionPi(ACTION_PLAY_PAUSE, 11)
@@ -92,9 +91,9 @@ class NotificationHelper(private val context: Context) {
             .setShowActionsInCompactView(0, 1, 2)
             .setCancelButtonIntent(closePi)
 
-        // Konversi token framework -> compat token via Parcelable (trik standar, pasti jalan)
+        // Konversi token framework -> compat token via konstruktor resmi (terverifikasi di docs Android)
         if (mediaSession != null) {
-            val compatToken = MediaSessionCompat.Token.fromToken(mediaSession.sessionToken)
+            val compatToken = MediaSessionCompat.Token(mediaSession.sessionToken)
             style.setMediaSession(compatToken)
         }
         notifBuilder.setStyle(style)
