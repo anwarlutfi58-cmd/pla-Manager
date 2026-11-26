@@ -5,12 +5,12 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.media.session.MediaSession
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import androidx.core.app.NotificationCompat
 import androidx.media.app.NotificationCompat.MediaStyle
+import androidx.media.session.MediaSessionCompat
 import com.pla.manajer.AudioPlayerActivity
 import com.pla.manajer.R
 
@@ -56,8 +56,8 @@ class NotificationHelper(private val context: Context) {
         }
     }
 
-    /** Notifikasi MediaStyle ala YouTube: terhubung ke MediaSession, bisa collapse & auto-hilang */
-    fun showPlayer(title: String, isPlaying: Boolean, mediaSession: MediaSession?) {
+    /** Notifikasi MediaStyle ala YouTube */
+    fun showPlayer(title: String, isPlaying: Boolean, mediaSession: MediaSessionCompat?) {
         val prevPi = actionPi(ACTION_PREV, 10)
         val playPi = actionPi(ACTION_PLAY_PAUSE, 11)
         val nextPi = actionPi(ACTION_NEXT, 12)
