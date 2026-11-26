@@ -1,16 +1,12 @@
 package com.pla.manajer
 
 import android.content.Intent
-import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.OpenableColumns
 import android.view.View
-import android.view.ViewGroup
-import android.widget.LinearLayout
-import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -30,7 +26,6 @@ import java.io.FileOutputStream
 
 class MainActivity : AppCompatActivity() {
     private lateinit var b: ActivityMainBinding
-    private var tvEqStatus: TextView? = null
 
     private val pickImageLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let { handleSelectedFile(it, ImageEditorActivity::class.java) }
@@ -51,7 +46,8 @@ class MainActivity : AppCompatActivity() {
         b.cardImages.setOnClickListener { openMedia("IMAGE") }
         b.cardAudio.setOnClickListener { openMedia("AUDIO") }
         b.cardVideos.setOnClickListener { openMedia("VIDEO") }
-        b.cardDocuments.setOnClickListener { openFileManager(Environment.DIRECTORY_DOCUMENTS) }
+        // Dokumen sekarang pakai browser media baru (rapi ala File Manager+)
+        b.cardDocuments.setOnClickListener { openMedia("DOC") }
         b.cardDownloads.setOnClickListener { openFileManager(Environment.DIRECTORY_DOWNLOADS) }
         b.cardApps.setOnClickListener { startActivity(Intent(this, AppManagerActivity::class.java)) }
         b.cardProjects.setOnClickListener { startActivity(Intent(this, ProjectManagerActivity::class.java)) }
@@ -65,25 +61,8 @@ class MainActivity : AppCompatActivity() {
         b.cardEditVideo.setOnClickListener { startActivity(Intent(this, VideoEditorActivity::class.java)) }
 
         b.cardGlobalEq.setOnClickListener {
-            val prefs = Prefs(this)
-            if (prefs.eqEnabled) {
-                val intent = Intent(this, GlobalEqualizerService::class.java)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(intent) else startService(intent)
-            }
             startActivity(Intent(this, GlobalEqualizerActivity::class.java))
         }
-
-        // ===== STATUS EQ DIBUAT OTOMATIS DI DALAM KARTU EQ (tanpa ubah XML) =====
-        try {
-            val kartu = b.cardGlobalEq
-            tvEqStatus = TextView(this).apply {
-                textSize = 12f
-                setPadding(0, 6, 0, 0)
-            }
-            if (kartu is ViewGroup) {
-                kartu.addView(tvEqStatus)
-            }
-        } catch (_: Exception) {}
 
         b.tvImageStats.text = ""
         b.tvAudioStats.text = ""
@@ -106,16 +85,11 @@ class MainActivity : AppCompatActivity() {
         if (prefs.showVideoEditor) b.cardEditVideo.visibility = View.VISIBLE else b.cardEditVideo.visibility = View.GONE
         if (prefs.showGithubBuilder) b.cardGithub.visibility = View.VISIBLE else b.cardGithub.visibility = View.GONE
 
-        // ===== STATUS EQ REAL-TIME (sinkron dengan saklar di halaman EQ) =====
-        tvEqStatus?.apply {
-            text = if (prefs.eqEnabled) "EQ: AKTIF ✅" else "EQ: MATI ⭕"
-            setTextColor(
-                if (prefs.eqEnabled) Color.parseColor("#00BFA5")
-                else Color.parseColor("#888888")
-            )
-        }
-
-        if (!prefs.eqEnabled) {
+        // ===== KARTU EQ: HILANG SAAT OFF (persis seperti menu edit lainnya) =====
+        if (prefs.eqEnabled) {
+            b.cardGlobalEq.visibility = View.VISIBLE
+        } else {
+            b.cardGlobalEq.visibility = View.GONE
             try { stopService(Intent(this, GlobalEqualizerService::class.java)) } catch (_: Exception) {}
         }
     }
