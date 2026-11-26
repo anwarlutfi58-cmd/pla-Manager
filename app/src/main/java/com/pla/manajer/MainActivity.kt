@@ -1,12 +1,16 @@
 package com.pla.manajer
 
 import android.content.Intent
+import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.OpenableColumns
 import android.view.View
+import android.view.ViewGroup
+import android.widget.LinearLayout
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -26,6 +30,7 @@ import java.io.FileOutputStream
 
 class MainActivity : AppCompatActivity() {
     private lateinit var b: ActivityMainBinding
+    private var tvEqStatus: TextView? = null
 
     private val pickImageLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let { handleSelectedFile(it, ImageEditorActivity::class.java) }
@@ -68,6 +73,18 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(this, GlobalEqualizerActivity::class.java))
         }
 
+        // ===== STATUS EQ DIBUAT OTOMATIS DI DALAM KARTU EQ (tanpa ubah XML) =====
+        try {
+            val kartu = b.cardGlobalEq
+            tvEqStatus = TextView(this).apply {
+                textSize = 12f
+                setPadding(0, 6, 0, 0)
+            }
+            if (kartu is ViewGroup) {
+                kartu.addView(tvEqStatus)
+            }
+        } catch (_: Exception) {}
+
         b.tvImageStats.text = ""
         b.tvAudioStats.text = ""
         b.tvVideoStats.text = ""
@@ -89,19 +106,15 @@ class MainActivity : AppCompatActivity() {
         if (prefs.showVideoEditor) b.cardEditVideo.visibility = View.VISIBLE else b.cardEditVideo.visibility = View.GONE
         if (prefs.showGithubBuilder) b.cardGithub.visibility = View.VISIBLE else b.cardGithub.visibility = View.GONE
 
-        // ===== STATUS EQ REAL-TIME DI BERANDA (sinkron dengan saklar) =====
-        try {
-            val tvStatus = findViewById<android.widget.TextView>(R.id.tvEqStatus)
-            if (tvStatus != null) {
-                tvStatus.text = if (prefs.eqEnabled) "EQ: AKTIF ✅" else "EQ: MATI ⭕"
-                tvStatus.setTextColor(
-                    if (prefs.eqEnabled) android.graphics.Color.parseColor("#00BFA5")
-                    else android.graphics.Color.parseColor("#888888")
-                )
-            }
-        } catch (_: Exception) {}
+        // ===== STATUS EQ REAL-TIME (sinkron dengan saklar di halaman EQ) =====
+        tvEqStatus?.apply {
+            text = if (prefs.eqEnabled) "EQ: AKTIF ✅" else "EQ: MATI ⭕"
+            setTextColor(
+                if (prefs.eqEnabled) Color.parseColor("#00BFA5")
+                else Color.parseColor("#888888")
+            )
+        }
 
-        // Matikan service kalau EQ dimatikan
         if (!prefs.eqEnabled) {
             try { stopService(Intent(this, GlobalEqualizerService::class.java)) } catch (_: Exception) {}
         }
