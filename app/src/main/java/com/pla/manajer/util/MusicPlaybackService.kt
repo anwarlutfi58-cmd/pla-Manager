@@ -5,6 +5,7 @@ import android.content.Intent
 import android.media.session.MediaSession
 import android.media.session.PlaybackState
 import android.os.IBinder
+import com.pla.manajer.AudioPlayerActivity
 import java.io.File
 
 /**
@@ -46,7 +47,12 @@ class MusicPlaybackService : Service() {
                 repeatMode = intent.getIntExtra(EXTRA_REPEAT, 0)
                 playCurrent()
             }
-            CMD_RESUME -> if (!PlaMediaPlayer.isPlaying) PlaMediaPlayer.resume().also { refreshNotif() }
+            CMD_RESUME -> if (!PlaMediaPlayer.isPlaying) {
+                PlaMediaPlayer.resume()
+                refreshNotif()
+                promoteForeground()
+                notifyStateChanged(true)
+            }
             NotificationHelper.ACTION_PLAY_PAUSE -> togglePlayPause()
             NotificationHelper.ACTION_NEXT -> next()
             NotificationHelper.ACTION_PREV -> prev()
@@ -58,7 +64,14 @@ class MusicPlaybackService : Service() {
     private fun setupMediaSession() {
         mediaSession = MediaSession(this, "PlaMusicService").apply {
             setCallback(object : MediaSession.Callback() {
-                override fun onPlay() { if (!PlaMediaPlayer.isPlaying) PlaMediaPlayer.resume().also { refreshNotif() } }
+                override fun onPlay() {
+                    if (!PlaMediaPlayer.isPlaying) {
+                        PlaMediaPlayer.resume()
+                        refreshNotif()
+                        promoteForeground()
+                        notifyStateChanged(true)
+                    }
+                }
                 override fun onPause() { pauseWithAutoHide() }
                 override fun onSkipToNext() { next() }
                 override fun onSkipToPrevious() { prev() }
@@ -74,9 +87,10 @@ class MusicPlaybackService : Service() {
         if (!file.exists()) { next(); return }
 
         PlaMediaPlayer.play(file) {
-            // Lagu selesai → lanjut sesuai mode repeat
+            // Lagu selesai → kabari Activity dulu, lalu lanjut sesuai mode repeat
             runOnMain {
                 updateSessionState(false)
+                notifyStateChanged(false)
                 when (repeatMode) {
                     2 -> playCurrent()                       // ulang lagu ini
                     1 -> next()                              // ulang semua
@@ -86,25 +100,37 @@ class MusicPlaybackService : Service() {
         }
         updateSessionState(true)
         notif.showPlayer(file.name, true, mediaSession)
+        notifyStateChanged(true)
         // Saat main: jadikan foreground service agar tidak dimatikan sistem
         try { startForeground(NotificationHelper.ID_PLAYER, buildForegroundNotif(file.name)) } catch (_: Exception) {}
     }
 
+    /** Kabari AudioPlayerActivity supaya UI (judul, tombol, seekbar) ikut update */
+    private fun notifyStateChanged(isPlaying: Boolean) {
+        sendBroadcast(Intent(AudioPlayerActivity.ACTION_STATE_CHANGED).apply {
+            setPackage(packageName)
+            putExtra(AudioPlayerActivity.EXTRA_PLAYING, isPlaying)
+            putExtra(AudioPlayerActivity.EXTRA_INDEX, currentIndex)
+        })
+    }
+
     private fun buildForegroundNotif(title: String): android.app.Notification {
-        // Notifikasi foreground minimal (akan langsung ditimpa showPlayer yang lengkap)
         notif.showPlayer(title, true, mediaSession)
-        return notif.let {
-            // Ambil notifikasi yang baru dibuat via manager tidak memungkinkan; buat sederhana
-            android.app.Notification.Builder(this, NotificationHelper.CHANNEL_PLAYER)
-                .setSmallIcon(com.pla.manajer.R.drawable.ic_music_note)
-                .setContentTitle(title).setContentText("Sedang diputar")
-                .setOngoing(true).build()
-        }
+        return android.app.Notification.Builder(this, NotificationHelper.CHANNEL_PLAYER)
+            .setSmallIcon(com.pla.manajer.R.drawable.ic_music_note)
+            .setContentTitle(title).setContentText("Sedang diputar")
+            .setOngoing(true).build()
     }
 
     private fun togglePlayPause() {
         if (PlaMediaPlayer.isPlaying) pauseWithAutoHide()
-        else { PlaMediaPlayer.resume(); updateSessionState(true); refreshNotif(); promoteForeground() }
+        else {
+            PlaMediaPlayer.resume()
+            updateSessionState(true)
+            refreshNotif()
+            promoteForeground()
+            notifyStateChanged(true)
+        }
     }
 
     /** Jeda → notifikasi jadi bisa digeser, lalu hilang otomatis setelah 8 detik (seperti YouTube) */
@@ -112,6 +138,7 @@ class MusicPlaybackService : Service() {
         PlaMediaPlayer.pause()
         updateSessionState(false)
         refreshNotif()
+        notifyStateChanged(false)
         // Turun dari foreground supaya notifikasi bisa di-dismiss pengguna
         try { stopForeground(STOP_FOREGROUND_DETACH) } catch (_: Exception) {}
         // Auto-hilang setelah 8 detik jika tidak dilanjutkan
@@ -122,6 +149,7 @@ class MusicPlaybackService : Service() {
     private val autoHideRunnable = Runnable {
         if (!PlaMediaPlayer.isPlaying) {
             notif.hidePlayer()
+            sendBroadcast(Intent(AudioPlayerActivity.ACTION_FINISHED).apply { setPackage(packageName) })
             stopSelf()
         }
     }
@@ -174,6 +202,7 @@ class MusicPlaybackService : Service() {
         PlaMediaPlayer.stop()
         notif.hidePlayer()
         mediaSession?.isActive = false
+        notifyStateChanged(false)
         try { stopForeground(STOP_FOREGROUND_REMOVE) } catch (_: Exception) {}
         stopSelf()
     }
