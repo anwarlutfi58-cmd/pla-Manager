@@ -12,7 +12,7 @@ object MediaScannerHelper {
         var totalCount = 0
 
         val internal = Environment.getExternalStorageDirectory()
-        val sd = getSdCard(context)
+        val sd = MediaBrowser.getSdCard(context)
 
         fun scan(dir: File) {
             val files = dir.listFiles() ?: return
@@ -22,10 +22,10 @@ object MediaScannerHelper {
                 } else {
                     val ext = f.extension.lowercase()
                     val isMatch = when (type) {
-                        "IMAGE" -> ext in listOf("jpg", "jpeg", "png", "webp", "gif", "bmp")
-                        "AUDIO" -> ext in listOf("mp3", "wav", "aac", "m4a", "ogg", "flac", "opus")
-                        "VIDEO" -> ext in listOf("mp4", "mkv", "avi", "mov", "webm")
-                        "DOC" -> ext in listOf("pdf", "doc", "docx", "txt", "xls", "xlsx", "ppt", "pptx")
+                        "IMAGE" -> ext in MediaBrowser.imageExts
+                        "AUDIO" -> ext in MediaBrowser.audioExts
+                        "VIDEO" -> ext in MediaBrowser.videoExts
+                        "DOC" -> ext in MediaBrowser.docExts
                         "DOWNLOAD" -> f.absolutePath.contains("/Download/", ignoreCase = true)
                         else -> false
                     }
@@ -40,16 +40,5 @@ object MediaScannerHelper {
         if (internal.exists()) scan(internal)
         sd?.let { if (it.exists()) scan(it) }
         return Stats(totalSize, totalCount)
-    }
-
-    private fun getSdCard(context: Context): File? {
-        val dirs = context.getExternalFilesDirs(null)
-        if (dirs.size > 1 && dirs[1] != null) {
-            var sd = dirs[1]!!.absolutePath
-            val idx = sd.indexOf("/Android")
-            if (idx != -1) sd = sd.substring(0, idx)
-            return File(sd)
-        }
-        return null
     }
 }
