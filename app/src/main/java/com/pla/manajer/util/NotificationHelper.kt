@@ -9,9 +9,9 @@ import android.media.session.MediaSession
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.support.v4.media.session.MediaSessionCompat
 import androidx.core.app.NotificationCompat
 import androidx.media.app.NotificationCompat.MediaStyle
-import androidx.media.session.MediaSessionCompat
 import com.pla.manajer.AudioPlayerActivity
 import com.pla.manajer.R
 
@@ -91,9 +91,9 @@ class NotificationHelper(private val context: Context) {
             .setShowActionsInCompactView(0, 1, 2)
             .setCancelButtonIntent(closePi)
 
-        // Konversi token framework -> compat token via konstruktor resmi (terverifikasi di docs Android)
+        // Konversi token framework -> compat token (metode resmi, terverifikasi di source AndroidX)
         if (mediaSession != null) {
-            val compatToken = MediaSessionCompat.Token(mediaSession.sessionToken)
+            val compatToken = MediaSessionCompat.Token.fromToken(mediaSession.sessionToken)
             style.setMediaSession(compatToken)
         }
         notifBuilder.setStyle(style)
