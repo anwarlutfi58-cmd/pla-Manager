@@ -9,6 +9,7 @@
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent">
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -18,16 +19,17 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginBottom="24dp"
                 android:text="@string/settings_title"
                 android:textSize="22sp"
-                android:textStyle="bold"
-                android:layout_marginBottom="24dp" />
+                android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/tvFont"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Ukuran Font Editor: 14" />
+
             <SeekBar
                 android:id="@+id/seekFont"
                 android:layout_width="match_parent"
@@ -43,14 +45,13 @@
                 android:text="Tampilkan Petunjuk Screen Reader"
                 android:textSize="14sp" />
 
-            <!-- TOMBOL AJAIB -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="32dp"
                 android:text="Fitur Tambahan (Tampil di Beranda)"
-                android:textStyle="bold"
-                android:textSize="16sp" />
+                android:textSize="16sp"
+                android:textStyle="bold" />
 
             <com.google.android.material.materialswitch.MaterialSwitch
                 android:id="@+id/swShowImageEditor"
@@ -90,27 +91,24 @@
                 android:layout_marginTop="24dp"
                 android:text="Folder Sampah:"
                 android:textSize="13sp" />
+
             <TextView
                 android:id="@+id/tvTrash"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:padding="12dp"
                 android:background="@drawable/bg_card"
-                android:textSize="12sp"
-                android:fontFamily="monospace" />
+                android:fontFamily="monospace"
+                android:padding="12dp"
+                android:textSize="12sp" />
 
-            <!-- ========================================== -->
-            <!-- FITUR TAMBAHAN: EQUALIZER & JAM -->
-            <!-- ========================================== -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="32dp"
-                android:text="Rincian File & Suara"
-                android:textStyle="bold"
-                android:textSize="16sp" />
+                android:text="Rincian File &amp; Suara"
+                android:textSize="16sp"
+                android:textStyle="bold" />
 
-            <!-- TOMBOL EQUALIZER BARU -->
             <com.google.android.material.materialswitch.MaterialSwitch
                 android:id="@+id/swEqualizer"
                 android:layout_width="match_parent"
@@ -132,8 +130,8 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:text="Jika dimatikan, rincian hanya menampilkan Tanggal, Bulan, Tahun."
-                android:textSize="12sp"
-                android:textColor="?android:attr/textColorSecondary" />
+                android:textColor="?android:attr/textColorSecondary"
+                android:textSize="12sp" />
 
         </LinearLayout>
     </ScrollView>
@@ -146,4 +144,5 @@
         android:layout_margin="16dp"
         android:contentDescription="Kembali"
         app:srcCompat="@drawable/ic_back" />
+
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
