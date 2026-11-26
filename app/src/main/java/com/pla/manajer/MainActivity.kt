@@ -14,6 +14,7 @@ import androidx.lifecycle.lifecycleScope
 import com.pla.manajer.databinding.ActivityMainBinding
 import com.pla.manajer.service.GlobalEqualizerService
 import com.pla.manajer.ui.GlobalEqualizerActivity
+import com.pla.manajer.util.MediaScannerHelper
 import com.pla.manajer.util.Prefs
 import com.pla.manajer.util.StorageHelper
 import kotlinx.coroutines.Dispatchers
@@ -55,23 +56,13 @@ class MainActivity : AppCompatActivity() {
         b.cardEditAudio.setOnClickListener { pickAudioLauncher.launch("audio/*") }
         b.cardEditVideo.setOnClickListener { startActivity(Intent(this, VideoEditorActivity::class.java)) }
 
-        // TOMBOL BARU UNTUK GLOBAL EQUALIZER
-        // (Jika cardGlobalEq belum ada di layout, tombol ini akan error, 
-        // jadi pastikan Anda menambahkan ID cardGlobalEq ke activity_main.xml)
-        try {
-            b.cardGlobalEq.setOnClickListener {
-                val intent = Intent(this, GlobalEqualizerService::class.java)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    startForegroundService(intent)
-                } else {
-                    startService(intent)
-                }
-                startActivity(Intent(this, GlobalEqualizerActivity::class.java))
-            }
-        } catch (e: Exception) {
-            // Abaikan jika tombol belum ada di layout
+        b.cardGlobalEq.setOnClickListener {
+            val intent = Intent(this, GlobalEqualizerService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(intent) else startService(intent)
+            startActivity(Intent(this, GlobalEqualizerActivity::class.java))
         }
 
+        // Kosongkan teks awal (tidak menampilkan 0 MB)
         b.tvImageStats.text = ""
         b.tvAudioStats.text = ""
         b.tvVideoStats.text = ""
@@ -96,41 +87,19 @@ class MainActivity : AppCompatActivity() {
 
     private fun loadCategoryStats() {
         lifecycleScope.launch(Dispatchers.IO) {
-            val internal = Environment.getExternalStorageDirectory()
-            val sd = getSdCard()
-            var imgSize = 0L; var imgCount = 0
-            var audSize = 0L; var audCount = 0
-            var vidSize = 0L; var vidCount = 0
-            var docSize = 0L; var docCount = 0
-            var dlSize = 0L; var dlCount = 0
-
-            fun scan(dir: File) {
-                val files = dir.listFiles() ?: return
-                for (f in files) {
-                    if (f.isDirectory) {
-                        if (!f.name.startsWith(".") && f.name != "Android") scan(f)
-                    } else {
-                        val ext = f.extension.lowercase()
-                        when (ext) {
-                            "jpg","jpeg","png","webp","gif","bmp" -> { imgSize += f.length(); imgCount++ }
-                            "mp3","wav","aac","m4a","ogg","flac" -> { audSize += f.length(); audCount++ }
-                            "mp4","mkv","avi","mov","webm" -> { vidSize += f.length(); vidCount++ }
-                            "pdf","doc","docx","txt","xls","xlsx","ppt","pptx" -> { docSize += f.length(); docCount++ }
-                        }
-                        if (f.absolutePath.contains("/Download/")) { dlSize += f.length(); dlCount++ }
-                    }
-                }
-            }
-            if (internal.exists()) scan(internal)
-            sd?.let { if (it.exists()) scan(it) }
+            val img = MediaScannerHelper.getCategoryStats(this@MainActivity, "IMAGE")
+            val aud = MediaScannerHelper.getCategoryStats(this@MainActivity, "AUDIO")
+            val vid = MediaScannerHelper.getCategoryStats(this@MainActivity, "VIDEO")
+            val doc = MediaScannerHelper.getCategoryStats(this@MainActivity, "DOC")
+            val dl = MediaScannerHelper.getCategoryStats(this@MainActivity, "DOWNLOAD")
 
             withContext(Dispatchers.Main) {
-                b.tvImageStats.text = "${StorageHelper.formatSize(imgSize)} ($imgCount)"
-                b.tvAudioStats.text = "${StorageHelper.formatSize(audSize)} ($audCount)"
-                b.tvVideoStats.text = "${StorageHelper.formatSize(vidSize)} ($vidCount)"
-                b.tvDocStats.text = "${StorageHelper.formatSize(docSize)} ($docCount)"
-                b.tvDownloadStats.text = "${StorageHelper.formatSize(dlSize)} ($dlCount)"
-                b.tvAppStats.text = "Ketuk untuk lihat" 
+                b.tvImageStats.text = "${StorageHelper.formatSize(img.size)} (${img.count})"
+                b.tvAudioStats.text = "${StorageHelper.formatSize(aud.size)} (${aud.count})"
+                b.tvVideoStats.text = "${StorageHelper.formatSize(vid.size)} (${vid.count})"
+                b.tvDocStats.text = "${StorageHelper.formatSize(doc.size)} (${doc.count})"
+                b.tvDownloadStats.text = "${StorageHelper.formatSize(dl.size)} (${dl.count})"
+                b.tvAppStats.text = "Ketuk untuk lihat"
             }
         }
     }
@@ -142,17 +111,13 @@ class MainActivity : AppCompatActivity() {
         startActivity(Intent(this, MediaManagerActivity::class.java).putExtra("media_type", type))
     }
     private fun openSdCard() {
-        getSdCard()?.let { openFileManager(it.absolutePath) } ?: Toast.makeText(this, "Kartu SD tidak terdeteksi", Toast.LENGTH_SHORT).show()
-    }
-    private fun getSdCard(): File? {
         val dirs = getExternalFilesDirs(null)
         if (dirs.size > 1 && dirs[1] != null) {
             var sd = dirs[1]!!.absolutePath
             val idx = sd.indexOf("/Android")
             if (idx != -1) sd = sd.substring(0, idx)
-            return File(sd)
-        }
-        return null
+            openFileManager(sd)
+        } else Toast.makeText(this, "SD tidak ada", Toast.LENGTH_SHORT).show()
     }
     private fun handleSelectedFile(uri: Uri, targetActivity: Class<*>) {
         try {
@@ -167,7 +132,7 @@ class MainActivity : AppCompatActivity() {
             }
             startActivity(Intent(this, targetActivity).putExtra("file_path", tempFile.absolutePath))
         } catch (e: Exception) {
-            Toast.makeText(this, "Gagal membaca file: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Gagal: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 }
