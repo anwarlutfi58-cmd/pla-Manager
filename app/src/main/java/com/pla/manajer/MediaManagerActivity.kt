@@ -3,9 +3,7 @@ package com.pla.manajer
 import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
-import android.net.Uri
 import android.os.Bundle
-import android.os.Environment
 import android.view.Gravity
 import android.view.View
 import android.webkit.MimeTypeMap
@@ -38,7 +36,7 @@ class MediaManagerActivity : AppCompatActivity() {
 
     private var mediaType: String = "AUDIO"
     private var currentDir: File? = null
-    private var rootFolders: List<File> = emptyList()
+    private var allMediaFiles: List<File> = emptyList()
     private var currentRows: List<MediaBrowserAdapter.Row> = emptyList()
     private var searchQuery: String = ""
     private lateinit var crumbBar: LinearLayout
@@ -59,11 +57,10 @@ class MediaManagerActivity : AppCompatActivity() {
             "AUDIO" -> "Audio"; "VIDEO" -> "Video"; "IMAGE" -> "Gambar"; "DOC" -> "Dokumen"; else -> "Media"
         }
 
-        // Toolbar aksi bawah disembunyikan total (bersih ala File Manager+)
         b.selectionToolbar.visibility = View.GONE
         b.miniPlayerLayout.visibility = View.GONE
 
-        // Breadcrumb (rumah > folder)
+        // Breadcrumb rumah > folder
         crumbBar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -90,7 +87,7 @@ class MediaManagerActivity : AppCompatActivity() {
         }
         parent.addView(searchBar, 2)
 
-        // Tombol cari di toolbar (dibuat lewat kode, tanpa ubah XML)
+        // Tombol cari di toolbar
         val btnSearch = ImageButton(this).apply {
             setImageResource(android.R.drawable.ic_menu_search)
             setBackgroundColor(Color.TRANSPARENT)
@@ -125,14 +122,12 @@ class MediaManagerActivity : AppCompatActivity() {
         }
         crumbBar.addView(home)
         val dir = currentDir ?: return
-        val arrow = TextView(this).apply { text = "  ›  "; textSize = 18f; setTextColor(Color.GRAY) }
-        crumbBar.addView(arrow)
-        val folder = TextView(this).apply {
+        crumbBar.addView(TextView(this).apply { text = "  ›  "; textSize = 18f; setTextColor(Color.GRAY) })
+        crumbBar.addView(TextView(this).apply {
             text = "📁 ${dir.name}"
             textSize = 15f
             setTextColor(Color.parseColor("#00BFA5"))
-        }
-        crumbBar.addView(folder)
+        })
     }
 
     private fun loadRoots() {
@@ -141,14 +136,22 @@ class MediaManagerActivity : AppCompatActivity() {
         searchBar.setText("")
         updateCrumb()
         lifecycleScope.launch {
-            val folders = withContext(Dispatchers.IO) { MediaBrowser.findMediaFolders(this@MediaManagerActivity, mediaType) }
-            rootFolders = folders
+            // SATU kali query database untuk semua file media (cepat & akurat)
+            allMediaFiles = withContext(Dispatchers.IO) {
+                MediaBrowser.queryAllMediaFiles(this@MediaManagerActivity, mediaType)
+            }
             val rows = withContext(Dispatchers.IO) {
-                folders.map { dir ->
+                val folders = LinkedHashMap<String, File>()
+                for (f in allMediaFiles) {
+                    val p = f.parentFile ?: continue
+                    if (p.name.startsWith(".")) continue
+                    if (!folders.containsKey(p.absolutePath)) folders[p.absolutePath] = p
+                }
+                folders.values.sortedBy { it.name.lowercase() }.map { dir ->
                     MediaBrowserAdapter.Row(
                         file = dir, isDir = true,
-                        count = MediaBrowser.countMedia(dir, exts),
-                        thumbSource = MediaBrowser.firstMediaFile(dir, exts)
+                        count = MediaBrowser.countMediaInDir(allMediaFiles, dir),
+                        thumbSource = MediaBrowser.firstMediaInDir(allMediaFiles, dir)
                     )
                 }
             }
@@ -164,9 +167,13 @@ class MediaManagerActivity : AppCompatActivity() {
         updateCrumb()
         lifecycleScope.launch {
             val rows = withContext(Dispatchers.IO) {
-                val (subDirs, files) = MediaBrowser.listDirContents(dir, exts)
+                val (subDirs, files) = MediaBrowser.listDirContents(allMediaFiles, dir)
                 val dirRows = subDirs.map {
-                    MediaBrowserAdapter.Row(it, true, MediaBrowser.countMedia(it, exts), MediaBrowser.firstMediaFile(it, exts))
+                    MediaBrowserAdapter.Row(
+                        it, true,
+                        MediaBrowser.countMediaInDir(allMediaFiles, it),
+                        MediaBrowser.firstMediaInDir(allMediaFiles, it)
+                    )
                 }
                 val fileRows = files.map { MediaBrowserAdapter.Row(it, false, 0, it) }
                 dirRows + fileRows
@@ -212,7 +219,6 @@ class MediaManagerActivity : AppCompatActivity() {
             ext in MediaBrowser.imageExts -> {
                 startActivity(Intent(this, ImageEditorActivity::class.java).putExtra("file_path", f.absolutePath))
             }
-            ext in MediaBrowser.videoExts -> openExternal(f)
             else -> openExternal(f)
         }
     }
@@ -228,15 +234,7 @@ class MediaManagerActivity : AppCompatActivity() {
     }
 
     private fun handleBack() {
-        if (currentDir != null) {
-            val parent = currentDir?.parentFile
-            val isRootLevel = rootFolders.any { it.absolutePath == currentDir?.absolutePath }
-            if (!isRootLevel && parent != null && parent.canRead() &&
-                parent.absolutePath != Environment.getExternalStorageDirectory().absolutePath &&
-                parent.absolutePath != MediaBrowser.getSdCard(this)?.absolutePath) {
-                loadDir(parent)
-            } else loadRoots()
-        } else finish()
+        if (currentDir != null) loadRoots() else finish()
     }
 
     override fun onBackPressed() { handleBack() }
@@ -252,7 +250,7 @@ class MediaManagerActivity : AppCompatActivity() {
                     AlertDialog.Builder(this).setTitle("Hapus ${f.name}?")
                         .setPositiveButton("Hapus") { _, _ ->
                             f.delete()
-                            currentDir?.let { loadDir(it) } ?: loadRoots()
+                            loadRoots()
                         }.setNegativeButton("Batal", null).show()
                 }
             }
