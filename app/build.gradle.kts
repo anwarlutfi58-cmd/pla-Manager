@@ -34,7 +34,6 @@ android {
 
     buildFeatures { viewBinding = true }
 
-    // Mencegah bentrok file library FFmpeg saat build
     packaging {
         resources {
             excludes += setOf(
@@ -61,10 +60,11 @@ dependencies {
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
     ksp("androidx.room:room-compiler:2.6.1")
-    
-    // MESIN FFMPEG VERSI FULL-GPL (WAJIB UNTUK FITUR TEKS & EFEK AUDIO)
+
+    // BARU: wajib untuk MediaStyle notification (notifikasi ala YouTube)
+    implementation("androidx.media:media:1.7.0")
+
     implementation("dev.ffmpegkit-maintained:ffmpeg-kit-full-gpl:8.1.9")
-    
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.google.code.gson:gson:2.10.1")
 }
