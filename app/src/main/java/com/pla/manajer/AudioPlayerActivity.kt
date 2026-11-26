@@ -7,8 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
-import android.media.session.MediaSession
-import android.media.session.PlaybackState
+import android.media.audiofx.Equalizer
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -20,10 +19,9 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.pla.manajer.databinding.ActivityAudioPlayerBinding
+import com.pla.manajer.util.MusicPlaybackService
 import com.pla.manajer.util.NotificationHelper
-import com.pla.manajer.util.PlaAudioFx
 import com.pla.manajer.util.PlaMediaPlayer
-import com.pla.manajer.util.ShareHelper
 import java.io.File
 import java.io.FileOutputStream
 
@@ -35,27 +33,35 @@ class AudioPlayerActivity : AppCompatActivity() {
 
     private var isShuffle = false
     private var repeatMode = 0
+    private var equalizer: Equalizer? = null
+    private val savedBandLevels = mutableMapOf<Short, Short>()
 
     private lateinit var notif: NotificationHelper
-    private var mediaSession: MediaSession? = null
 
-    private val autoHideRunnable = Runnable {
-        if (!PlaMediaPlayer.isPlaying) notif.hidePlayer()
-    }
-
-    private val actionReceiver = object : BroadcastReceiver() {
+    // Pantau perubahan dari Service (lagu berganti / dijeda dari notifikasi)
+    private val stateReceiver = object : BroadcastReceiver() {
         override fun onReceive(ctx: Context?, intent: Intent?) {
             when (intent?.action) {
-                NotificationHelper.ACTION_PREV -> playPrevSong()
-                NotificationHelper.ACTION_PLAY_PAUSE -> togglePlayPause()
-                NotificationHelper.ACTION_NEXT -> playNextSong()
-                NotificationHelper.ACTION_CLOSE -> {
-                    notif.hidePlayer()
-                    PlaMediaPlayer.pause()
+                ACTION_STATE_CHANGED -> {
+                    val playing = intent.getBooleanExtra(EXTRA_PLAYING, false)
+                    val idx = intent.getIntExtra(EXTRA_INDEX, currentIndex)
+                    currentIndex = idx
+                    updateTombolPutar(playing)
+                    refreshNowPlaying()
+                    attachEqualizer()
+                }
+                ACTION_FINISHED -> {
                     updateTombolPutar(false)
                 }
             }
         }
+    }
+
+    companion object {
+        const val ACTION_STATE_CHANGED = "com.pla.manajer.PLAYER_STATE_CHANGED"
+        const val ACTION_FINISHED = "com.pla.manajer.PLAYER_FINISHED"
+        const val EXTRA_PLAYING = "extra_playing"
+        const val EXTRA_INDEX = "extra_index"
     }
 
     override fun onCreate(s: Bundle?) {
@@ -87,7 +93,6 @@ class AudioPlayerActivity : AppCompatActivity() {
         }
 
         filePaths = pathsList ?: emptyList()
-
         if (startPath != null && filePaths.isNotEmpty()) {
             val i = filePaths.indexOf(startPath)
             if (i > 0) filePaths = filePaths.drop(i) + filePaths.take(i)
@@ -95,13 +100,12 @@ class AudioPlayerActivity : AppCompatActivity() {
         currentIndex = 0
 
         requestNotifPermissionIfNeeded()
-        registerActionReceiver()
-        setupMediaSession()
+        registerStateReceiver()
 
         b.btnBack.setOnClickListener { finish() }
         b.btnPlayPause.setOnClickListener { togglePlayPause() }
-        b.btnNext.setOnClickListener { playNextSong() }
-        b.btnPrev.setOnClickListener { playPrevSong() }
+        b.btnNext.setOnClickListener { sendCommand(NotificationHelper.ACTION_NEXT) }
+        b.btnPrev.setOnClickListener { sendCommand(NotificationHelper.ACTION_PREV) }
 
         b.btnShuffle.setOnClickListener {
             isShuffle = !isShuffle
@@ -122,11 +126,10 @@ class AudioPlayerActivity : AppCompatActivity() {
         }
 
         b.btnShare.setOnClickListener { shareCurrentSong() }
-        b.btnEqualizer.setOnClickListener {
-            startActivity(Intent(this, com.pla.manajer.ui.GlobalEqualizerActivity::class.java))
-        }
+        b.btnEqualizer.setOnClickListener { showEqualizerDialog() }
 
-        playSong(currentIndex)
+        // Mulai pemutaran via Service (notifikasi ala YouTube)
+        startPlaybackService()
 
         b.seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
@@ -137,12 +140,63 @@ class AudioPlayerActivity : AppCompatActivity() {
         })
     }
 
-    // Tombol next/prev dari notifikasi saat layar sudah terbuka
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        when (intent.action) {
-            NotificationHelper.ACTION_NEXT -> playNextSong()
-            NotificationHelper.ACTION_PREV -> playPrevSong()
+    private fun startPlaybackService() {
+        val intent = Intent(this, MusicPlaybackService::class.java).apply {
+            action = MusicPlaybackService.CMD_PLAY_LIST
+            putStringArrayListExtra(MusicPlaybackService.EXTRA_PATHS, ArrayList(filePaths))
+            putExtra(MusicPlaybackService.EXTRA_START_INDEX, currentIndex)
+            putExtra(MusicPlaybackService.EXTRA_SHUFFLE, isShuffle)
+            putExtra(MusicPlaybackService.EXTRA_REPEAT, repeatMode)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(intent) else startService(intent)
+    }
+
+    private fun sendCommand(action: String) {
+        val intent = Intent(this, MusicPlaybackService::class.java).apply {
+            this.action = action
+            // ikutkan ulang playlist agar service tahu konteksnya
+            putStringArrayListExtra(MusicPlaybackService.EXTRA_PATHS, ArrayList(filePaths))
+            putExtra(MusicPlaybackService.EXTRA_START_INDEX, currentIndex)
+            putExtra(MusicPlaybackService.EXTRA_SHUFFLE, isShuffle)
+            putExtra(MusicPlaybackService.EXTRA_REPEAT, repeatMode)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(intent) else startService(intent)
+    }
+
+    private fun togglePlayPause() {
+        if (PlaMediaPlayer.isPlaying) {
+            sendCommand(NotificationHelper.ACTION_PLAY_PAUSE)
+        } else {
+            // Kalau service belum jalan (misal baru buka lagi), mulai ulang
+            if (filePaths.isNotEmpty()) startPlaybackService()
+            else sendCommand(MusicPlaybackService.CMD_RESUME)
+        }
+    }
+
+    private fun registerStateReceiver() {
+        val f = IntentFilter().apply {
+            addAction(ACTION_STATE_CHANGED)
+            addAction(ACTION_FINISHED)
+        }
+        ContextCompat.registerReceiver(this, stateReceiver, f, ContextCompat.RECEIVER_NOT_EXPORTED)
+    }
+
+    private fun refreshNowPlaying() {
+        if (currentIndex in filePaths.indices) {
+            val file = File(filePaths[currentIndex])
+            b.tvTitle.text = file.name
+            b.tvCounter.text = "${currentIndex + 1} dari ${filePaths.size}"
+        }
+        updateSeekBar()
+    }
+
+    private fun attachEqualizer() {
+        val sessionId = PlaMediaPlayer.audioSessionId
+        if (sessionId <= 0) return
+        equalizer?.release()
+        equalizer = Equalizer(0, sessionId).apply {
+            enabled = true
+            savedBandLevels.forEach { (band, level) -> setBandLevel(band, level) }
         }
     }
 
@@ -156,54 +210,6 @@ class AudioPlayerActivity : AppCompatActivity() {
         ) ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.BLUETOOTH_CONNECT), 101)
     }
 
-    private fun registerActionReceiver() {
-        val f = IntentFilter().apply {
-            addAction(NotificationHelper.ACTION_PREV)
-            addAction(NotificationHelper.ACTION_PLAY_PAUSE)
-            addAction(NotificationHelper.ACTION_NEXT)
-            addAction(NotificationHelper.ACTION_CLOSE)
-        }
-        ContextCompat.registerReceiver(this, actionReceiver, f, ContextCompat.RECEIVER_NOT_EXPORTED)
-    }
-
-    private fun setupMediaSession() {
-        mediaSession = MediaSession(this, "PlaMediaSession").apply {
-            setCallback(object : MediaSession.Callback() {
-                override fun onPlay() { if (!PlaMediaPlayer.isPlaying) togglePlayPause() }
-                override fun onPause() { if (PlaMediaPlayer.isPlaying) togglePlayPause() }
-                override fun onSkipToNext() { playNextSong() }
-                override fun onSkipToPrevious() { playPrevSong() }
-                override fun onStop() { notif.hidePlayer(); PlaMediaPlayer.pause(); updateTombolPutar(false) }
-            })
-            isActive = true
-        }
-    }
-
-    private fun updateSessionState(isPlaying: Boolean) {
-        val state = if (isPlaying) PlaybackState.STATE_PLAYING else PlaybackState.STATE_PAUSED
-        val pb = PlaybackState.Builder()
-            .setActions(
-                PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE or
-                PlaybackState.ACTION_PLAY_PAUSE or PlaybackState.ACTION_SKIP_TO_NEXT or
-                PlaybackState.ACTION_SKIP_TO_PREVIOUS or PlaybackState.ACTION_STOP
-            )
-            .setState(state, PlaMediaPlayer.getCurrentPosition().toLong(), 1.0f)
-            .build()
-        mediaSession?.setPlaybackState(pb)
-    }
-
-    private fun togglePlayPause() {
-        if (PlaMediaPlayer.isPlaying) {
-            PlaMediaPlayer.pause(); updateTombolPutar(false); updateSessionState(false)
-            notif.showPlayer(currentTitle(), false); scheduleAutoHide()
-        } else {
-            PlaMediaPlayer.resume(); updateTombolPutar(true); updateSessionState(true)
-            notif.showPlayer(currentTitle(), true); cancelAutoHide()
-        }
-    }
-
-    private fun scheduleAutoHide() = notif.scheduleHidePlayer(5 * 60 * 1000L, autoHideRunnable)
-    private fun cancelAutoHide() = notif.cancelScheduledHide(autoHideRunnable)
     private fun currentTitle(): String = PlaMediaPlayer.currentFile?.name ?: "Musik"
 
     private fun updateTombolPutar(isPlaying: Boolean) {
@@ -236,68 +242,90 @@ class AudioPlayerActivity : AppCompatActivity() {
         }
     }
 
-    private fun playPrevSong() {
-        if (filePaths.isEmpty()) return
-        if (isShuffle) currentIndex = filePaths.indices.random()
-        else currentIndex = if (currentIndex > 0) currentIndex - 1 else filePaths.size - 1
-        playSong(currentIndex)
-    }
-
-    private fun playNextSong() {
-        if (filePaths.isEmpty()) return
-        if (isShuffle) currentIndex = filePaths.indices.random()
-        else currentIndex = if (currentIndex < filePaths.size - 1) currentIndex + 1 else 0
-        playSong(currentIndex)
-    }
-
-    private fun playSong(index: Int) {
-        if (index !in filePaths.indices) return
-        val file = File(filePaths[index])
-
-        b.tvTitle.text = file.name
-        b.tvCounter.text = "${index + 1} dari ${filePaths.size}"
-
-        PlaMediaPlayer.play(file) {
-            runOnUiThread {
-                updateTombolPutar(false); updateSessionState(false)
-                notif.showPlayer(file.name, false); scheduleAutoHide()
-
-                when (repeatMode) {
-                    2 -> playSong(currentIndex)
-                    1 -> playNextSong()
-                    0 -> {
-                        if (currentIndex < filePaths.size - 1) {
-                            currentIndex++; playSong(currentIndex)
-                        }
-                    }
-                }
-            }
-        }
-
-        updateTombolPutar(true); updateSessionState(true); updateSeekBar()
-        notif.showPlayer(file.name, true); cancelAutoHide()
-        // Equalizer sekarang diurus GLOBAL oleh PlaAudioFx (tidak dilepas saat layar ditutup)
-    }
-
     private fun shareCurrentSong() {
         val file = PlaMediaPlayer.currentFile ?: return
-        ShareHelper.shareFile(this, file)
+        try {
+            val uri = com.pla.manajer.util.ShareHelper.let {
+                androidx.core.content.FileProvider.getUriForFile(this, "$packageName.provider", file)
+            }
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "audio/*"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(Intent.createChooser(intent, "Bagikan Lagu via"))
+        } catch (e: Exception) {
+            Toast.makeText(this, "Gagal membagikan: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun showEqualizerDialog() {
+        if (equalizer == null) {
+            Toast.makeText(this, "Tidak ada audio yang diputar", Toast.LENGTH_SHORT).show(); return
+        }
+        val builder = AlertDialog.Builder(this)
+        builder.setTitle("Efek Suara (Equalizer)")
+        val scrollView = android.widget.ScrollView(this)
+        val layout = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(50, 20, 50, 20)
+        }
+        scrollView.addView(layout)
+
+        val numBands = equalizer!!.numberOfBands
+        val range = equalizer!!.bandLevelRange
+
+        for (i in 0 until numBands) {
+            val bandIndex = i.toShort()
+            val freq = equalizer!!.getCenterFreq(bandIndex) / 1000
+            val freqText = if (freq >= 1000) "${freq / 1000} kHz" else "$freq Hz"
+
+            val label = android.widget.TextView(this).apply {
+                text = freqText
+                setTextColor(android.graphics.Color.WHITE)
+                setPadding(0, 20, 0, 0)
+            }
+            val seekBar = SeekBar(this).apply {
+                max = (range[1] - range[0]).toInt()
+                val currentLevel = savedBandLevels[bandIndex] ?: equalizer!!.getBandLevel(bandIndex)
+                progress = (currentLevel - range[0]).toInt()
+                setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                    override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
+                        if (fromUser) {
+                            val newLevel = (progress + range[0]).toShort()
+                            equalizer!!.setBandLevel(bandIndex, newLevel)
+                            savedBandLevels[bandIndex] = newLevel
+                        }
+                    }
+                    override fun onStartTrackingTouch(sb: SeekBar?) {}
+                    override fun onStopTrackingTouch(sb: SeekBar?) {}
+                })
+            }
+            layout.addView(label)
+            layout.addView(seekBar)
+        }
+        builder.setView(scrollView)
+        builder.setPositiveButton("Tutup", null)
+        builder.show()
     }
 
     private fun updateSeekBar() {
-        handler.postDelayed(object : Runnable {
-            override fun run() {
-                if (PlaMediaPlayer.isPlaying) {
-                    val current = PlaMediaPlayer.getCurrentPosition()
-                    val total = PlaMediaPlayer.getDuration()
-                    b.seekBar.max = total
-                    b.seekBar.progress = current
-                    b.tvCurrent.text = formatTime(current)
-                    b.tvTotal.text = formatTime(total)
-                }
-                handler.postDelayed(this, 1000)
+        handler.removeCallbacks(seekRunnable)
+        handler.postDelayed(seekRunnable, 500)
+    }
+
+    private val seekRunnable = object : Runnable {
+        override fun run() {
+            if (PlaMediaPlayer.isPlaying) {
+                val current = PlaMediaPlayer.getCurrentPosition()
+                val total = PlaMediaPlayer.getDuration()
+                b.seekBar.max = total
+                b.seekBar.progress = current
+                b.tvCurrent.text = formatTime(current)
+                b.tvTotal.text = formatTime(total)
             }
-        }, 1000)
+            handler.postDelayed(this, 1000)
+        }
     }
 
     private fun formatTime(ms: Int): String {
@@ -308,20 +336,15 @@ class AudioPlayerActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         updateTombolPutar(PlaMediaPlayer.isPlaying)
-    }
-
-    override fun onStop() {
-        super.onStop()
-        if (!PlaMediaPlayer.isPlaying) scheduleAutoHide()
+        refreshNowPlaying()
+        attachEqualizer()
     }
 
     override fun onDestroy() {
         super.onDestroy()
         handler.removeCallbacksAndMessages(null)
-        cancelAutoHide()
-        try { unregisterReceiver(actionReceiver) } catch (_: Exception) {}
-        mediaSession?.isActive = false
-        mediaSession?.release()
-        // JANGAN lepas equalizer di sini! Biarkan tetap hidup global.
+        try { unregisterReceiver(stateReceiver) } catch (_: Exception) {}
+        equalizer?.release()
+        // JANGAN stop musik di sini — biar terus main di background seperti YouTube
     }
 }
