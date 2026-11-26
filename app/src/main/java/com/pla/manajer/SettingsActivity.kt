@@ -1,9 +1,13 @@
 package com.pla.manajer
 
+import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.widget.SeekBar
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.pla.manajer.databinding.ActivitySettingsBinding
+import com.pla.manajer.service.GlobalEqualizerService
 import com.pla.manajer.util.Prefs
 
 class SettingsActivity : AppCompatActivity() {
@@ -35,9 +39,7 @@ class SettingsActivity : AppCompatActivity() {
 
         b.tvTrash.text = prefs.trashFolder
 
-        // ==========================================
-        // LOGIKA TOMBOL AJAIB
-        // ==========================================
+        // Tombol Sembunyikan/Tampilkan di Beranda
         b.swShowImageEditor.isChecked = prefs.showImageEditor
         b.swShowAudioEditor.isChecked = prefs.showAudioEditor
         b.swShowVideoEditor.isChecked = prefs.showVideoEditor
@@ -48,12 +50,32 @@ class SettingsActivity : AppCompatActivity() {
         b.swShowVideoEditor.setOnCheckedChangeListener { _, isChecked -> prefs.showVideoEditor = isChecked }
         b.swShowGithubBuilder.setOnCheckedChangeListener { _, isChecked -> prefs.showGithubBuilder = isChecked }
 
-        // ==========================================
-        // TAMBAHAN DARI AI: Tampilkan Jam & Menit
-        // ==========================================
+        // Tampilkan Jam & Menit
         b.switchDateTime.isChecked = prefs.showDateTime
-        b.switchDateTime.setOnCheckedChangeListener { _, isChecked ->
-            prefs.showDateTime = isChecked
+        b.switchDateTime.setOnCheckedChangeListener { _, isChecked -> prefs.showDateTime = isChecked }
+
+        // --- LOGIKA TOMBOL EQUALIZER ---
+        // Memuat status awal (default: mati)
+        val isEqActive = prefs.getEqLevel(0) != -999 
+        // Karena kita belum punya properti 'isEqualizerActive' di Prefs, kita buat efek sementara:
+        // Kita biarkan switch ini untuk menyalakan/mematikan service.
+        
+        b.swEqualizer.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) {
+                // Nyalakan Service Equalizer
+                val intent = Intent(this, GlobalEqualizerService::class.java)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    startForegroundService(intent)
+                } else {
+                    startService(intent)
+                }
+                Toast.makeText(this, "Equalizer diaktifkan di latar belakang", Toast.LENGTH_SHORT).show()
+            } else {
+                // Matikan Service Equalizer
+                val intent = Intent(this, GlobalEqualizerService::class.java)
+                stopService(intent)
+                Toast.makeText(this, "Equalizer dimatikan", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 }
