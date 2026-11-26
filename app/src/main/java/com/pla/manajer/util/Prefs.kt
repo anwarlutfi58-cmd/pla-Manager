@@ -8,7 +8,6 @@ class Prefs(context: Context) {
     private val prefs: SharedPreferences =
         ctx.getSharedPreferences("pla_prefs", Context.MODE_PRIVATE)
 
-    // Properti lama yang sempat terhapus (Wajib ada)
     var editorFontSize: Int
         get() = prefs.getInt("editor_font_size", 14)
         set(value) = prefs.edit().putInt("editor_font_size", value).apply()
@@ -17,7 +16,6 @@ class Prefs(context: Context) {
         get() = prefs.getBoolean("screen_reader_hints", true)
         set(value) = prefs.edit().putBoolean("screen_reader_hints", value).apply()
 
-    // Properti untuk path dan folder
     var lastPath: String
         get() = prefs.getString("last_path", ctx.getExternalFilesDir(null)?.absolutePath ?: "/") ?: "/"
         set(value) = prefs.edit().putString("last_path", value).apply()
@@ -31,7 +29,6 @@ class Prefs(context: Context) {
         get() = prefs.getInt("sort_mode", 0)
         set(value) = prefs.edit().putInt("sort_mode", value).apply()
 
-    // Properti untuk toggle menu (Sembunyikan/Tampilkan)
     var showImageEditor: Boolean
         get() = prefs.getBoolean("show_image_editor", true)
         set(value) = prefs.edit().putBoolean("show_image_editor", value).apply()
@@ -52,7 +49,15 @@ class Prefs(context: Context) {
         get() = prefs.getBoolean("show_date_time", false)
         set(value) = prefs.edit().putBoolean("show_date_time", value).apply()
 
-    // FUNGSI BARU UNTUK 32 BAND EQ
+    // ===== EQUALIZER GLOBAL (BARU) =====
+    var eqEnabled: Boolean
+        get() = prefs.getBoolean("eq_enabled", false)
+        set(value) = prefs.edit().putBoolean("eq_enabled", value).apply()
+
+    var bassBoost: Int
+        get() = prefs.getInt("eq_bass_boost", 0)
+        set(value) = prefs.edit().putInt("eq_bass_boost", value.coerceIn(0, 1000)).apply()
+
     fun setEqLevel(bandIndex: Int, db: Int) {
         prefs.edit().putInt("eq_band_$bandIndex", db).apply()
     }
