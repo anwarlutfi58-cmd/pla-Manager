@@ -78,26 +78,18 @@
             </intent-filter>
         </activity>
 
-        <!-- EQUALIZER SERVICE & ACTIVITY -->
+        <!-- SERVICE PEMUTAR MUSIK LATAR BELAKANG (notifikasi ala YouTube) -->
+        <service
+            android:name=".util.MusicPlaybackService"
+            android:foregroundServiceType="mediaPlayback"
+            android:exported="false" />
+
         <service
             android:name=".service.GlobalEqualizerService"
             android:foregroundServiceType="mediaPlayback"
             android:exported="false" />
-        <activity
-            android:name=".ui.GlobalEqualizerActivity"
-            android:exported="false" />
 
-        <!-- BARU: Penerima tombol notifikasi musik (hidup walau pemutar ditutup) -->
-        <receiver
-            android:name=".util.MusicActionReceiver"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="com.pla.manajer.NOTIF_PREV" />
-                <action android:name="com.pla.manajer.NOTIF_PLAY_PAUSE" />
-                <action android:name="com.pla.manajer.NOTIF_NEXT" />
-                <action android:name="com.pla.manajer.NOTIF_CLOSE" />
-            </intent-filter>
-        </receiver>
+        <activity android:name=".ui.GlobalEqualizerActivity" android:exported="false" />
 
         <activity android:name=".ProjectManagerActivity" />
         <activity android:name=".CodeEditorActivity" />
