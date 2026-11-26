@@ -5,10 +5,12 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.media.session.MediaSession
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import androidx.core.app.NotificationCompat
+import androidx.media.app.NotificationCompat.MediaStyle
 import com.pla.manajer.AudioPlayerActivity
 import com.pla.manajer.R
 
@@ -44,44 +46,31 @@ class NotificationHelper(private val context: Context) {
                 setShowBadge(false)
                 lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
             }
-            val edit = NotificationChannel(
-                CHANNEL_EDIT, "Proses Edit",
-                NotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description = "Notifikasi saat mengedit audio/gambar/video"
-                setShowBadge(false)
+            val edit = NotificationChannel(CHANNEL_EDIT, "Proses Edit", NotificationManager.IMPORTANCE_LOW).apply {
+                description = "Notifikasi saat mengedit audio/gambar/video"; setShowBadge(false)
             }
-            val file = NotificationChannel(
-                CHANNEL_FILE, "Operasi File",
-                NotificationManager.IMPORTANCE_DEFAULT
-            ).apply {
-                description = "Notifikasi saat menyalin, memindahkan, atau mengekstrak"
-                setShowBadge(false)
+            val file = NotificationChannel(CHANNEL_FILE, "Operasi File", NotificationManager.IMPORTANCE_DEFAULT).apply {
+                description = "Notifikasi saat menyalin, memindahkan, atau mengekstrak"; setShowBadge(false)
             }
             manager.createNotificationChannels(listOf(player, edit, file))
         }
     }
 
-    // PERBAIKAN UTAMA: broadcast ditujukan ke MusicActionReceiver (bukan Activity!)
-    private fun actionPi(action: String, reqCode: Int): PendingIntent {
-        val i = Intent(context, MusicActionReceiver::class.java).apply {
-            this.action = action
-            setPackage(context.packageName)
-        }
-        return PendingIntent.getBroadcast(
-            context, reqCode, i,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
-    }
+    /** Notifikasi MediaStyle ala YouTube: terhubung ke MediaSession, bisa collapse & auto-hilang */
+    fun showPlayer(title: String, isPlaying: Boolean, mediaSession: MediaSession?) {
+        val prevPi = actionPi(ACTION_PREV, 10)
+        val playPi = actionPi(ACTION_PLAY_PAUSE, 11)
+        val nextPi = actionPi(ACTION_NEXT, 12)
+        val closePi = actionPi(ACTION_CLOSE, 13)
 
-    fun showPlayer(title: String, isPlaying: Boolean) {
         val openPi = PendingIntent.getActivity(
             context, 14,
             Intent(context, AudioPlayerActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        val notif = NotificationCompat.Builder(context, CHANNEL_PLAYER)
+        // Saat dijeda: notifikasi TIDAK ongoing → bisa digeser/dihilangkan pengguna (seperti YouTube)
+        val notifBuilder = NotificationCompat.Builder(context, CHANNEL_PLAYER)
             .setSmallIcon(R.drawable.ic_music_note)
             .setContentTitle(title)
             .setContentText(if (isPlaying) "Sedang diputar" else "Dijeda")
@@ -90,16 +79,34 @@ class NotificationHelper(private val context: Context) {
             .setOnlyAlertOnce(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .addAction(android.R.drawable.ic_media_previous, "Sebelumnya", actionPi(ACTION_PREV, 10))
+            .setCategory(NotificationCompat.CATEGORY_TRANSPORT)
+            .addAction(android.R.drawable.ic_media_previous, "Sebelumnya", prevPi)
             .addAction(
                 if (isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play,
-                if (isPlaying) "Jeda" else "Putar", actionPi(ACTION_PLAY_PAUSE, 11)
+                if (isPlaying) "Jeda" else "Putar", playPi
             )
-            .addAction(android.R.drawable.ic_media_next, "Berikutnya", actionPi(ACTION_NEXT, 12))
-            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Tutup", actionPi(ACTION_CLOSE, 13))
-            .build()
+            .addAction(android.R.drawable.ic_media_next, "Berikutnya", nextPi)
 
-        manager.notify(ID_PLAYER, notif)
+        // MediaStyle: tampilkan 3 tombol utama, tombol tutup di pojok
+        val style = MediaStyle()
+            .setShowActionsInCompactView(0, 1, 2)
+            .setCancelButtonIntent(closePi)
+        if (mediaSession != null) style.setMediaSession(mediaSession.sessionToken)
+        notifBuilder.setStyle(style)
+
+        manager.notify(ID_PLAYER, notifBuilder.build())
+    }
+
+    // Tombol notifikasi → dikirim ke MusicPlaybackService (bukan Activity), jadi selalu sampai
+    private fun actionPi(action: String, reqCode: Int): PendingIntent {
+        val i = Intent(context, MusicPlaybackService::class.java).apply {
+            this.action = action
+            setPackage(context.packageName)
+        }
+        return PendingIntent.getService(
+            context, reqCode, i,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
     }
 
     fun hidePlayer() { manager.cancel(ID_PLAYER) }
@@ -116,11 +123,8 @@ class NotificationHelper(private val context: Context) {
     fun showEdit(title: String, message: String) {
         val notif = NotificationCompat.Builder(context, CHANNEL_EDIT)
             .setSmallIcon(R.drawable.ic_music_note)
-            .setContentTitle(title)
-            .setContentText(message)
-            .setOngoing(true)
-            .setOnlyAlertOnce(true)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setContentTitle(title).setContentText(message)
+            .setOngoing(true).setOnlyAlertOnce(true).setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
         manager.notify(ID_EDIT, notif)
     }
@@ -130,17 +134,11 @@ class NotificationHelper(private val context: Context) {
     fun showFile(title: String, message: String, autoHideMs: Long = 3000L) {
         val notif = NotificationCompat.Builder(context, CHANNEL_FILE)
             .setSmallIcon(R.drawable.ic_file)
-            .setContentTitle(title)
-            .setContentText(message)
-            .setAutoCancel(true)
-            .setOnlyAlertOnce(true)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setContentTitle(title).setContentText(message)
+            .setAutoCancel(true).setOnlyAlertOnce(true).setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .build()
         manager.notify(ID_FILE, notif)
-
-        if (autoHideMs > 0) {
-            handler.postDelayed({ manager.cancel(ID_FILE) }, autoHideMs)
-        }
+        if (autoHideMs > 0) handler.postDelayed({ manager.cancel(ID_FILE) }, autoHideMs)
     }
 
     fun hideFile() { manager.cancel(ID_FILE) }
