@@ -2,20 +2,20 @@ package com.pla.manajer.util
 
 import android.app.Service
 import android.content.Intent
+import android.media.session.MediaSession
+import android.media.session.PlaybackState
 import android.os.IBinder
-import androidx.media.session.MediaSessionCompat
-import androidx.media.session.PlaybackStateCompat
 import com.pla.manajer.AudioPlayerActivity
 import java.io.File
 
 /**
- * Service musik latar belakang. Menjalankan player + MediaSessionCompat + notifikasi MediaStyle.
+ * Service musik latar belakang. Menjalankan player + MediaSession + notifikasi MediaStyle.
  * Cara kerja seperti YouTube: notifikasi muncul saat main, hilang otomatis saat dijeda.
  */
 class MusicPlaybackService : Service() {
 
     private lateinit var notif: NotificationHelper
-    private var mediaSession: MediaSessionCompat? = null
+    private var mediaSession: MediaSession? = null
     private var playlist: List<String> = emptyList()
     private var currentIndex = 0
     private var isShuffle = false
@@ -62,8 +62,8 @@ class MusicPlaybackService : Service() {
     }
 
     private fun setupMediaSession() {
-        mediaSession = MediaSessionCompat(this, "PlaMusicService").apply {
-            setCallback(object : MediaSessionCompat.Callback() {
+        mediaSession = MediaSession(this, "PlaMusicService").apply {
+            setCallback(object : MediaSession.Callback() {
                 override fun onPlay() {
                     if (!PlaMediaPlayer.isPlaying) {
                         PlaMediaPlayer.resume()
@@ -178,13 +178,13 @@ class MusicPlaybackService : Service() {
     }
 
     private fun updateSessionState(isPlaying: Boolean) {
-        val state = if (isPlaying) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED
+        val state = if (isPlaying) PlaybackState.STATE_PLAYING else PlaybackState.STATE_PAUSED
         mediaSession?.setPlaybackState(
-            PlaybackStateCompat.Builder()
+            PlaybackState.Builder()
                 .setActions(
-                    PlaybackStateCompat.ACTION_PLAY or PlaybackStateCompat.ACTION_PAUSE or
-                    PlaybackStateCompat.ACTION_PLAY_PAUSE or PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
-                    PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or PlaybackStateCompat.ACTION_STOP
+                    PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE or
+                    PlaybackState.ACTION_PLAY_PAUSE or PlaybackState.ACTION_SKIP_TO_NEXT or
+                    PlaybackState.ACTION_SKIP_TO_PREVIOUS or PlaybackState.ACTION_STOP
                 )
                 .setState(state, PlaMediaPlayer.getCurrentPosition().toLong(), 1.0f)
                 .build()
