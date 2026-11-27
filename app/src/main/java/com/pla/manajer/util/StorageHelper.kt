@@ -14,24 +14,19 @@ object StorageHelper {
         return if (gb >= 1.0) String.format("%.0f GB", gb) else "${mb.toInt()} MB"
     }
 
-    /** Total kapasitas hardware (dibulatkan ke angka pemasaran: 64/128/256 GB) */
     private fun roundToMarketing(totalBytes: Long, stepGb: Double): Int {
         val gb = totalBytes.toDouble() / (1024.0 * 1024.0 * 1024.0)
-        // Tambah cadangan sistem ~7% lalu bulatkan ke atas kelipatan step
         val withSystem = gb * 1.07
         return (Math.ceil(withSystem / stepGb) * stepGb).toInt()
     }
 
-    /**
-     * Memori Internal: pakai freeSpace (ruang kosong aktual) bukan availableBlocks.
-     * Ini cara yang sama dengan File Manager+ sehingga angka terpakai akurat.
-     */
+    /** Memori Internal: freeSpace aktual (sama seperti File Manager+ & Pengaturan HP) */
     fun getInternalStorageInfo(): String {
         return try {
             val root = Environment.getExternalStorageDirectory()
             val stat = StatFs(root.absolutePath)
-            val total = stat.totalBytes                 // kapasitas partisi data
-            val free = root.freeSpace                   // ruang kosong AKTUAL (akurat)
+            val total = stat.totalBytes
+            val free = root.freeSpace
             val used = total - free
             val marketingTotal = roundToMarketing(stat.blockCountLong * stat.blockSizeLong, 8.0)
             "${formatSize(used)} / $marketingTotal GB"
@@ -40,7 +35,7 @@ object StorageHelper {
         }
     }
 
-    /** Kartu SD: pakai freeSpace juga agar konsisten & akurat */
+    /** Kartu SD: freeSpace aktual juga */
     fun getSdCardStorageInfo(context: Context): String {
         val dirs = context.getExternalFilesDirs(null)
         if (dirs.size > 1 && dirs[1] != null) {
@@ -52,7 +47,7 @@ object StorageHelper {
                 val sdFile = File(sd)
                 val stat = StatFs(sd)
                 val total = stat.totalBytes
-                val free = sdFile.freeSpace             // ruang kosong AKTUAL
+                val free = sdFile.freeSpace
                 val used = total - free
                 val marketingTotal = roundToMarketing(stat.blockCountLong * stat.blockSizeLong, 16.0)
                 "${formatSize(used)} / $marketingTotal GB"
