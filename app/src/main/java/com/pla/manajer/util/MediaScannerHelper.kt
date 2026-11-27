@@ -1,14 +1,13 @@
 package com.pla.manajer.util
 
 import android.content.Context
-import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import java.io.File
 
 /**
  * Penghitung media RESMI dari database Android (MediaStore).
- * Sumber data sama dengan File Manager+ sehingga angka akurat & konsisten.
+ * Download dihitung dari ISI FOLDER FISIK (internal + SD), sama seperti File Manager+.
  */
 object MediaScannerHelper {
     data class Stats(val size: Long, val count: Int)
@@ -20,7 +19,7 @@ object MediaScannerHelper {
                 "AUDIO" -> queryStats(context, MediaStore.Audio.Media.EXTERNAL_CONTENT_URI)
                 "VIDEO" -> queryStats(context, MediaStore.Video.Media.EXTERNAL_CONTENT_URI)
                 "DOC" -> queryDocStats(context)
-                "DOWNLOAD" -> queryDownloadStats(context)
+                "DOWNLOAD" -> scanDownloadFolders(context)
                 else -> Stats(0L, 0)
             }
         } catch (e: Exception) {
@@ -32,23 +31,17 @@ object MediaScannerHelper {
         var totalSize = 0L
         var totalCount = 0
         context.contentResolver.query(
-            uri,
-            arrayOf(MediaStore.MediaColumns.SIZE),
-            null, null, null
+            uri, arrayOf(MediaStore.MediaColumns.SIZE), null, null, null
         )?.use { cursor ->
             val sizeIdx = cursor.getColumnIndex(MediaStore.MediaColumns.SIZE)
             while (cursor.moveToNext()) {
                 val size = if (sizeIdx >= 0) cursor.getLong(sizeIdx) else 0L
-                if (size > 0) {
-                    totalSize += size
-                    totalCount++
-                }
+                if (size > 0) { totalSize += size; totalCount++ }
             }
         }
         return Stats(totalSize, totalCount)
     }
 
-    /** Dokumen: hanya format dokumen sungguhan (bukan file proyek/kode) */
     private fun queryDocStats(context: Context): Stats {
         val docExts = setOf("pdf", "doc", "docx", "txt", "xls", "xlsx", "ppt", "pptx", "csv", "epub", "rtf", "odt")
         var totalSize = 0L
@@ -65,60 +58,39 @@ object MediaScannerHelper {
                 val ext = name.substringAfterLast('.', "").lowercase()
                 if (ext in docExts) {
                     val size = if (sizeIdx >= 0) cursor.getLong(sizeIdx) else 0L
-                    if (size > 0) {
-                        totalSize += size
-                        totalCount++
-                    }
+                    if (size > 0) { totalSize += size; totalCount++ }
                 }
             }
         }
         return Stats(totalSize, totalCount)
     }
 
-    /**
-     * Download: HANYA folder Download resmi di memori internal + kartu SD.
-     * Pakai MediaStore.Downloads (API 29+) atau scan path Download eksplisit (API <29).
-     * Tidak lagi menangkap folder "Download" milik aplikasi/cache.
-     */
-    private fun queryDownloadStats(context: Context): Stats {
+    /** DOWNLOAD: scan isi folder Download FISIK di memori internal + kartu SD (cara File Manager+) */
+    private fun scanDownloadFolders(context: Context): Stats {
         var totalSize = 0L
         var totalCount = 0
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            // API 29+: sumber resmi folder Download
-            context.contentResolver.query(
-                MediaStore.Downloads.EXTERNAL_CONTENT_URI,
-                arrayOf(MediaStore.MediaColumns.SIZE),
-                null, null, null
-            )?.use { cursor ->
-                val sizeIdx = cursor.getColumnIndex(MediaStore.MediaColumns.SIZE)
-                while (cursor.moveToNext()) {
-                    val size = if (sizeIdx >= 0) cursor.getLong(sizeIdx) else 0L
-                    if (size > 0) {
-                        totalSize += size
-                        totalCount++
-                    }
-                }
-            }
-        } else {
-            // API <29: scan hanya folder Download resmi di internal + SD
-            val downloadDirs = mutableListOf<File>()
-            downloadDirs.add(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS))
-            getSdCard(context)?.let { sd ->
-                val sdDownload = File(sd, Environment.DIRECTORY_DOWNLOADS)
-                if (sdDownload.exists()) downloadDirs.add(sdDownload)
-            }
-            downloadDirs.forEach { dir -> scanFolder(dir) { f -> totalSize += f.length(); totalCount++ } }
+        val dirs = mutableListOf<File>()
+        // Folder Download resmi memori internal
+        dirs.add(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS))
+        // Folder Download di kartu SD (jika ada)
+        getSdCard(context)?.let { sd ->
+            val sdDl = File(sd, Environment.DIRECTORY_DOWNLOADS)
+            if (sdDl.exists()) dirs.add(sdDl)
         }
-
+        dirs.forEach { dir ->
+            scanRecursive(dir) { f ->
+                totalSize += f.length()
+                totalCount++
+            }
+        }
         return Stats(totalSize, totalCount)
     }
 
-    private fun scanFolder(dir: File, onFile: (File) -> Unit) {
+    private fun scanRecursive(dir: File, onFile: (File) -> Unit) {
         val files = dir.listFiles() ?: return
         for (f in files) {
             if (f.isFile) onFile(f)
-            else if (f.isDirectory && !f.name.startsWith(".")) scanFolder(f, onFile)
+            else if (f.isDirectory) scanRecursive(f, onFile)  // termasuk folder tersembunyi spt .7934039b
         }
     }
 
