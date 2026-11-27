@@ -2,7 +2,6 @@ package com.pla.manajer
 
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.OpenableColumns
@@ -12,8 +11,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.pla.manajer.databinding.ActivityMainBinding
-import com.pla.manajer.service.GlobalEqualizerService
 import com.pla.manajer.ui.GlobalEqualizerActivity
+import com.pla.manajer.service.GlobalEqualizerService
 import com.pla.manajer.util.MediaScannerHelper
 import com.pla.manajer.util.PlaMediaPlayer
 import com.pla.manajer.util.Prefs
@@ -46,9 +45,11 @@ class MainActivity : AppCompatActivity() {
         b.cardImages.setOnClickListener { openMedia("IMAGE") }
         b.cardAudio.setOnClickListener { openMedia("AUDIO") }
         b.cardVideos.setOnClickListener { openMedia("VIDEO") }
-        // Dokumen sekarang pakai browser media baru (rapi ala File Manager+)
         b.cardDocuments.setOnClickListener { openMedia("DOC") }
-        b.cardDownloads.setOnClickListener { openFileManager(Environment.DIRECTORY_DOWNLOADS) }
+        // PERBAIKAN: path ABSOLUT folder Download (sebelumnya cuma string "Download" → layar kosong!)
+        b.cardDownloads.setOnClickListener {
+            openFileManager(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).absolutePath)
+        }
         b.cardApps.setOnClickListener { startActivity(Intent(this, AppManagerActivity::class.java)) }
         b.cardProjects.setOnClickListener { startActivity(Intent(this, ProjectManagerActivity::class.java)) }
         b.cardFavorites.setOnClickListener { startActivity(Intent(this, FavoritesActivity::class.java)) }
@@ -71,10 +72,13 @@ class MainActivity : AppCompatActivity() {
         b.tvDownloadStats.text = ""
         b.tvAppStats.text = ""
 
+        refreshStorageInfo()
+        loadCategoryStats()
+    }
+
+    private fun refreshStorageInfo() {
         b.tvInternalSize.text = StorageHelper.getInternalStorageInfo()
         b.tvSdSize.text = StorageHelper.getSdCardStorageInfo(this)
-
-        loadCategoryStats()
     }
 
     override fun onResume() {
@@ -85,13 +89,16 @@ class MainActivity : AppCompatActivity() {
         if (prefs.showVideoEditor) b.cardEditVideo.visibility = View.VISIBLE else b.cardEditVideo.visibility = View.GONE
         if (prefs.showGithubBuilder) b.cardGithub.visibility = View.VISIBLE else b.cardGithub.visibility = View.GONE
 
-        // ===== KARTU EQ: HILANG SAAT OFF (persis seperti menu edit lainnya) =====
         if (prefs.eqEnabled) {
             b.cardGlobalEq.visibility = View.VISIBLE
         } else {
             b.cardGlobalEq.visibility = View.GONE
             try { stopService(Intent(this, GlobalEqualizerService::class.java)) } catch (_: Exception) {}
         }
+
+        // Segarkan angka setiap kembali ke beranda
+        refreshStorageInfo()
+        loadCategoryStats()
     }
 
     private fun loadCategoryStats() {
